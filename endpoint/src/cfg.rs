@@ -1,4 +1,6 @@
 use clap::Parser;
+use std::sync::Arc;
+use eko2000_rustlib::rabbitmq::publisher::Publisher;
 
 #[derive(Parser, Debug, Clone)]
 #[command(author, version, about, long_about = None)]
@@ -37,4 +39,11 @@ impl Cfg {
     pub fn rabbitmq_url(&self) -> String {
         format!("amqp://{}:{}@{}:{}", self.amqp_user, self.amqp_password, self.amqp_host, self.amqp_port)
     }
+}
+
+/// Application state containing configuration and RabbitMQ publisher
+#[derive(Clone)]
+pub struct AppState {
+    pub cfg: Cfg,
+    pub publisher: Arc<Publisher>,
 }

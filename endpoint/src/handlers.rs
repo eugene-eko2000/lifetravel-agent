@@ -2,7 +2,7 @@ use axum::{extract::State, http::StatusCode, response::Json as ResponseJson, Jso
 use serde::{Deserialize, Serialize};
 use tracing::{error, info};
 
-use crate::cfg::Cfg;
+use crate::cfg::AppState;
 use crate::publish::publish_prompt;
 
 #[derive(Deserialize)]
@@ -16,22 +16,19 @@ pub struct PromptResponse {
     received_prompt: String,
 }
 
-pub async fn handle_prompt(
-    State(args): State<Cfg>,
-    Json(payload): Json<PromptRequest>,
-) -> Result<ResponseJson<PromptResponse>, StatusCode> {
+async fn handle_prompt_internal(
+    state: AppState,
+    payload: PromptRequest,
+) -> anyhow::Result<PromptResponse> {
     if payload.prompt.is_empty() {
-        error!("Received empty prompt");
-        return Err(StatusCode::BAD_REQUEST);
+        return Err(anyhow::anyhow!("Received empty prompt"));
     }
 
     info!("Received prompt: {}", payload.prompt);
     
     // Publish to RabbitMQ
     if let Err(e) = publish_prompt(
-        &args.rabbitmq_url(),
-        &args.rabbitmq_exchange,
-        &args.rabbitmq_routing_key,
+        state.publisher.clone(),
         payload.prompt.clone(),
     )
     .await
@@ -40,8 +37,21 @@ pub async fn handle_prompt(
         // Continue anyway - we still return success to the client
     }
     
-    Ok(ResponseJson(PromptResponse {
+    Ok(PromptResponse {
         message: "Prompt received successfully".to_string(),
         received_prompt: payload.prompt,
-    }))
+    })
+}
+
+pub async fn handle_prompt(
+    State(state): State<AppState>,
+    Json(payload): Json<PromptRequest>,
+) -> Result<ResponseJson<PromptResponse>, StatusCode> {
+    match handle_prompt_internal(state, payload).await {
+        Ok(response) => Ok(ResponseJson(response)),
+        Err(e) => {
+            error!("Error handling prompt: {}", e);
+            Err(StatusCode::BAD_REQUEST)
+        }
+    }
 }
