@@ -36,7 +36,6 @@ async fn main() -> anyhow::Result<()> {
 
     // Create application state
     let app_state = AppState {
-        cfg,
         publisher,
     };
 

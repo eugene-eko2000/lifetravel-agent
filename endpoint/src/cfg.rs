@@ -44,6 +44,5 @@ impl Cfg {
 /// Application state containing configuration and RabbitMQ publisher
 #[derive(Clone)]
 pub struct AppState {
-    pub cfg: Cfg,
     pub publisher: Arc<Publisher>,
 }
