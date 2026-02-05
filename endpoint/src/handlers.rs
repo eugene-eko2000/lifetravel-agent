@@ -1,6 +1,7 @@
 use axum::{extract::State, http::StatusCode, response::Json as ResponseJson, Json};
 use serde::{Deserialize, Serialize};
 use tracing::{error, info};
+use uuid::Uuid;
 
 use crate::cfg::AppState;
 use crate::publish::publish_prompt;
@@ -24,11 +25,14 @@ async fn handle_prompt_internal(
         return Err(anyhow::anyhow!("Received empty prompt"));
     }
 
-    info!("Received prompt: {}", payload.prompt);
+    // Generate unique request ID
+    let request_id = Uuid::new_v4();
+    info!("Received prompt with request_id: {}", request_id);
     
     // Publish to RabbitMQ
     if let Err(e) = publish_prompt(
         state.publisher.clone(),
+        request_id,
         payload.prompt.clone(),
     )
     .await

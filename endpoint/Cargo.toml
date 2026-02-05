@@ -14,4 +14,5 @@ clap = { version = "4.5", features = ["derive", "env"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 anyhow = "1.0"
+uuid = { version = "1.0", features = ["v4", "serde"] }
 eko2000-rustlib = { git = "https://github.com/eugene-eko2000/rust-crates", tag = "v1.1.8" }
