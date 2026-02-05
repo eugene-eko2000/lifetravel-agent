@@ -1,4 +1,4 @@
-use axum::{routing::post, Router};
+use axum::{routing::get, Router};
 use clap::Parser;
 use tower_http::cors::CorsLayer;
 use tracing::info;
@@ -8,7 +8,7 @@ mod cfg;
 mod handlers;
 mod publish;
 
-use crate::{cfg::{Cfg, AppState}, handlers::handle_prompt};
+use crate::{cfg::{Cfg, AppState}, handlers::handle_websocket};
 use eko2000_rustlib::rabbitmq::publisher::Publisher;
 
 #[tokio::main]
@@ -40,7 +40,7 @@ async fn main() -> anyhow::Result<()> {
     };
 
     let app = Router::new()
-        .route("/api/v1/prompt", post(handle_prompt))
+        .route("/api/v1/prompt", get(handle_websocket))
         .layer(CorsLayer::permissive())
         .with_state(app_state);
     
@@ -48,9 +48,9 @@ async fn main() -> anyhow::Result<()> {
         .await
         .map_err(|e| anyhow::anyhow!("Failed to bind to address {}: {}", bind_address, e))?;
 
-    info!("Server running on http://{}", bind_address);
+    info!("Server running on ws://{}", bind_address);
     info!(
-        "POST endpoint available at http://{}/api/v1/prompt",
+        "WebSocket endpoint available at ws://{}/api/v1/prompt",
         bind_address
     );
 
