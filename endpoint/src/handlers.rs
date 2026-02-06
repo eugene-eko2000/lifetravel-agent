@@ -1,12 +1,15 @@
 use axum::{
-    extract::{State, ws::{WebSocket, Message, WebSocketUpgrade}},
+    extract::{
+        ws::{Message, WebSocket, WebSocketUpgrade},
+        State,
+    },
     response::Response,
 };
+use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
+use tokio::select;
 use tracing::{error, info, warn};
 use uuid::Uuid;
-use futures_util::{SinkExt, StreamExt};
-use tokio::select;
 
 use crate::cfg::AppState;
 use crate::publish::publish_prompt;
@@ -42,19 +45,15 @@ async fn handle_prompt_internal(
     // Generate unique request ID
     let request_id = Uuid::new_v4();
     info!("Received prompt with request_id: {}", request_id);
-    
+
     // Publish to RabbitMQ
-    if let Err(e) = publish_prompt(
-        state.publisher.clone(),
-        request_id,
-        payload.prompt.clone(),
-    )
-    .await
+    if let Err(e) =
+        publish_prompt(state.publisher.clone(), request_id, payload.prompt.clone()).await
     {
         error!("Failed to publish prompt to RabbitMQ: {}", e);
         // Continue anyway - we still return success to the client
     }
-    
+
     Ok(PromptResponse {
         message: "Prompt received successfully".to_string(),
         received_prompt: payload.prompt,
@@ -64,7 +63,7 @@ async fn handle_prompt_internal(
 
 async fn handle_socket(state: AppState, socket: WebSocket) {
     let (mut sender, mut receiver) = socket.split();
-    
+
     // Subscribe to TripCard broadcasts
     let mut trip_card_rx = state.trip_card_tx.subscribe();
 
@@ -75,7 +74,7 @@ async fn handle_socket(state: AppState, socket: WebSocket) {
                 match msg {
                     Some(Ok(Message::Text(text))) => {
                         info!("Received WebSocket message: {}", text);
-                        
+
                         // Parse JSON request
                         let request: PromptRequest = match serde_json::from_str(&text) {
                             Ok(req) => req,
@@ -102,7 +101,7 @@ async fn handle_socket(state: AppState, socket: WebSocket) {
                                         continue;
                                     }
                                 };
-                                
+
                                 if let Err(e) = sender.send(Message::Text(response_json)).await {
                                     error!("Failed to send response: {}", e);
                                     break;
@@ -143,18 +142,18 @@ async fn handle_socket(state: AppState, socket: WebSocket) {
                     }
                 }
             }
-            
+
             // Handle TripCard messages from RabbitMQ subscriber
             trip_card = trip_card_rx.recv() => {
                 match trip_card {
                     Ok(card) => {
                         info!("Forwarding TripCard to WebSocket client: {:?}", card);
-                        
+
                         let message = TripCardMessage {
                             msg_type: "trip_card".to_string(),
                             data: card,
                         };
-                        
+
                         match serde_json::to_string(&message) {
                             Ok(json) => {
                                 if let Err(e) = sender.send(Message::Text(json)).await {
@@ -175,13 +174,10 @@ async fn handle_socket(state: AppState, socket: WebSocket) {
             }
         }
     }
-    
+
     info!("WebSocket connection ended");
 }
 
-pub async fn handle_websocket(
-    ws: WebSocketUpgrade,
-    State(state): State<AppState>,
-) -> Response {
+pub async fn handle_websocket(ws: WebSocketUpgrade, State(state): State<AppState>) -> Response {
     ws.on_upgrade(|socket| handle_socket(state, socket))
 }

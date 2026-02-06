@@ -24,12 +24,12 @@ impl Callback for ResponseCallback {
     fn on_message(&self, msg: &Message) -> Result<(), Box<dyn std::error::Error>> {
         let trip_card: TripCard = serde_json::from_slice(&msg.body)?;
         info!("Received TripCard from RabbitMQ: {:?}", trip_card);
-        
+
         // Send the TripCard to all WebSocket connections via the broadcast channel
         if let Err(e) = self.trip_card_tx.send(trip_card.clone()) {
             error!("Failed to broadcast TripCard (no receivers): {}", e);
         }
-        
+
         Ok(())
     }
 }
@@ -44,7 +44,7 @@ pub async fn subscribe_to_trip_cards(
     info!("Initializing RabbitMQ subscriber for TripCard messages...");
 
     let callback = ResponseCallback::new(trip_card_tx);
-    
+
     let subscriber = Subscriber::new(connection_url, exchange, queue_name)
         .await
         .map_err(|e| anyhow::anyhow!("Failed to initialize RabbitMQ subscriber: {}", e))?
