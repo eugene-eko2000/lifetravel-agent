@@ -3,15 +3,13 @@ use std::sync::Arc;
 use eko2000_rustlib::rabbitmq::subscriber::{Callback, Message, Subscriber};
 use serde::{Deserialize, Serialize};
 use tracing::info;
+use uuid::Uuid;
 
 /// Incoming prompt message from the ingress API
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct PromptMessage {
-    // TODO: Define the prompt message structure
-    // Example fields:
-    // pub request_id: String,
-    // pub user_prompt: String,
-    // pub context: Option<serde_json::Value>,
+    pub request_id: Uuid,
+    pub prompt: String,
 }
 
 /// Callback handler for processing incoming prompt messages
