@@ -36,6 +36,10 @@ pub struct Cfg {
     /// RabbitMQ response routing key
     #[arg(long, env = "RABBITMQ_RESPONSE_ROUTING_KEY", default_value = "response")]
     pub rabbitmq_response_routing_key: String,
+
+    /// RabbitMQ queue name for responses
+    #[arg(long, env = "RABBITMQ_RESPONSE_QUEUE", default_value = "response_queue")]
+    pub rabbitmq_response_queue: String,
 }
 
 impl Cfg {
