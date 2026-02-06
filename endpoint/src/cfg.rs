@@ -30,8 +30,12 @@ pub struct Cfg {
     pub rabbitmq_exchange: String,
     
     /// RabbitMQ routing key
-    #[arg(long, env = "RABBITMQ_ROUTING_KEY", default_value = "prompt")]
-    pub rabbitmq_routing_key: String,
+    #[arg(long, env = "RABBITMQ_REQUEST_ROUTING_KEY", default_value = "prompt")]
+    pub rabbitmq_request_routing_key: String,
+
+    /// RabbitMQ response routing key
+    #[arg(long, env = "RABBITMQ_RESPONSE_ROUTING_KEY", default_value = "response")]
+    pub rabbitmq_response_routing_key: String,
 }
 
 impl Cfg {

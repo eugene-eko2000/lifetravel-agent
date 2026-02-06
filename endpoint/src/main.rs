@@ -7,6 +7,7 @@ use std::sync::Arc;
 mod cfg;
 mod handlers;
 mod publish;
+mod subscribe;
 
 use crate::{cfg::{Cfg, AppState}, handlers::handle_websocket};
 use eko2000_rustlib::rabbitmq::publisher::Publisher;
@@ -26,7 +27,7 @@ async fn main() -> anyhow::Result<()> {
     let publisher = Publisher::new(
         &cfg.rabbitmq_url(),
         &cfg.rabbitmq_exchange,
-        &cfg.rabbitmq_routing_key,
+        &cfg.rabbitmq_request_routing_key,
     )
     .await
     .map_err(|e| anyhow::anyhow!("Failed to initialize RabbitMQ publisher: {}", e))?;
