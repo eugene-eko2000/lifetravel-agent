@@ -57,7 +57,7 @@ pub async fn subscribe_to_trip_cards(
     );
 
     subscriber
-        .start()
+        .async_start()
         .await
         .map_err(|e| anyhow::anyhow!("Failed to start subscriber: {}", e))?;
 
