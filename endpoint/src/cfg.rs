@@ -1,6 +1,9 @@
 use clap::Parser;
 use std::sync::Arc;
+use tokio::sync::broadcast;
 use eko2000_rustlib::rabbitmq::publisher::Publisher;
+
+use crate::subscribe::TripCard;
 
 #[derive(Parser, Debug, Clone)]
 #[command(author, version, about, long_about = None)]
@@ -53,4 +56,6 @@ impl Cfg {
 #[derive(Clone)]
 pub struct AppState {
     pub publisher: Arc<Publisher>,
+    /// Broadcast channel sender for TripCard messages from RabbitMQ subscriber
+    pub trip_card_tx: broadcast::Sender<TripCard>,
 }
