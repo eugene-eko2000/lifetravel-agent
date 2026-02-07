@@ -30,6 +30,14 @@ pub struct Cfg {
     /// RabbitMQ routing key for incoming prompts
     #[arg(long, env = "RABBITMQ_ROUTING_KEY", default_value = "prompt")]
     pub rabbitmq_routing_key: String,
+
+    /// OpenAI API key
+    #[arg(long, env = "OPENAI_API_KEY")]
+    pub openai_api_key: String,
+
+    /// OpenAI model to use
+    #[arg(long, env = "OPENAI_MODEL", default_value = "gpt-4o")]
+    pub openai_model: String,
 }
 
 impl Cfg {

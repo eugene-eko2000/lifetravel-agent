@@ -2,6 +2,7 @@ use clap::Parser;
 use tracing::{error, info};
 
 mod cfg;
+mod llm;
 mod subscribe;
 
 use crate::cfg::Cfg;
