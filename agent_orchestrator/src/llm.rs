@@ -30,7 +30,7 @@ struct TextConfig {
 
 /// Top-level request body for `POST /v1/responses`.
 #[derive(Serialize, Debug)]
-struct ResponsesRequest {
+struct ResponsesAPIRequest {
     model: String,
     instructions: String,
     input: Vec<InputMessage>,
@@ -54,7 +54,7 @@ struct OutputItem {
 }
 
 #[derive(Deserialize, Debug)]
-struct ResponsesResponse {
+struct ResponsesAPIResponse {
     // id: String,
     output: Vec<OutputItem>,
 }
@@ -135,7 +135,7 @@ pub async fn get_trip_request(
         content: user_prompt.to_string(),
     });
 
-    let body = ResponsesRequest {
+    let body = ResponsesAPIRequest {
         model: model.to_string(),
         instructions: SYSTEM_PROMPT.to_string(),
         input,
@@ -169,7 +169,7 @@ pub async fn get_trip_request(
         );
     }
 
-    let api_response: ResponsesResponse = response.json().await?;
+    let api_response: ResponsesAPIResponse = response.json().await?;
 
     // Extract the text content from the first output message
     let text = api_response

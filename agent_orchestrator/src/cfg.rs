@@ -36,7 +36,7 @@ pub struct Cfg {
     pub openai_api_key: String,
 
     /// OpenAI model to use
-    #[arg(long, env = "OPENAI_MODEL", default_value = "gpt-4o")]
+    #[arg(long, env = "OPENAI_MODEL", default_value = "gpt-5.2")]
     pub openai_model: String,
 }
 
