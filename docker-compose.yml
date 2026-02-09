@@ -35,7 +35,10 @@ services:
   agent_orchestrator:
     build:
       context: ./agent_orchestrator
+    ports:
+      - "8092:8080"
     environment:
+      PORT: 8080
       AMQP_HOST: rabbitmq
       AMQP_PORT: 5672
       AMQP_USER: guest

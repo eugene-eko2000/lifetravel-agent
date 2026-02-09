@@ -66,7 +66,7 @@ pub async fn start_subscriber(
     );
 
     subscriber
-        .start()
+        .async_start()
         .await
         .map_err(|e| anyhow::anyhow!("Failed to start subscriber: {}", e))?;
 

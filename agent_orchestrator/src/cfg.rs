@@ -3,6 +3,10 @@ use clap::Parser;
 #[derive(Parser, Debug, Clone)]
 #[command(author, version, about = "Agent Orchestrator Service", long_about = None)]
 pub struct Cfg {
+    /// Port to bind the HTTP server to
+    #[arg(long, env = "PORT", default_value_t = 8080)]
+    pub port: u16,
+
     /// RabbitMQ host
     #[arg(long, env = "AMQP_HOST", default_value = "localhost")]
     pub amqp_host: String,

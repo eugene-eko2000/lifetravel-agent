@@ -10,6 +10,7 @@ export RABBITMQ_EXCHANGE="${RABBITMQ_EXCHANGE:-lifetravel_exchange}"
 export RABBITMQ_REQUEST_ROUTING_KEY="${RABBITMQ_REQUEST_ROUTING_KEY:-key.triprequest}"
 
 # ── Agent Orchestrator specific ──────────────────────────────────────────────
+export PORT="${ORCHESTRATOR_PORT:-8092}"
 export RABBITMQ_QUEUE="${RABBITMQ_QUEUE:-orchestrator_queue}"
 export OPENAI_API_KEY="${OPENAI_API_KEY:-$(cat ~/.openai/devapikey)}"
 export OPENAI_MODEL="${OPENAI_MODEL:-gpt-5.2}"
