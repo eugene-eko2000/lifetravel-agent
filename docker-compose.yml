@@ -16,15 +16,15 @@ services:
     build:
       context: ./ingress_api
     ports:
-      - "8091:8091"
+      - "8091:8080"
     environment:
+      PORT: 8080
       AMQP_HOST: rabbitmq
       AMQP_PORT: 5672
       AMQP_USER: guest
       AMQP_PASSWORD: guest
       RABBITMQ_EXCHANGE: lifetravel_exchange
       RABBITMQ_REQUEST_ROUTING_KEY: key.triprequest
-      PORT: 8091
       RABBITMQ_RESPONSE_ROUTING_KEY: key.tripcard
       RABBITMQ_RESPONSE_QUEUE: tripcard_queue
     depends_on:
