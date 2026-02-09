@@ -35,6 +35,14 @@ pub struct Cfg {
     #[arg(long, env = "RABBITMQ_REQUEST_ROUTING_KEY", default_value = "prompt")]
     pub rabbitmq_request_routing_key: String,
 
+    /// RabbitMQ routing key for publishing progress messages
+    #[arg(
+        long,
+        env = "RABBITMQ_PROGRESS_ROUTING_KEY",
+        default_value = "progress"
+    )]
+    pub rabbitmq_progress_routing_key: String,
+
     /// OpenAI API key
     #[arg(long, env = "OPENAI_API_KEY")]
     pub openai_api_key: String,
