@@ -8,6 +8,7 @@ export AMQP_USER="${AMQP_USER:-guest}"
 export AMQP_PASSWORD="${AMQP_PASSWORD:-guest}"
 export RABBITMQ_EXCHANGE="${RABBITMQ_EXCHANGE:-lifetravel_exchange}"
 export RABBITMQ_REQUEST_ROUTING_KEY="${RABBITMQ_REQUEST_ROUTING_KEY:-key.triprequest}"
+export RABBITMQ_PROGRESS_ROUTING_KEY="${RABBITMQ_PROGRESS_ROUTING_KEY:-key.progress}"
 
 # ── Agent Orchestrator specific ──────────────────────────────────────────────
 export PORT="${ORCHESTRATOR_PORT:-8092}"

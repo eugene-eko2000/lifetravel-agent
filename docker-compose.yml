@@ -25,6 +25,7 @@ services:
       AMQP_PASSWORD: guest
       RABBITMQ_EXCHANGE: lifetravel_exchange
       RABBITMQ_REQUEST_ROUTING_KEY: key.triprequest
+      RABBITMQ_PROGRESS_ROUTING_KEY: key.progress
       RABBITMQ_RESPONSE_ROUTING_KEY: key.tripcard
       RABBITMQ_RESPONSE_QUEUE: tripcard_queue
     depends_on:
@@ -45,6 +46,7 @@ services:
       AMQP_PASSWORD: guest
       RABBITMQ_EXCHANGE: lifetravel_exchange
       RABBITMQ_REQUEST_ROUTING_KEY: key.triprequest
+      RABBITMQ_PROGRESS_ROUTING_KEY: key.progress
       RABBITMQ_QUEUE: orchestrator_queue
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-5.2}
