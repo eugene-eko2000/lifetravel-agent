@@ -6,8 +6,16 @@ use tokio::sync::broadcast;
 use tracing::{error, info};
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
+pub enum ProgressStatus {
+    SingleEvent,
+    InProgress,
+    Finished,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct ProgressData {
-    // Empty structure - will be filled with data later
+    pub status: ProgressStatus,
+    pub message: String,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]

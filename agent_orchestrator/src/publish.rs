@@ -3,10 +3,19 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tracing::info;
 
+/// Status of a progress event.
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub enum ProgressStatus {
+    SingleEvent,
+    InProgress,
+    Finished,
+}
+
 /// Progress data published to RabbitMQ for the ingress API to forward to clients.
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct ProgressData {
-    // Empty structure - will be filled with data later
+    pub status: ProgressStatus,
+    pub message: String,
 }
 
 pub async fn publish_progress(
