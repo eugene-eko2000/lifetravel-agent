@@ -28,8 +28,8 @@ pub struct Cfg {
     pub rabbitmq_queue: String,
 
     /// RabbitMQ routing key for incoming prompts
-    #[arg(long, env = "RABBITMQ_ROUTING_KEY", default_value = "prompt")]
-    pub rabbitmq_routing_key: String,
+    #[arg(long, env = "RABBITMQ_REQUEST_ROUTING_KEY", default_value = "prompt")]
+    pub rabbitmq_request_routing_key: String,
 
     /// OpenAI API key
     #[arg(long, env = "OPENAI_API_KEY")]

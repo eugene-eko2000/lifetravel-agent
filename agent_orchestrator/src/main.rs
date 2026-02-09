@@ -29,13 +29,15 @@ async fn main() -> anyhow::Result<()> {
         &cfg.rabbitmq_url(),
         &cfg.rabbitmq_exchange,
         &cfg.rabbitmq_queue,
-        &cfg.rabbitmq_routing_key,
+        &cfg.rabbitmq_request_routing_key,
     )
     .await
     {
         error!("Agent Orchestrator failed: {}", e);
         return Err(e);
     }
+
+    info!("Exiting Service...");
 
     Ok(())
 }
