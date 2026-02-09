@@ -13,7 +13,7 @@ mod subscribe;
 use crate::subscribe::subscribe_to_trip_cards;
 use crate::{
     cfg::{AppState, Cfg},
-    handlers::handle_websocket,
+    handlers::{handle_websocket, health},
 };
 use eko2000_rustlib::rabbitmq::publisher::Publisher;
 
@@ -68,6 +68,7 @@ async fn main() -> anyhow::Result<()> {
     });
 
     let app = Router::new()
+        .route("/health", get(health))
         .route("/api/v1/prompt", get(handle_websocket))
         .layer(CorsLayer::permissive())
         .with_state(app_state);

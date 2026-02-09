@@ -3,7 +3,9 @@ use axum::{
         ws::{Message, WebSocket, WebSocketUpgrade},
         State,
     },
+    http::StatusCode,
     response::Response,
+    Json,
 };
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
@@ -14,6 +16,15 @@ use uuid::Uuid;
 use crate::cfg::AppState;
 use crate::publish::publish_prompt;
 use crate::subscribe::TripCard;
+
+#[derive(Serialize)]
+pub struct HealthResponse {
+    pub status: &'static str,
+}
+
+pub async fn health() -> (StatusCode, Json<HealthResponse>) {
+    (StatusCode::OK, Json(HealthResponse { status: "ok" }))
+}
 
 #[derive(Deserialize)]
 pub struct PromptRequest {
