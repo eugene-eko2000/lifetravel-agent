@@ -1,9 +1,12 @@
 use std::sync::Arc;
 
-use eko2000_rustlib::rabbitmq::subscriber::{Callback, Message, Subscriber};
+use eko2000_rustlib::rabbitmq::{publisher::Publisher, subscriber::{Callback, Message, Subscriber}};
 use serde::{Deserialize, Serialize};
-use tracing::info;
+use tokio::spawn;
+use tracing::{error, info};
 use uuid::Uuid;
+
+use crate::publish::{ProgressData, ProgressStatus, publish_progress};
 
 /// Incoming prompt message from the ingress API
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -13,23 +16,29 @@ pub struct PromptMessage {
 }
 
 /// Callback handler for processing incoming prompt messages
-pub struct PromptCallback;
-
-impl PromptCallback {
-    pub fn new() -> Self {
-        Self
-    }
+pub struct PromptCallback {
+    progress_publisher: Arc<Publisher>,
 }
 
-impl Default for PromptCallback {
-    fn default() -> Self {
-        Self::new()
+impl PromptCallback {
+    pub fn new(progress_publisher: Arc<Publisher>) -> Self {
+        Self { progress_publisher }
     }
 }
 
 impl Callback for PromptCallback {
-    fn on_message(&self, msg: &Message) -> Result<(), Box<dyn std::error::Error>> {
+    fn on_message(&self, msg: &Message) -> anyhow::Result<()> {
         let prompt: PromptMessage = serde_json::from_slice(&msg.body)?;
+        let progress_publisher = self.progress_publisher.clone();
+        spawn(async move {
+            publish_progress(progress_publisher, ProgressData {
+                status: ProgressStatus::SingleEvent,
+                message: format!("Received prompt with request_id: {}", prompt.request_id),
+            }).await
+            .unwrap_or_else(|e| {
+                error!("Failed to publish progress message: {}", e);
+            });
+        });
         info!("Received PromptMessage: {:?}", prompt);
 
         // TODO: Implement agent orchestration logic here
@@ -49,10 +58,11 @@ pub async fn start_subscriber(
     exchange: &str,
     queue_name: &str,
     routing_key: &str,
+    progress_publisher: Arc<Publisher>,
 ) -> anyhow::Result<()> {
     info!("Initializing RabbitMQ subscriber for prompt messages...");
 
-    let callback = PromptCallback::new();
+    let callback = PromptCallback::new(progress_publisher);
 
     let subscriber = Subscriber::new(connection_url, exchange, queue_name)
         .await

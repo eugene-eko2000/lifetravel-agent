@@ -41,7 +41,7 @@ async fn main() -> anyhow::Result<()> {
     .await
     .map_err(|e| anyhow::anyhow!("Failed to initialize RabbitMQ publisher: {}", e))?;
 
-    let _progress_publisher = Arc::new(progress_publisher);
+    let progress_publisher = Arc::new(progress_publisher);
     info!("Successfully initialized RabbitMQ progress publisher");
 
     // Start the RabbitMQ subscriber (non-blocking)
@@ -50,6 +50,7 @@ async fn main() -> anyhow::Result<()> {
         &cfg.rabbitmq_exchange,
         &cfg.rabbitmq_queue,
         &cfg.rabbitmq_request_routing_key,
+        progress_publisher,
     )
     .await?;
 

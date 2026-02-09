@@ -34,7 +34,7 @@ impl<T> ResponseCallback<T> {
 }
 
 impl<T: DeserializeOwned + Clone + Debug + Send + Sync + 'static> Callback for ResponseCallback<T> {
-    fn on_message(&self, msg: &Message) -> Result<(), Box<dyn std::error::Error>> {
+    fn on_message(&self, msg: &Message) -> anyhow::Result<()> {
         let response: T = serde_json::from_slice(&msg.body)?;
         info!("Received response from RabbitMQ: {:?}", response);
 
