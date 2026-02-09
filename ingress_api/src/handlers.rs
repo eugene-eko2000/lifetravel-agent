@@ -15,7 +15,6 @@ use uuid::Uuid;
 
 use crate::cfg::AppState;
 use crate::publish::publish_prompt;
-use crate::subscribe::TripCard;
 
 #[derive(Serialize)]
 pub struct HealthResponse {
@@ -39,10 +38,10 @@ pub struct PromptResponse {
 }
 
 #[derive(Serialize)]
-pub struct TripCardMessage {
+pub struct DataMessage<T> {
     #[serde(rename = "type")]
     msg_type: String,
-    data: TripCard,
+    data: T,
 }
 
 async fn handle_prompt_internal(
@@ -76,7 +75,8 @@ async fn handle_socket(state: AppState, socket: WebSocket) {
     let (mut sender, mut receiver) = socket.split();
 
     // Subscribe to TripCard broadcasts
-    let mut trip_card_rx = state.trip_card_tx.subscribe();
+    let mut progress_rx = state.progress_tx.subscribe();
+    let mut tripcard_rx = state.tripcard_tx.subscribe();
 
     loop {
         select! {
@@ -154,13 +154,43 @@ async fn handle_socket(state: AppState, socket: WebSocket) {
                 }
             }
 
+            // Handle progress messages from RabbitMQ subscriber
+            progress = progress_rx.recv() => {
+                match progress {
+                    Ok(progress_data) => {
+                        info!("Forwarding progress update to WebSocket client: {:?}", progress_data);
+
+                        let message = DataMessage {
+                            msg_type: "progress_update".to_string(),
+                            data: progress_data,
+                        };
+
+                        match serde_json::to_string(&message) {
+                            Ok(json) => {
+                                if let Err(e) = sender.send(Message::Text(json)).await {
+                                    error!("Failed to send progress update to WebSocket: {}", e);
+                                    break;
+                                }
+                            }
+                            Err(e) => {
+                                error!("Failed to serialize progress update message: {}", e);
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        error!("Error receiving progress data from broadcast: {}", e);
+                        // Don't break - just continue, the channel might recover
+                    }
+                }
+            }
+
             // Handle TripCard messages from RabbitMQ subscriber
-            trip_card = trip_card_rx.recv() => {
+            trip_card = tripcard_rx.recv() => {
                 match trip_card {
                     Ok(card) => {
                         info!("Forwarding TripCard to WebSocket client: {:?}", card);
 
-                        let message = TripCardMessage {
+                        let message = DataMessage {
                             msg_type: "trip_card".to_string(),
                             data: card,
                         };

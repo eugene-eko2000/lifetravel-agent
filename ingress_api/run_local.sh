@@ -12,6 +12,7 @@ export RABBITMQ_REQUEST_ROUTING_KEY="${RABBITMQ_REQUEST_ROUTING_KEY:-key.tripreq
 # ── Ingress API specific ────────────────────────────────────────────────────
 export PORT="${INGRESS_API_PORT:-8091}"
 export RABBITMQ_RESPONSE_ROUTING_KEY="${RABBITMQ_RESPONSE_ROUTING_KEY:-key.tripcard}"
+export RABBITMQ_PROGRESS_ROUTING_KEY="${RABBITMQ_PROGRESS_ROUTING_KEY:-key.progress}"
 export RABBITMQ_RESPONSE_QUEUE="${RABBITMQ_RESPONSE_QUEUE:-tripcard_queue}"
 
 cargo run

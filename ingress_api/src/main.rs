@@ -10,7 +10,7 @@ mod handlers;
 mod publish;
 mod subscribe;
 
-use crate::subscribe::subscribe_to_trip_cards;
+use crate::subscribe::subscribe_to_agent_responses;
 use crate::{
     cfg::{AppState, Cfg},
     handlers::{handle_websocket, health},
@@ -41,25 +41,31 @@ async fn main() -> anyhow::Result<()> {
     let publisher = Arc::new(publisher);
 
     // Create broadcast channel for TripCard messages (capacity of 100 messages)
-    let (trip_card_tx, _) = broadcast::channel(100);
+    let (tripcard_tx, _) = broadcast::channel(100);
+    // Create broadcast channel for ProgressData messages (capacity of 100 messages)
+    let (progress_tx, _) = broadcast::channel(100);
 
     // Create application state
     let app_state = AppState {
         publisher,
-        trip_card_tx: trip_card_tx.clone(),
+        tripcard_tx: tripcard_tx.clone(),
+        progress_tx: progress_tx.clone(),
     };
 
     // Start the RabbitMQ subscriber in a background task
     let subscriber_cfg = cfg.clone();
-    let subscriber_tx = trip_card_tx.clone();
+    let progress_tx = progress_tx.clone();
+    let tripcard_tx = tripcard_tx.clone();
     tokio::spawn(async move {
         info!("Starting RabbitMQ subscriber for TripCard messages...");
-        if let Err(e) = subscribe_to_trip_cards(
+        if let Err(e) = subscribe_to_agent_responses(
             &subscriber_cfg.rabbitmq_url(),
             &subscriber_cfg.rabbitmq_exchange,
             &subscriber_cfg.rabbitmq_response_queue,
-            &subscriber_cfg.rabbitmq_response_routing_key,
-            subscriber_tx,
+            &subscriber_cfg.rabbitmq_progress_routing_key,
+            &subscriber_cfg.rabbitmq_tripcard_routing_key,
+            progress_tx,
+            tripcard_tx,
         )
         .await
         {

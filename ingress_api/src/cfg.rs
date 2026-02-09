@@ -3,7 +3,7 @@ use eko2000_rustlib::rabbitmq::publisher::Publisher;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 
-use crate::subscribe::TripCard;
+use crate::subscribe::{ProgressData, TripCard};
 
 #[derive(Parser, Debug, Clone)]
 #[command(author, version, about, long_about = None)]
@@ -36,13 +36,21 @@ pub struct Cfg {
     #[arg(long, env = "RABBITMQ_REQUEST_ROUTING_KEY", default_value = "prompt")]
     pub rabbitmq_request_routing_key: String,
 
-    /// RabbitMQ response routing key
+    /// RabbitMQ trip card routing key
     #[arg(
         long,
-        env = "RABBITMQ_RESPONSE_ROUTING_KEY",
-        default_value = "response"
+        env = "RABBITMQ_TRIPCARD_ROUTING_KEY",
+        default_value = "tripcard"
     )]
-    pub rabbitmq_response_routing_key: String,
+    pub rabbitmq_tripcard_routing_key: String,
+
+    /// RabbitMQ progress message routing key
+    #[arg(
+        long,
+        env = "RABBITMQ_PROGRESS_ROUTING_KEY",
+        default_value = "progress"
+    )]
+    pub rabbitmq_progress_routing_key: String,
 
     /// RabbitMQ queue name for responses
     #[arg(
@@ -67,6 +75,8 @@ impl Cfg {
 #[derive(Clone)]
 pub struct AppState {
     pub publisher: Arc<Publisher>,
+    /// Broadcast channel sender for progress messages from RabbitMQ subscriber
+    pub progress_tx: broadcast::Sender<ProgressData>,
     /// Broadcast channel sender for TripCard messages from RabbitMQ subscriber
-    pub trip_card_tx: broadcast::Sender<TripCard>,
+    pub tripcard_tx: broadcast::Sender<TripCard>,
 }
