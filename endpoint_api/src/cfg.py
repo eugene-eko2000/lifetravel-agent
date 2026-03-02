@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class Cfg:
+    endpoint_port: int
     amqp_host: str
     amqp_port: str
     amqp_user: str
@@ -14,6 +15,7 @@ class Cfg:
     @classmethod
     def from_env(cls) -> "Cfg":
         return cls(
+            endpoint_port=int(os.getenv("PORT", "8080")),
             amqp_host=os.getenv("AMQP_HOST", "localhost"),
             amqp_port=os.getenv("AMQP_PORT", "5672"),
             amqp_user=os.getenv("AMQP_USER", "guest"),

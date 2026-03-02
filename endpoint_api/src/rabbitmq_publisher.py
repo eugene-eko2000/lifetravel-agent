@@ -1,4 +1,5 @@
 import json
+import logging
 from typing import Any
 
 import aio_pika
@@ -6,9 +7,16 @@ from aio_pika import DeliveryMode, ExchangeType, Message
 
 from cfg import Cfg
 
+logger = logging.getLogger("endpoint_api.rabbitmq_publisher")
+
 
 async def send_itinerary(payload: dict[str, Any]) -> None:
     cfg = Cfg.from_env()
+    logger.info(
+        "Publishing itinerary request to exchange=%s routing_key=%s",
+        cfg.rabbitmq_exchange,
+        cfg.rabbitmq_routing_key,
+    )
     connection = await aio_pika.connect_robust(cfg.amqp_url)
     try:
         channel = await connection.channel()
@@ -22,5 +30,6 @@ async def send_itinerary(payload: dict[str, Any]) -> None:
         message = Message(body=body, delivery_mode=DeliveryMode.PERSISTENT)
 
         await exchange.publish(message, routing_key=cfg.rabbitmq_routing_key)
+        logger.info("Itinerary request published successfully")
     finally:
         await connection.close()

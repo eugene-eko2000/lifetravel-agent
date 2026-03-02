@@ -11,45 +11,21 @@ services:
       timeout: 5s
       retries: 5
 
-  # ── Ingress API ──────────────────────────────────────────────────────────────
-  ingress_api:
+  # ── Endpoint API ─────────────────────────────────────────────────────────────
+  endpoint_api:
     build:
-      context: ./ingress_api
+      context: ./endpoint_api
     ports:
-      - "8091:8080"
+      - "8080:8080"
     environment:
       PORT: 8080
       AMQP_HOST: rabbitmq
       AMQP_PORT: 5672
       AMQP_USER: guest
       AMQP_PASSWORD: guest
-      RABBITMQ_EXCHANGE: lifetravel_exchange
-      RABBITMQ_REQUEST_ROUTING_KEY: key.triprequest
-      RABBITMQ_PROGRESS_ROUTING_KEY: key.progress
-      RABBITMQ_RESPONSE_ROUTING_KEY: key.tripcard
-      RABBITMQ_RESPONSE_QUEUE: tripcard_queue
+      RABBITMQ_EXCHANGE: lifetravel_agent
+      RABBITMQ_ITINERARY_REQUEST_ROUTING_KEY: itinerary:user_request
     depends_on:
       rabbitmq:
         condition: service_healthy
 
-  # ── Agent Orchestrator ───────────────────────────────────────────────────────
-  agent_orchestrator:
-    build:
-      context: ./agent_orchestrator
-    ports:
-      - "8092:8080"
-    environment:
-      PORT: 8080
-      AMQP_HOST: rabbitmq
-      AMQP_PORT: 5672
-      AMQP_USER: guest
-      AMQP_PASSWORD: guest
-      RABBITMQ_EXCHANGE: lifetravel_exchange
-      RABBITMQ_REQUEST_ROUTING_KEY: key.triprequest
-      RABBITMQ_PROGRESS_ROUTING_KEY: key.progress
-      RABBITMQ_QUEUE: orchestrator_queue
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
-      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-5.2}
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
