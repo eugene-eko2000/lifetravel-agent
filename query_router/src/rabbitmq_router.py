@@ -1,5 +1,6 @@
 import json
 import logging
+import uuid
 from typing import Any
 
 import aio_pika
@@ -54,22 +55,37 @@ async def _handle_message(
         logger.error("Incoming message is missing a valid 'content' field: %s", payload)
         return
 
+    request_id = payload.get("id")
+    if not isinstance(request_id, str) or not request_id.strip():
+        request_id = str(uuid.uuid4())
+
     try:
-        llm_response = await request_structured_itinerary(content)
+        llm_response = await request_structured_itinerary(request_id, content)
     except Exception:
         logger.exception("LLM processing failed")
         return
 
     outgoing_payload = {
-        "id": payload.get("id"),
+        "id": request_id,
         "content": content,
         "structured_response": llm_response,
     }
+
+    llm_response_type = llm_response.get("type")
+    routing_key = (
+        cfg.rabbitmq_missing_info_routing_key
+        if llm_response_type == "missing_info"
+        else cfg.rabbitmq_publish_routing_key
+    )
 
     outgoing = Message(
         body=json.dumps(outgoing_payload).encode("utf-8"),
         delivery_mode=DeliveryMode.PERSISTENT,
         content_type="application/json",
     )
-    await exchange.publish(outgoing, routing_key=cfg.rabbitmq_publish_routing_key)
-    logger.info("Published routed response for itinerary id=%s", payload.get("id"))
+    await exchange.publish(outgoing, routing_key=routing_key)
+    logger.info(
+        "Published routed response for itinerary id=%s via routing_key=%s",
+        request_id,
+        routing_key,
+    )

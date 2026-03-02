@@ -12,7 +12,11 @@ class Cfg:
     rabbitmq_exchange: str
     rabbitmq_subscribe_routing_key: str
     rabbitmq_publish_routing_key: str
+    rabbitmq_missing_info_routing_key: str
     rabbitmq_queue_name: str
+    openai_api_key: str
+    openai_model: str
+    openai_base_url: str
 
     @classmethod
     def from_env(cls) -> "Cfg":
@@ -31,10 +35,17 @@ class Cfg:
                 "RABBITMQ_PUBLISH_ROUTING_KEY",
                 "itinerary:structured_request",
             ),
+            rabbitmq_missing_info_routing_key=os.getenv(
+                "RABBITMQ_MISSING_INFO_ROUTING_KEY",
+                "itinerary:missing_info",
+            ),
             rabbitmq_queue_name=os.getenv(
                 "RABBITMQ_QUEUE_NAME",
                 "query_router_itinerary_user_request_queue",
             ),
+            openai_api_key=os.getenv("OPENAI_API_KEY", ""),
+            openai_model=os.getenv("OPENAI_MODEL", "gpt-5.2"),
+            openai_base_url=os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1"),
         )
 
     @property

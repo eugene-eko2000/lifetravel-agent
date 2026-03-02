@@ -44,6 +44,7 @@ services:
       RABBITMQ_EXCHANGE: lifetravel_agent
       RABBITMQ_SUBSCRIBE_ROUTING_KEY: itinerary:user_request
       RABBITMQ_PUBLISH_ROUTING_KEY: itinerary:query_router_response
+      RABBITMQ_MISSING_INFO_ROUTING_KEY: itinerary:missing_info
       RABBITMQ_QUEUE_NAME: query_router_itinerary_user_request_queue
     depends_on:
       rabbitmq:
