@@ -29,3 +29,23 @@ services:
       rabbitmq:
         condition: service_healthy
 
+  # ── Query Router ─────────────────────────────────────────────────────────────
+  query_router:
+    build:
+      context: ./query_router
+    ports:
+      - "8081:8080"
+    environment:
+      PORT: 8080
+      AMQP_HOST: rabbitmq
+      AMQP_PORT: 5672
+      AMQP_USER: guest
+      AMQP_PASSWORD: guest
+      RABBITMQ_EXCHANGE: lifetravel_agent
+      RABBITMQ_SUBSCRIBE_ROUTING_KEY: itinerary:user_request
+      RABBITMQ_PUBLISH_ROUTING_KEY: itinerary:query_router_response
+      RABBITMQ_QUEUE_NAME: query_router_itinerary_user_request_queue
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+

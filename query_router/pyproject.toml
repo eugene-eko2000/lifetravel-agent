@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "query-router"
+version = "0.1.0"
+description = "Async query router microservice"
+requires-python = ">=3.10"
+dependencies = [
+  "aio-pika",
+  "fastapi==0.115.12",
+  "uvicorn[standard]==0.34.0",
+]
