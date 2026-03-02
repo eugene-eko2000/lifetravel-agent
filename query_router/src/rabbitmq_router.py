@@ -58,9 +58,11 @@ async def _handle_message(
     request_id = payload.get("id")
     if not isinstance(request_id, str) or not request_id.strip():
         request_id = str(uuid.uuid4())
+    
+    prompt_id = payload.get("prompt_id")
 
     try:
-        llm_response = await request_structured_itinerary(request_id, content)
+        llm_response = await request_structured_itinerary(request_id, prompt_id, content)
     except Exception:
         logger.exception("LLM processing failed")
         return

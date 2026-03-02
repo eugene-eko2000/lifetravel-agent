@@ -32,7 +32,7 @@ def _load_env_file(path: Path) -> None:
 
 async def _run(text: str, request_id: str | None) -> None:
     rid = request_id or str(uuid.uuid4())
-    response = await request_structured_itinerary(rid, text)
+    response = await request_structured_itinerary(rid, None, text)
     print(json.dumps(response, indent=2))
 
 

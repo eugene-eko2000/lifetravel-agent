@@ -136,6 +136,7 @@ def _extract_output_text(response_json: dict[str, Any]) -> str:
 
 async def request_structured_itinerary(
     request_id: str,
+    prompt_id: str,
     content: str,
 ) -> dict[str, Any]:
     """
@@ -153,6 +154,7 @@ async def request_structured_itinerary(
 
     client = AsyncOpenAI(api_key=cfg.openai_api_key, base_url=cfg.openai_base_url)
     response = await client.responses.create(
+        previous_response_id=prompt_id,
         model=cfg.openai_model,
         input=[
             {

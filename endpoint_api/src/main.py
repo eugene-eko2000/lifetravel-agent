@@ -14,6 +14,7 @@ logger = logging.getLogger("endpoint_api")
 
 class ItineraryRequest(BaseModel):
     id: Optional[str] = None
+    prompt_id: Optional[str] = None
     content: str
 
 
