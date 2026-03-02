@@ -50,3 +50,12 @@ services:
       rabbitmq:
         condition: service_healthy
 
+  # ── Inventory Service ────────────────────────────────────────────────────────
+  inventory_service:
+    build:
+      context: ./inventory_service
+    ports:
+      - "8082:8080"
+    environment:
+      PORT: 8080
+
