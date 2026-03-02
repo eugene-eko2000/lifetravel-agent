@@ -9,5 +9,6 @@ description = "Inventory service HTTP API"
 requires-python = ">=3.10"
 dependencies = [
   "fastapi==0.115.12",
+  "httpx",
   "uvicorn[standard]==0.34.0",
 ]
