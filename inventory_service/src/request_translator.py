@@ -1,6 +1,13 @@
 from typing import Any
 
 
+def _to_city_code(city: str) -> str:
+    sanitized = "".join(ch for ch in city.upper() if ch.isalpha())
+    if len(sanitized) < 3:
+        raise ValueError(f"Cannot derive city code from city='{city}'")
+    return sanitized[:3]
+
+
 def _build_flight_request(trip_request: dict[str, Any]) -> dict[str, Any]:
     trip = trip_request.get("trip", {})
     legs = trip.get("legs", [])
@@ -47,6 +54,40 @@ def _build_flight_request(trip_request: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _build_hotel_requests(trip_request: dict[str, Any]) -> list[dict[str, Any]]:
+    trip = trip_request.get("trip", {})
+    stays = trip.get("stays", [])
+
+    # Keep first occurrence order while avoiding duplicate city queries.
+    seen_city_codes: set[str] = set()
+    hotel_requests: list[dict[str, Any]] = []
+
+    for stay in stays:
+        city = str(stay.get("city", "")).strip()
+        if not city:
+            continue
+
+        city_code = _to_city_code(city)
+        if city_code in seen_city_codes:
+            continue
+        seen_city_codes.add(city_code)
+
+        hotel_requests.append(
+            {
+                "type": "hotel",
+                "method": "GET",
+                "query_params": {
+                    "cityCode": city_code,
+                    "radius": 20,
+                    "radiusUnit": "KM",
+                    "hotelSource": "ALL",
+                },
+            }
+        )
+
+    return hotel_requests
+
+
 def translate_trip_request_to_amadeus_requests(
     trip_request: dict[str, Any],
 ) -> list[dict[str, Any]]:
@@ -55,9 +96,10 @@ def translate_trip_request_to_amadeus_requests(
 
     Returns a list of request descriptors:
     - first item: flight request
-    - second item: hotel request placeholder
+    - next items: hotel requests
     """
     flight_payload = _build_flight_request(trip_request)
+    hotel_requests = _build_hotel_requests(trip_request)
 
     return [
         {
@@ -65,10 +107,5 @@ def translate_trip_request_to_amadeus_requests(
             "method": "POST",
             "payload": flight_payload,
         },
-        {
-            "type": "hotel",
-            "method": "POST",
-            "payload": {},
-            "placeholder": "TODO: implement hotel request translation",
-        },
+        *hotel_requests,
     ]
