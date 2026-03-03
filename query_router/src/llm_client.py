@@ -42,6 +42,15 @@ VALID_REQUEST_OUTPUT_SCHEMA = {
             "required": ["city", "check_in", "check_out"],
             "properties": {
               "city": {"type": "string"},
+              "city_code": {"type": "string"},
+              "location_latlng": {
+                "type": "object",
+                "required": ["lat", "lng"],
+                "properties": {
+                  "lat": {"type": "number"},
+                  "lng": {"type": "number"}
+                }
+              },
               "check_in": {"type": "string", "format": "date"},
               "check_out": {"type": "string", "format": "date"},
               "min_rooms": {"type": "integer"}
@@ -86,7 +95,7 @@ VALID_REQUEST_OUTPUT_SCHEMA = {
 
 MISSING_INFO_OUTPUT_SCHEMA = {
   "type": "object",
-  "required": ["text"],
+  "required": ["missing_info"],
   "properties": {
     "missing_info": {"type": "string"}
   }
@@ -102,6 +111,10 @@ flight class, hotel rating, etc.
 
 The structured output should be a JSON object that matches the following schema:
 {VALID_REQUEST_OUTPUT_SCHEMA}.
+
+If the user specifies a certain location, not only a city, please find a lat / lng
+for this location and put it into the location_latlng field. Leave the location_latlng empty
+if the user specifies only the city name or code.
 
 If the user query misses an infor for filling in required fields,
 the output should contain a text reply that asks the user to provide the missing information.
