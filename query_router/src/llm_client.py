@@ -112,6 +112,9 @@ flight class, hotel rating, etc.
 The structured output should be a JSON object that matches the following schema:
 {VALID_REQUEST_OUTPUT_SCHEMA}.
 
+For flights, the from and to fields should be the IATA code of the airport.
+For hotels, the city_code field should be the IATA code of the city metropolitan area.
+
 If the user specifies a certain location, not only a city, please find a lat / lng
 for this location and put it into the location_latlng field. Leave the location_latlng empty
 if the user specifies only the city name or code.

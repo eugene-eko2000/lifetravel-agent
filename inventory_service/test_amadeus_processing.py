@@ -75,29 +75,29 @@ async def _run_test() -> None:
                     "travelers": 1,
                     "legs": [
                         {
-                            "from": "Zurich (ZRH)",
-                            "to": "Beijing (BJS)",
-                            "depart_date": "2026-03-12"
+                        "from": "ZRH",
+                        "to": "BJS",
+                        "depart_date": "2026-03-12"
                         },
                         {
-                            "from": "Beijing (BJS)",
-                            "to": "Hong Kong (HKG)",
-                            "depart_date": "2026-03-15"
+                        "from": "BJS",
+                        "to": "HKG",
+                        "depart_date": "2026-03-15"
                         },
                         {
-                            "from": "Hong Kong (HKG)",
-                            "to": "Singapore (SIN)",
-                            "depart_date": "2026-03-17"
+                        "from": "HKG",
+                        "to": "SIN",
+                        "depart_date": "2026-03-17"
                         },
                         {
-                            "from": "Singapore (SIN)",
-                            "to": "New Delhi (DEL)",
-                            "depart_date": "2026-03-19"
+                        "from": "SIN",
+                        "to": "DEL",
+                        "depart_date": "2026-03-19"
                         },
                         {
-                            "from": "New Delhi (DEL)",
-                            "to": "Zurich (ZRH)",
-                            "depart_date": "2026-03-24"
+                        "from": "DEL",
+                        "to": "ZRH",
+                        "depart_date": "2026-03-24"
                         }
                     ],
                     "stays": [
