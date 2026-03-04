@@ -55,10 +55,17 @@ async def _process_translated_request(
         return
 
     if request_type == "hotel":
-        await sender.send_hotels_list(
-            query_params=translated.get("query_params", {}),
-            headers=headers,
-        )
+        hotel_mode = translated.get("hotels_list_mode", "city")
+        if hotel_mode == "geocode":
+            await sender.send_hotels_list_by_geocode(
+                query_params=translated.get("query_params", {}),
+                headers=headers,
+            )
+        else:
+            await sender.send_hotels_list(
+                query_params=translated.get("query_params", {}),
+                headers=headers,
+            )
         return
 
     logger.warning("Unknown translated request type: %s", request_type)

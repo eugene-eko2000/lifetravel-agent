@@ -37,6 +37,20 @@ class AmadeusSender:
             response.raise_for_status()
             return response.json()
 
+    async def send_hotels_list_by_geocode(
+        self,
+        query_params: dict[str, Any],
+        headers: dict[str, str] | None = None,
+    ) -> dict[str, Any]:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(
+                self._cfg.amadeus_hotels_list_by_geocode_url,
+                params=query_params,
+                headers=headers,
+            )
+            response.raise_for_status()
+            return response.json()
+
     async def send_hotels_offers(
         self,
         query_params: dict[str, Any],

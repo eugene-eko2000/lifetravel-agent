@@ -8,6 +8,24 @@ def _to_city_code(city: str) -> str:
     return sanitized[:3]
 
 
+def _parse_location_latlng(value: Any) -> tuple[float, float] | None:
+    if isinstance(value, dict):
+        lat = value.get("lat", value.get("latitude"))
+        lng = value.get("lng", value.get("longitude", value.get("lobgitude")))
+        if lat is None or lng is None:
+            return None
+        return (float(lat), float(lng))
+
+    if isinstance(value, (list, tuple)) and len(value) == 2:
+        return (float(value[0]), float(value[1]))
+
+    if isinstance(value, str) and "," in value:
+        first, second = value.split(",", 1)
+        return (float(first.strip()), float(second.strip()))
+
+    return None
+
+
 def _build_flight_request(trip_request: dict[str, Any]) -> dict[str, Any]:
     trip = trip_request.get("trip", {})
     legs = trip.get("legs", [])
@@ -63,6 +81,32 @@ def _build_hotel_requests(trip_request: dict[str, Any]) -> list[dict[str, Any]]:
     hotel_requests: list[dict[str, Any]] = []
 
     for stay in stays:
+        latlng = _parse_location_latlng(stay.get("location_latlng"))
+        if latlng is not None:
+            lat, lng = latlng
+            geocode_key = f"{lat:.6f},{lng:.6f}"
+            if geocode_key in seen_city_codes:
+                continue
+            seen_city_codes.add(geocode_key)
+
+            hotel_requests.append(
+                {
+                    "type": "hotel",
+                    "method": "GET",
+                    "hotels_list_mode": "geocode",
+                    "query_params": {
+                        "latitude": lat,
+                        # Keep both spellings for compatibility with external expectations.
+                        "longitude": lng,
+                        "lobgitude": lng,
+                        "radius": 20,
+                        "radiusUnit": "KM",
+                        "hotelSource": "ALL",
+                    },
+                }
+            )
+            continue
+
         city = str(stay.get("city", "")).strip()
         if not city:
             continue
@@ -76,6 +120,7 @@ def _build_hotel_requests(trip_request: dict[str, Any]) -> list[dict[str, Any]]:
             {
                 "type": "hotel",
                 "method": "GET",
+                "hotels_list_mode": "city",
                 "query_params": {
                     "cityCode": city_code,
                     "radius": 20,

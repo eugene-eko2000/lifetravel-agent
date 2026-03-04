@@ -14,6 +14,7 @@ class Cfg:
     rabbitmq_queue_name: str
     amadeus_flights_offers_url: str
     amadeus_hotels_list_url: str
+    amadeus_hotels_list_by_geocode_url: str
     amadeus_hotels_offers_url: str
     amadeus_auth_token: str
 
@@ -41,6 +42,10 @@ class Cfg:
             amadeus_hotels_list_url=os.getenv(
                 "AMADEUS_HOTELS_LIST_URL",
                 "https://test.api.amadeus.com/v1/reference-data/locations/hotels/by-city",
+            ),
+            amadeus_hotels_list_by_geocode_url=os.getenv(
+                "AMADEUS_HOTELS_LIST_BY_GEOCODE_URL",
+                "https://test.api.amadeus.com/v1/reference-data/locations/hotels/by-geocode",
             ),
             amadeus_hotels_offers_url=os.getenv(
                 "AMADEUS_HOTELS_OFFERS_URL",

@@ -39,7 +39,7 @@ VALID_REQUEST_OUTPUT_SCHEMA = {
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["city", "check_in", "check_out"],
+            "required": ["check_in", "check_out"],
             "properties": {
               "city": {"type": "string"},
               "city_code": {"type": "string"},
