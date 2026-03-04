@@ -71,6 +71,25 @@ async def _process_translated_request(
     logger.warning("Unknown translated request type: %s", request_type)
 
 
+async def _process_incoming_message(
+    sender: AmadeusSender,
+    cfg: Cfg,
+    incoming_body: bytes,
+) -> None:
+    payload = json.loads(incoming_body.decode("utf-8"))
+    structured_request = _extract_structured_request(payload)
+    translated_requests = translate_trip_request_to_amadeus_requests(structured_request)
+    headers = _resolve_headers(payload, cfg)
+
+    for translated in translated_requests:
+        await _process_translated_request(sender, translated, headers)
+
+    logger.info(
+        "Processed inventory message with %d translated requests",
+        len(translated_requests),
+    )
+
+
 async def run_inventory_subscriber() -> None:
     cfg = Cfg.from_env()
     sender = AmadeusSender(cfg)
@@ -98,19 +117,6 @@ async def run_inventory_subscriber() -> None:
             async for incoming in queue_iter:
                 async with incoming.process():
                     try:
-                        payload = json.loads(incoming.body.decode("utf-8"))
-                        structured_request = _extract_structured_request(payload)
-                        translated_requests = translate_trip_request_to_amadeus_requests(
-                            structured_request
-                        )
-                        headers = _resolve_headers(payload, cfg)
-
-                        for translated in translated_requests:
-                            await _process_translated_request(sender, translated, headers)
-
-                        logger.info(
-                            "Processed inventory message with %d translated requests",
-                            len(translated_requests),
-                        )
+                        await _process_incoming_message(sender, cfg, incoming.body)
                     except Exception:
                         logger.exception("Failed to process incoming inventory message")

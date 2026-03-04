@@ -1,13 +1,6 @@
 from typing import Any
 
 
-def _to_city_code(city: str) -> str:
-    sanitized = "".join(ch for ch in city.upper() if ch.isalpha())
-    if len(sanitized) < 3:
-        raise ValueError(f"Cannot derive city code from city='{city}'")
-    return sanitized[:3]
-
-
 def _parse_location_latlng(value: Any) -> tuple[float, float] | None:
     if isinstance(value, dict):
         lat = value.get("lat", value.get("latitude"))
@@ -107,11 +100,11 @@ def _build_hotel_requests(trip_request: dict[str, Any]) -> list[dict[str, Any]]:
             )
             continue
 
-        city = str(stay.get("city", "")).strip()
-        if not city:
-            continue
-
-        city_code = _to_city_code(city)
+        city_code = stay.get("city_code", "")
+        if not city_code:
+            raise ValueError(
+                "Stay is missing required fields: city_code"
+            )
         if city_code in seen_city_codes:
             continue
         seen_city_codes.add(city_code)
