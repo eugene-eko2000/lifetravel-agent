@@ -75,29 +75,29 @@ async def _run_test() -> None:
                     "travelers": 1,
                     "legs": [
                         {
-                        "from": "ZRH",
-                        "to": "BJS",
-                        "depart_date": "2026-03-12"
+                            "from": "ZRH",
+                            "to": "BJS",
+                            "depart_date": "2026-03-12"
                         },
                         {
-                        "from": "BJS",
-                        "to": "HKG",
-                        "depart_date": "2026-03-15"
+                            "from": "BJS",
+                            "to": "HKG",
+                            "depart_date": "2026-03-15"
                         },
                         {
-                        "from": "HKG",
-                        "to": "SIN",
-                        "depart_date": "2026-03-17"
+                            "from": "HKG",
+                            "to": "SIN",
+                            "depart_date": "2026-03-17"
                         },
                         {
-                        "from": "SIN",
-                        "to": "DEL",
-                        "depart_date": "2026-03-19"
+                            "from": "SIN",
+                            "to": "DEL",
+                            "depart_date": "2026-03-19"
                         },
                         {
-                        "from": "DEL",
-                        "to": "ZRH",
-                        "depart_date": "2026-03-24"
+                            "from": "DEL",
+                            "to": "ZRH",
+                            "depart_date": "2026-03-24"
                         }
                     ],
                     "stays": [
