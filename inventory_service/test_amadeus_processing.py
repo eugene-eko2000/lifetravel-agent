@@ -162,32 +162,10 @@ async def _run_test() -> None:
     }
     incoming_body = json.dumps(payload).encode("utf-8")
 
-    calls: list[dict[str, Any]] = []
-
-    async def fake_process_translated_request(
-        sender: AmadeusSender,
-        translated: dict[str, Any],
-        headers: dict[str, str],
-    ) -> None:
-        calls.append(
-            {
-                "translated": translated,
-                "headers": headers,
-                "sender_type": type(sender).__name__,
-            }
-        )
-
-    # Patch function to avoid real network calls in this test script.
-    original = subscriber_module._process_translated_request
-    subscriber_module._process_translated_request = fake_process_translated_request
-    try:
-        cfg = Cfg.from_env()
-        sender = AmadeusSender(cfg)
-        await subscriber_module._process_incoming_message(sender, cfg, incoming_body)
-    finally:
-        subscriber_module._process_translated_request = original
-
-    print(json.dumps({"processed_calls": calls, "count": len(calls)}, indent=2))
+    cfg = Cfg.from_env()
+    sender = AmadeusSender(cfg)
+    results = await subscriber_module._process_incoming_message(sender, cfg, incoming_body)
+    print(results)
 
 
 if __name__ == "__main__":

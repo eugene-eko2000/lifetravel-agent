@@ -44,50 +44,52 @@ async def _process_translated_request(
     sender: AmadeusSender,
     translated: dict[str, Any],
     headers: dict[str, str],
-) -> None:
+) -> Any:
     request_type = translated.get("type")
 
     if request_type == "flight":
-        await sender.send_flights_offers(
+        return await sender.send_flights_offers(
             payload=translated.get("payload", {}),
             headers=headers,
         )
-        return
 
     if request_type == "hotel":
         hotel_mode = translated.get("hotels_list_mode", "city")
         if hotel_mode == "geocode":
-            await sender.send_hotels_list_by_geocode(
+            return await sender.send_hotels_list_by_geocode(
                 query_params=translated.get("query_params", {}),
                 headers=headers,
             )
-        else:
-            await sender.send_hotels_list(
-                query_params=translated.get("query_params", {}),
-                headers=headers,
-            )
-        return
+
+        return await sender.send_hotels_list(
+            query_params=translated.get("query_params", {}),
+            headers=headers,
+        )
 
     logger.warning("Unknown translated request type: %s", request_type)
+    return None
 
 
 async def _process_incoming_message(
     sender: AmadeusSender,
     cfg: Cfg,
     incoming_body: bytes,
-) -> None:
+) -> list[Any]:
     payload = json.loads(incoming_body.decode("utf-8"))
     structured_request = _extract_structured_request(payload)
     translated_requests = translate_trip_request_to_amadeus_requests(structured_request)
     headers = _resolve_headers(payload, cfg)
 
+    results: list[Any] = []
     for translated in translated_requests:
-        await _process_translated_request(sender, translated, headers)
+        result = await _process_translated_request(sender, translated, headers)
+        results.append(result)
 
     logger.info(
         "Processed inventory message with %d translated requests",
         len(translated_requests),
     )
+    return results
 
 
 async def run_inventory_subscriber() -> None:
