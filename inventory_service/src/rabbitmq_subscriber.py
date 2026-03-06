@@ -1,5 +1,6 @@
 import json
 import logging
+import math
 from typing import Any
 
 import aio_pika
@@ -12,81 +13,74 @@ from request_translator import translate_trip_request_to_amadeus_requests
 logger = logging.getLogger("inventory_service.rabbitmq_subscriber")
 
 
-def _derive_city_code(city: str) -> str:
-    sanitized = "".join(ch for ch in city.upper() if ch.isalpha())
-    return sanitized[:3]
+def _extract_hotel_ids(hotels_list_response: dict[str, Any]) -> list[str]:
+    ids: list[str] = []
+    data = hotels_list_response.get("data")
+    if not isinstance(data, list):
+        return ids
+
+    for item in data:
+        if not isinstance(item, dict):
+            continue
+        hotel_id = item.get("hotelId")
+        if isinstance(hotel_id, str) and hotel_id:
+            ids.append(hotel_id)
+    return ids
 
 
-def _parse_location_latlng(value: Any) -> tuple[float, float] | None:
-    if isinstance(value, dict):
-        lat = value.get("lat", value.get("latitude"))
-        lng = value.get("lng", value.get("longitude", value.get("lobgitude")))
-        if lat is None or lng is None:
-            return None
-        return float(lat), float(lng)
+def _extract_distance_index(hotels_list_response: dict[str, Any]) -> dict[str, float]:
+    index: dict[str, float] = {}
+    data = hotels_list_response.get("data")
+    if not isinstance(data, list):
+        return index
 
-    if isinstance(value, (list, tuple)) and len(value) == 2:
-        return float(value[0]), float(value[1])
+    for item in data:
+        if not isinstance(item, dict):
+            continue
+        hotel_id = item.get("hotelId")
+        if not isinstance(hotel_id, str) or not hotel_id:
+            continue
+        distance = item.get("distance")
+        if isinstance(distance, dict):
+            value = distance.get("value")
+            if isinstance(value, (int, float)):
+                index[hotel_id] = float(value)
+    return index
 
-    if isinstance(value, str) and "," in value:
-        first, second = value.split(",", 1)
-        return float(first.strip()), float(second.strip())
 
+def _collect_hotel_offers(offers_response: dict[str, Any]) -> list[dict[str, Any]]:
+    data = offers_response.get("data")
+    if not isinstance(data, list):
+        return []
+    return [item for item in data if isinstance(item, dict)]
+
+
+def _is_offer_available(offer: dict[str, Any]) -> bool:
+    if offer.get("error") is not None or offer.get("errors") is not None:
+        return False
+
+    available = offer.get("available")
+    return available is True
+
+
+def _hotel_id_from_offer(offer: dict[str, Any]) -> str | None:
+    hotel = offer.get("hotel")
+    if not isinstance(hotel, dict):
+        return None
+    hotel_id = hotel.get("hotelId")
+    if isinstance(hotel_id, str) and hotel_id:
+        return hotel_id
     return None
 
 
-def _build_hotel_dates_index(structured_request: dict[str, Any]) -> dict[str, list[str]]:
-    trip = structured_request.get("trip", {})
-    stays = trip.get("stays", [])
-
-    index: dict[str, set[str]] = {}
-    for stay in stays:
-        if not isinstance(stay, dict):
-            continue
-
-        check_in = str(stay.get("check_in", "")).strip()
-        if not check_in:
-            continue
-
-        city_code = str(stay.get("city_code", "")).strip().upper()
-        if not city_code:
-            city = str(stay.get("city", "")).strip()
-            if city:
-                city_code = _derive_city_code(city)
-        if city_code:
-            index.setdefault(f"city:{city_code}", set()).add(check_in)
-
-        latlng = _parse_location_latlng(stay.get("location_latlng"))
-        if latlng is not None:
-            lat, lng = latlng
-            index.setdefault(f"geo:{lat:.6f},{lng:.6f}", set()).add(check_in)
-
-    return {key: sorted(value) for key, value in index.items()}
-
-
-def _resolve_hotel_dates(
-    translated: dict[str, Any],
-    hotel_dates_index: dict[str, list[str]],
+def _select_nearest_hotel_ids(
+    hotel_ids: list[str],
+    distance_index: dict[str, float],
+    limit: int = 10,
 ) -> list[str]:
-    mode = translated.get("hotels_list_mode", "city")
-    query_params = translated.get("query_params", {})
-
-    if mode == "geocode":
-        lat = query_params.get("latitude")
-        lng = query_params.get("longitude", query_params.get("lobgitude"))
-        if lat is not None and lng is not None:
-            key = f"geo:{float(lat):.6f},{float(lng):.6f}"
-            dates = hotel_dates_index.get(key)
-            if dates:
-                return dates
-    else:
-        city_code = str(query_params.get("cityCode", "")).strip().upper()
-        if city_code:
-            dates = hotel_dates_index.get(f"city:{city_code}")
-            if dates:
-                return dates
-
-    return ["unknown"]
+    # Sort by known distance first (ascending). Unknown distances go last.
+    sorted_ids = sorted(hotel_ids, key=lambda hid: distance_index.get(hid, math.inf))
+    return sorted_ids[:limit]
 
 
 def _extract_structured_request(payload: dict[str, Any]) -> dict[str, Any]:
@@ -119,6 +113,7 @@ def _resolve_headers(payload: dict[str, Any], cfg: Cfg) -> dict[str, str]:
 
 async def _process_translated_request(
     sender: AmadeusSender,
+    cfg: Cfg,
     translated: dict[str, Any],
     headers: dict[str, str],
 ) -> Any:
@@ -132,16 +127,59 @@ async def _process_translated_request(
 
     if request_type == "hotel":
         hotel_mode = translated.get("hotels_list_mode", "city")
+        stay = translated.get("stay", {}) if isinstance(translated.get("stay"), dict) else {}
+        check_in = str(stay.get("check_in", "")).strip()
+        check_out = str(stay.get("check_out", "")).strip()
+        adults = int(stay.get("travelers", 1) or 1)
+        room_quantity = int(stay.get("min_rooms", 1) or 1)
+        currency = str(stay.get("currency", "USD")).strip() or "USD"
+
         if hotel_mode == "geocode":
-            return await sender.send_hotels_list_by_geocode(
+            hotels_list_response = await sender.send_hotels_list_by_geocode(
+                query_params=translated.get("query_params", {}),
+                headers=headers,
+            )
+        else:
+            hotels_list_response = await sender.send_hotels_list(
                 query_params=translated.get("query_params", {}),
                 headers=headers,
             )
 
-        return await sender.send_hotels_list(
-            query_params=translated.get("query_params", {}),
-            headers=headers,
+        hotel_ids = _extract_hotel_ids(hotels_list_response)
+        distance_index = _extract_distance_index(hotels_list_response)
+        nearest_hotel_ids = _select_nearest_hotel_ids(
+            hotel_ids,
+            distance_index,
+            limit=cfg.amadeus_hotels_offers_limit,
         )
+
+        all_offers: list[dict[str, Any]] = []
+        if nearest_hotel_ids:
+            offers_query = {
+                "hotelIds": ",".join(nearest_hotel_ids),
+                "adults": adults,
+                "checkInDate": check_in,
+                "checkOutDate": check_out,
+                "roomQuantity": room_quantity,
+                "currency": currency,
+                "includeClosed": True,
+            }
+            offers_response = await sender.send_hotels_offers(
+                query_params=offers_query,
+                headers=headers,
+            )
+            all_offers.extend(_collect_hotel_offers(offers_response))
+
+        filtered_offers = [offer for offer in all_offers if _is_offer_available(offer)]
+        filtered_offers.sort(
+            key=lambda offer: distance_index.get(_hotel_id_from_offer(offer) or "", math.inf)
+        )
+
+        return {
+            "date": check_in or "unknown",
+            "suggestions": filtered_offers,
+            "raw_hotels_list": hotels_list_response,
+        }
 
     logger.warning("Unknown translated request type: %s", request_type)
     return None
@@ -156,14 +194,12 @@ async def _process_incoming_message(
     structured_request = _extract_structured_request(payload)
     translated_requests = translate_trip_request_to_amadeus_requests(structured_request)
     headers = _resolve_headers(payload, cfg)
-    hotel_dates_index = _build_hotel_dates_index(structured_request)
-
     results: dict[str, Any] = {
         "flights": [],
         "hotels": {},
     }
     for translated in translated_requests:
-        result = await _process_translated_request(sender, translated, headers)
+        result = await _process_translated_request(sender, cfg, translated, headers)
         request_type = translated.get("type")
 
         if request_type == "flight":
@@ -171,8 +207,11 @@ async def _process_incoming_message(
             continue
 
         if request_type == "hotel":
-            for date_key in _resolve_hotel_dates(translated, hotel_dates_index):
-                results["hotels"].setdefault(date_key, []).append(result)
+            if isinstance(result, dict):
+                date_key = str(result.get("date", "unknown"))
+                suggestions = result.get("suggestions", [])
+                if isinstance(suggestions, list):
+                    results["hotels"].setdefault(date_key, []).extend(suggestions)
 
     logger.info(
         "Processed inventory message with %d translated requests",

@@ -124,6 +124,9 @@ class RequestTranslatorTest(unittest.TestCase):
                 "stays": [
                     {
                         "city": "Beijing",
+                        "check_in": "2026-03-12",
+                        "check_out": "2026-03-15",
+                        "min_rooms": 1,
                         "location_latlng": {"lat": 39.9042, "lng": 116.4074},
                     }
                 ],

@@ -16,6 +16,7 @@ class Cfg:
     amadeus_hotels_list_url: str
     amadeus_hotels_list_by_geocode_url: str
     amadeus_hotels_offers_url: str
+    amadeus_hotels_offers_limit: int
     amadeus_auth_token: str
 
     @classmethod
@@ -50,6 +51,9 @@ class Cfg:
             amadeus_hotels_offers_url=os.getenv(
                 "AMADEUS_HOTELS_OFFERS_URL",
                 "https://test.api.amadeus.com/v3/shopping/hotel-offers",
+            ),
+            amadeus_hotels_offers_limit=int(
+                os.getenv("AMADEUS_HOTELS_OFFERS_LIMIT", "10")
             ),
             amadeus_auth_token=os.getenv("AMADEUS_AUTH_TOKEN", ""),
         )

@@ -68,24 +68,38 @@ def _build_flight_request(trip_request: dict[str, Any]) -> dict[str, Any]:
 def _build_hotel_requests(trip_request: dict[str, Any]) -> list[dict[str, Any]]:
     trip = trip_request.get("trip", {})
     stays = trip.get("stays", [])
+    budgets = trip_request.get("budgets", {})
+    hotels_budget = budgets.get("hotels", {})
 
-    # Keep first occurrence order while avoiding duplicate city queries.
-    seen_city_codes: set[str] = set()
     hotel_requests: list[dict[str, Any]] = []
+    travelers = int(trip.get("travelers", 1) or 1)
+    currency = str(hotels_budget.get("currency", "USD")).strip() or "USD"
 
     for stay in stays:
+        check_in = str(stay.get("check_in", "")).strip()
+        check_out = str(stay.get("check_out", "")).strip()
+        min_rooms = int(stay.get("min_rooms", 1) or 1)
+        if not check_in or not check_out:
+            raise ValueError("Stay is missing required fields: check_in/check_out")
+
+        base_request: dict[str, Any] = {
+            "type": "hotel",
+            "method": "GET",
+            "stay": {
+                "check_in": check_in,
+                "check_out": check_out,
+                "min_rooms": min_rooms,
+                "travelers": travelers,
+                "currency": currency,
+            },
+        }
+
         latlng = _parse_location_latlng(stay.get("location_latlng"))
         if latlng is not None:
             lat, lng = latlng
-            geocode_key = f"{lat:.6f},{lng:.6f}"
-            if geocode_key in seen_city_codes:
-                continue
-            seen_city_codes.add(geocode_key)
-
             hotel_requests.append(
                 {
-                    "type": "hotel",
-                    "method": "GET",
+                    **base_request,
                     "hotels_list_mode": "geocode",
                     "query_params": {
                         "latitude": lat,
@@ -103,14 +117,10 @@ def _build_hotel_requests(trip_request: dict[str, Any]) -> list[dict[str, Any]]:
         city_code = str(stay.get("city_code", "")).strip().upper()
         if not city_code:
             raise ValueError("Stay is missing required field: city_code")
-        if city_code in seen_city_codes:
-            continue
-        seen_city_codes.add(city_code)
 
         hotel_requests.append(
             {
-                "type": "hotel",
-                "method": "GET",
+                **base_request,
                 "hotels_list_mode": "city",
                 "query_params": {
                     "cityCode": city_code,
