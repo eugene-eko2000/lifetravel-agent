@@ -2,6 +2,7 @@
 import asyncio
 import json
 import os
+import pprint
 import requests
 import sys
 from pathlib import Path
@@ -165,7 +166,7 @@ async def _run_test() -> None:
     cfg = Cfg.from_env()
     sender = AmadeusSender(cfg)
     results = await subscriber_module._process_incoming_message(sender, cfg, incoming_body)
-    print(results)
+    pprint.pprint(results)
 
 
 if __name__ == "__main__":
