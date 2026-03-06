@@ -27,24 +27,28 @@ SOURCE_EXAMPLE = {
             "stays": [
                 {
                     "city": "Beijing",
+                    "city_code": "BEJ",
                     "check_in": "2026-03-12",
                     "check_out": "2026-03-15",
                     "min_rooms": 1,
                 },
                 {
                     "city": "Hong Kong",
+                    "city_code": "HKG",
                     "check_in": "2026-03-15",
                     "check_out": "2026-03-17",
                     "min_rooms": 1,
                 },
                 {
                     "city": "Singapore",
+                    "city_code": "SIN",
                     "check_in": "2026-03-17",
                     "check_out": "2026-03-19",
                     "min_rooms": 1,
                 },
                 {
                     "city": "New Delhi",
+                    "city_code": "DEL",
                     "check_in": "2026-03-19",
                     "check_out": "2026-03-24",
                     "min_rooms": 1,
@@ -104,7 +108,7 @@ class RequestTranslatorTest(unittest.TestCase):
         self.assertEqual(len(hotel_requests), 4)
 
         first_hotel_query = hotel_requests[0]["query_params"]
-        self.assertEqual(first_hotel_query["cityCode"], "BEI")
+        self.assertEqual(first_hotel_query["cityCode"], "BEJ")
         self.assertEqual(first_hotel_query["radius"], 20)
         self.assertEqual(first_hotel_query["radiusUnit"], "KM")
         self.assertEqual(first_hotel_query["hotelSource"], "ALL")

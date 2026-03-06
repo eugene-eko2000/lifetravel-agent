@@ -100,11 +100,9 @@ def _build_hotel_requests(trip_request: dict[str, Any]) -> list[dict[str, Any]]:
             )
             continue
 
-        city_code = stay.get("city_code", "")
+        city_code = str(stay.get("city_code", "")).strip().upper()
         if not city_code:
-            raise ValueError(
-                "Stay is missing required fields: city_code"
-            )
+            raise ValueError("Stay is missing required field: city_code")
         if city_code in seen_city_codes:
             continue
         seen_city_codes.add(city_code)
