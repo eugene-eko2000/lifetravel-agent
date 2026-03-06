@@ -13,7 +13,7 @@ SRC_DIR = PROJECT_DIR / "src"
 ENV_FILE = PROJECT_DIR / ".env"
 sys.path.insert(0, str(SRC_DIR))
 
-import rabbitmq_subscriber as subscriber_module  # noqa: E402
+import request_processor as request_processor_module  # noqa: E402
 from amadeus_sender import AmadeusSender  # noqa: E402
 from cfg import Cfg  # noqa: E402
 
@@ -165,7 +165,9 @@ async def _run_test() -> None:
 
     cfg = Cfg.from_env()
     sender = AmadeusSender(cfg)
-    results = await subscriber_module._process_incoming_message(sender, cfg, incoming_body)
+    results = await request_processor_module.process_incoming_message(
+        sender, cfg, incoming_body
+    )
     pprint.pprint(results)
 
 
