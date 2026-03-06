@@ -145,16 +145,21 @@ async def _process_translated_request(
 
         hotel_ids = _extract_hotel_ids(hotels_list_response)
         distance_index = _extract_distance_index(hotels_list_response)
-        nearest_hotel_ids = _select_nearest_hotel_ids(
+        sorted_hotel_ids = _select_nearest_hotel_ids(
             hotel_ids,
             distance_index,
-            limit=cfg.amadeus_hotels_offers_limit,
+            limit=len(hotel_ids),
         )
+        chunk_size = max(1, cfg.amadeus_hotels_offers_limit)
 
-        all_offers: list[dict[str, Any]] = []
-        if nearest_hotel_ids:
+        filtered_offers: list[dict[str, Any]] = []
+        for offset in range(0, len(sorted_hotel_ids), chunk_size):
+            hotel_ids_chunk = sorted_hotel_ids[offset : offset + chunk_size]
+            if not hotel_ids_chunk:
+                continue
+
             offers_query = {
-                "hotelIds": ",".join(nearest_hotel_ids),
+                "hotelIds": ",".join(hotel_ids_chunk),
                 "adults": adults,
                 "checkInDate": check_in,
                 "checkOutDate": check_out,
@@ -166,9 +171,13 @@ async def _process_translated_request(
                 query_params=offers_query,
                 headers=headers,
             )
-            all_offers.extend(_collect_hotel_offers(offers_response))
+            all_offers = _collect_hotel_offers(offers_response)
+            filtered_offers = [offer for offer in all_offers if _is_offer_available(offer)]
 
-        filtered_offers = [offer for offer in all_offers if _is_offer_available(offer)]
+            # If current chunk has no available offers, try the next chunk.
+            if filtered_offers:
+                break
+
         filtered_offers.sort(
             key=lambda offer: distance_index.get(_hotel_id_from_offer(offer) or "", math.inf)
         )
