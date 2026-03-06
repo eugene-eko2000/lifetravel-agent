@@ -78,56 +78,56 @@ async def _run_test() -> None:
                         {
                             "from": "ZRH",
                             "to": "BJS",
-                            "depart_date": "2026-03-12"
+                            "depart_date": "2026-04-12"
                         },
                         {
                             "from": "BJS",
                             "to": "HKG",
-                            "depart_date": "2026-03-15"
+                            "depart_date": "2026-04-15"
                         },
                         {
                             "from": "HKG",
                             "to": "SIN",
-                            "depart_date": "2026-03-17"
+                            "depart_date": "2026-04-17"
                         },
                         {
                             "from": "SIN",
                             "to": "DEL",
-                            "depart_date": "2026-03-19"
+                            "depart_date": "2026-04-19"
                         },
                         {
                             "from": "DEL",
                             "to": "ZRH",
-                            "depart_date": "2026-03-24"
+                            "depart_date": "2026-04-24"
                         }
                     ],
                     "stays": [
                         {
                             "city": "Beijing",
                             "city_code": "BJS",
-                            "check_in": "2026-03-12",
-                            "check_out": "2026-03-15",
+                            "check_in": "2026-04-12",
+                            "check_out": "2026-04-15",
                             "min_rooms": 1
                         },
                         {
                             "city": "Hong Kong",
                             "city_code": "HKG",
-                            "check_in": "2026-03-15",
-                            "check_out": "2026-03-17",
+                            "check_in": "2026-04-15",
+                            "check_out": "2026-04-17",
                             "min_rooms": 1
                         },
                         {
                             "city": "Singapore",
                             "city_code": "SIN",
-                            "check_in": "2026-03-17",
-                            "check_out": "2026-03-19",
+                            "check_in": "2026-04-17",
+                            "check_out": "2026-04-19",
                             "min_rooms": 1
                         },
                         {
                             "city": "New Delhi",
                             "city_code": "DEL",
-                            "check_in": "2026-03-19",
-                            "check_out": "2026-03-24",
+                            "check_in": "2026-04-19",
+                            "check_out": "2026-04-24",
                             "min_rooms": 1
                         }
                     ]
