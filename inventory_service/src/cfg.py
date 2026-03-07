@@ -32,7 +32,7 @@ class Cfg:
             rabbitmq_exchange=os.getenv("RABBITMQ_EXCHANGE", "lifetravel_agent"),
             rabbitmq_subscribe_routing_key=os.getenv(
                 "RABBITMQ_SUBSCRIBE_ROUTING_KEY",
-                "itinerary:query_router_response",
+                "itinerary:structured_request",
             ),
             rabbitmq_queue_name=os.getenv(
                 "RABBITMQ_QUEUE_NAME",

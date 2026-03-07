@@ -11,6 +11,8 @@ class Cfg:
     amqp_password: str
     rabbitmq_exchange: str
     rabbitmq_routing_key: str
+    rabbitmq_missing_info_routing_key: str
+    rabbitmq_missing_info_queue: str
 
     @classmethod
     def from_env(cls) -> "Cfg":
@@ -24,6 +26,14 @@ class Cfg:
             rabbitmq_routing_key=os.getenv(
                 "RABBITMQ_ITINERARY_REQUEST_ROUTING_KEY",
                 "itinerary:user_request",
+            ),
+            rabbitmq_missing_info_routing_key=os.getenv(
+                "RABBITMQ_MISSING_INFO_ROUTING_KEY",
+                "itinerary:missing_info",
+            ),
+            rabbitmq_missing_info_queue=os.getenv(
+                "RABBITMQ_MISSING_INFO_QUEUE",
+                "endpoint_api_missing_info_queue",
             ),
         )
 
