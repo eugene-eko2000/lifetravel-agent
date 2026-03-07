@@ -182,6 +182,51 @@ Output produced by `inventory_service.request_processor.process_incoming_message
 }
 ```
 
+### 4) MissingInfoMessage
+
+Message published by `query_router` when the LLM cannot build a complete itinerary request
+and consumed by `endpoint_api` subscriber/websocket bridge.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MissingInfoMessage",
+  "type": "object",
+  "required": ["id", "content", "structured_response"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Request correlation id."
+    },
+    "content": {
+      "type": "string",
+      "description": "Original user prompt content."
+    },
+    "structured_response": {
+      "type": "object",
+      "required": ["request_id", "prompt_id", "type", "output"],
+      "properties": {
+        "request_id": { "type": "string" },
+        "prompt_id": { "type": "string" },
+        "type": {
+          "type": "string",
+          "const": "missing_info"
+        },
+        "output": {
+          "type": "object",
+          "required": ["missing_info"],
+          "properties": {
+            "missing_info": { "type": "string" }
+          }
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}
+```
+
 ## Message Routing Table
 
 `exchange name` is configurable via `RABBITMQ_EXCHANGE` (default: `lifetravel_agent`) in all services.
