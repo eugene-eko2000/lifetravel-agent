@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import asyncio
 import json
+import logging
 import os
 import pprint
 import requests
@@ -17,6 +18,7 @@ import request_processor as request_processor_module  # noqa: E402
 from amadeus_sender import AmadeusSender  # noqa: E402
 from cfg import Cfg  # noqa: E402
 
+logger = logging.getLogger("test_inventory_service")
 
 def _load_env_file(path: Path) -> None:
     if not path.exists():
@@ -105,6 +107,10 @@ async def _run_test() -> None:
                         {
                             "city": "Beijing",
                             "city_code": "BJS",
+                            "location_latlng": {
+                                "lat": 39.901672,
+                                "lng": 116.4750221
+                            },
                             "check_in": "2026-04-12",
                             "check_out": "2026-04-15",
                             "min_rooms": 1

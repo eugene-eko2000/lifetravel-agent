@@ -61,16 +61,6 @@ def _is_offer_available(offer: dict[str, Any]) -> bool:
     return available is True
 
 
-def _hotel_id_from_offer(offer: dict[str, Any]) -> str | None:
-    hotel = offer.get("hotel")
-    if not isinstance(hotel, dict):
-        return None
-    hotel_id = hotel.get("hotelId")
-    if isinstance(hotel_id, str) and hotel_id:
-        return hotel_id
-    return None
-
-
 def _select_nearest_hotel_ids(
     hotel_ids: list[str],
     distance_index: dict[str, float],
@@ -152,7 +142,7 @@ async def _process_translated_request(
         )
         chunk_size = max(1, cfg.amadeus_hotels_offers_limit)
 
-        filtered_offers: list[dict[str, Any]] = []
+        offers_tasks = []
         for offset in range(0, len(sorted_hotel_ids), chunk_size):
             hotel_ids_chunk = sorted_hotel_ids[offset : offset + chunk_size]
             if not hotel_ids_chunk:
@@ -167,20 +157,23 @@ async def _process_translated_request(
                 "currency": currency,
                 "includeClosed": True,
             }
-            offers_response = await sender.send_hotels_offers(
-                query_params=offers_query,
-                headers=headers,
+            offers_tasks.append(
+                sender.send_hotels_offers(
+                    query_params=offers_query,
+                    headers=headers,
+                )
             )
-            all_offers = _collect_hotel_offers(offers_response)
-            filtered_offers = [offer for offer in all_offers if _is_offer_available(offer)]
 
-            # If current chunk has no available offers, try the next chunk.
-            if filtered_offers:
-                break
+        all_offers: list[dict[str, Any]] = []
+        if offers_tasks:
+            offers_responses = await asyncio.gather(*offers_tasks, return_exceptions=True)
+            for response in offers_responses:
+                if isinstance(response, Exception):
+                    logger.exception("Failed to fetch hotel offers chunk", exc_info=response)
+                    continue
+                all_offers.extend(_collect_hotel_offers(response))
 
-        filtered_offers.sort(
-            key=lambda offer: distance_index.get(_hotel_id_from_offer(offer) or "", math.inf)
-        )
+        filtered_offers = [offer for offer in all_offers if _is_offer_available(offer)]
 
         return {
             "date": check_in or "unknown",

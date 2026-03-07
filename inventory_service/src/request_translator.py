@@ -103,9 +103,7 @@ def _build_hotel_requests(trip_request: dict[str, Any]) -> list[dict[str, Any]]:
                     "hotels_list_mode": "geocode",
                     "query_params": {
                         "latitude": lat,
-                        # Keep both spellings for compatibility with external expectations.
                         "longitude": lng,
-                        "lobgitude": lng,
                         "radius": 20,
                         "radiusUnit": "KM",
                         "hotelSource": "ALL",
