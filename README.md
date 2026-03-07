@@ -224,4 +224,5 @@ and consumed by `endpoint_api` subscriber/websocket bridge.
 | --- | --- | --- | --- | --- |
 | `lifetravel_agent` | `itinerary:user_request` | `UserRequestMessage` | `endpoint_api` | `query_router` |
 | `lifetravel_agent` | `itinerary:structured_request` | `StructuredLLMResponse` | `query_router` | `inventory_service` |
+| `lifetravel_agent` | `itinerary:provider_response` | `ItineraryInventoryResponse` | `inventory_service` | _(no subscriber currently implemented)_ |
 | `lifetravel_agent` | `itinerary:missing_info` | `MissingInfoMessage` (`structured_response.type = "missing_info"`) | `query_router` | `endpoint_api` |

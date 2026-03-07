@@ -1,4 +1,5 @@
 import logging
+import json
 
 import aio_pika
 from aio_pika import ExchangeType
@@ -6,6 +7,7 @@ from aio_pika import ExchangeType
 from amadeus_sender import AmadeusSender
 from cfg import Cfg
 from request_processor import process_incoming_message
+from rabbitmq_publisher import publish_provider_response
 
 # Backward-compat alias for existing tests/imports.
 _process_incoming_message = process_incoming_message
@@ -40,6 +42,24 @@ async def run_inventory_subscriber() -> None:
             async for incoming in queue_iter:
                 async with incoming.process():
                     try:
-                        await process_incoming_message(sender, cfg, incoming.body)
+                        results = await process_incoming_message(sender, cfg, incoming.body)
+                        request_id = None
+                        try:
+                            incoming_payload = json.loads(incoming.body.decode("utf-8"))
+                            candidate_request_id = incoming_payload.get("id")
+                            if isinstance(candidate_request_id, str) and candidate_request_id.strip():
+                                request_id = candidate_request_id
+                        except Exception:
+                            logger.warning("Failed to parse incoming payload for request id")
+
+                        outgoing_payload = {
+                            "id": request_id,
+                            "provider_response": results,
+                        }
+                        await publish_provider_response(
+                            exchange=exchange,
+                            routing_key=cfg.rabbitmq_publish_routing_key,
+                            payload=outgoing_payload,
+                        )
                     except Exception:
                         logger.exception("Failed to process incoming inventory message")
