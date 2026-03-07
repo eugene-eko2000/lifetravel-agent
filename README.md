@@ -49,7 +49,7 @@ and published as `payload.structured_response`.
     "prompt_id": { "type": "string" },
     "type": {
       "type": "string",
-      "enum": ["valid_request", "missing_info"]
+      "const": ["valid_request"]
     },
     "output": {
       "type": "object",
