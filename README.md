@@ -52,100 +52,89 @@ and published as `payload.structured_response`.
       "enum": ["valid_request", "missing_info"]
     },
     "output": {
-      "oneOf": [
-        {
+      "type": "object",
+      "required": ["trip", "budgets", "confidence"],
+      "properties": {
+        "trip": {
           "type": "object",
-          "required": ["trip", "budgets", "confidence"],
+          "required": ["timezone", "legs"],
           "properties": {
-            "trip": {
-              "type": "object",
-              "required": ["timezone", "legs"],
-              "properties": {
-                "timezone": { "type": "string" },
-                "travelers": { "type": "integer" },
-                "legs": {
-                  "type": "array",
-                  "items": {
+            "timezone": { "type": "string" },
+            "travelers": { "type": "integer" },
+            "legs": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["from", "to", "depart_date"],
+                "properties": {
+                  "from": { "type": "string" },
+                  "to": { "type": "string" },
+                  "depart_date": { "type": "string", "format": "date" },
+                  "depart_time_window": {
                     "type": "object",
-                    "required": ["from", "to", "depart_date"],
                     "properties": {
-                      "from": { "type": "string" },
-                      "to": { "type": "string" },
-                      "depart_date": { "type": "string", "format": "date" },
-                      "depart_time_window": {
-                        "type": "object",
-                        "properties": {
-                          "earliest": { "type": "string", "format": "time" },
-                          "latest": { "type": "string", "format": "time" }
-                        }
-                      }
-                    }
-                  }
-                },
-                "stays": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "required": ["check_in", "check_out"],
-                    "properties": {
-                      "city": { "type": "string" },
-                      "city_code": { "type": "string" },
-                      "location_latlng": {
-                        "type": "object",
-                        "required": ["lat", "lng"],
-                        "properties": {
-                          "lat": { "type": "number" },
-                          "lng": { "type": "number" }
-                        }
-                      },
-                      "check_in": { "type": "string", "format": "date" },
-                      "check_out": { "type": "string", "format": "date" },
-                      "min_rooms": { "type": "integer" }
+                      "earliest": { "type": "string", "format": "time" },
+                      "latest": { "type": "string", "format": "time" }
                     }
                   }
                 }
               }
             },
-            "budgets": {
-              "type": "object",
-              "properties": {
-                "flights": {
-                  "type": "object",
-                  "properties": {
-                    "amount": { "type": "number" },
-                    "currency": { "type": "string" },
-                    "scope": { "enum": ["total_trip", "per_leg"] }
-                  }
-                },
-                "hotels": {
-                  "type": "object",
-                  "properties": {
-                    "amount": { "type": "number" },
-                    "currency": { "type": "string" },
-                    "scope": { "enum": ["per_night", "total_trip"] }
-                  }
+            "stays": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["check_in", "check_out"],
+                "properties": {
+                  "city": { "type": "string" },
+                  "city_code": { "type": "string" },
+                  "location_latlng": {
+                    "type": "object",
+                    "required": ["lat", "lng"],
+                    "properties": {
+                      "lat": { "type": "number" },
+                      "lng": { "type": "number" }
+                    }
+                  },
+                  "check_in": { "type": "string", "format": "date" },
+                  "check_out": { "type": "string", "format": "date" },
+                  "min_rooms": { "type": "integer" }
                 }
               }
-            },
-            "assumptions": {
-              "type": "array",
-              "items": { "type": "string" }
-            },
-            "missing_fields": {
-              "type": "array",
-              "items": { "type": "string" }
-            },
-            "confidence": { "type": "number" }
+            }
           }
         },
-        {
+        "budgets": {
           "type": "object",
-          "required": ["missing_info"],
           "properties": {
-            "missing_info": { "type": "string" }
+            "flights": {
+              "type": "object",
+              "properties": {
+                "amount": { "type": "number" },
+                "currency": { "type": "string" },
+                "scope": { "enum": ["total_trip", "per_leg"] }
+              }
+            },
+            "hotels": {
+              "type": "object",
+              "properties": {
+                "amount": { "type": "number" },
+                "currency": { "type": "string" },
+                "scope": { "enum": ["per_night", "total_trip"] }
+              }
+            }
           }
-        }
-      ]
+        },
+        "assumptions": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "missing_fields": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "confidence": { "type": "number" }
+      }
     }
   },
   "additionalProperties": true
