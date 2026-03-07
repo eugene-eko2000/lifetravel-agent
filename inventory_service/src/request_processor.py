@@ -72,20 +72,17 @@ def _select_nearest_hotel_ids(
 
 
 def _extract_structured_request(payload: dict[str, Any]) -> dict[str, Any]:
-    if isinstance(payload.get("structured_request"), dict):
-        return payload["structured_request"]
+    structured_response = payload.get("structured_response")
+    if not isinstance(structured_response, dict):
+        raise ValueError("Incoming payload must contain object field 'structured_response'")
 
-    if isinstance(payload.get("structured_response"), dict):
-        structured_response = payload["structured_response"]
-        if isinstance(structured_response.get("output"), dict):
-            return structured_response["output"]
-        if isinstance(structured_response.get("structured_request"), dict):
-            return structured_response["structured_request"]
+    structured_output = structured_response.get("output")
+    if not isinstance(structured_output, dict):
+        raise ValueError(
+            "Incoming payload must contain object field 'structured_response.output'"
+        )
 
-    if isinstance(payload.get("output"), dict):
-        return payload["output"]
-
-    raise ValueError("No structured request found in incoming message")
+    return structured_output
 
 
 def _resolve_headers(payload: dict[str, Any], cfg: Cfg) -> dict[str, str]:
