@@ -6,6 +6,7 @@ PROJECT_DIR = Path(__file__).resolve().parents[1]
 SRC_DIR = PROJECT_DIR / "src"
 sys.path.insert(0, str(SRC_DIR))
 
+from cfg import Cfg
 from request_translator import translate_trip_request_to_amadeus_requests
 
 
@@ -73,7 +74,8 @@ SOURCE_EXAMPLE = {
 
 class RequestTranslatorTest(unittest.TestCase):
     def test_translate_trip_request_to_amadeus_requests(self) -> None:
-        translated = translate_trip_request_to_amadeus_requests(SOURCE_EXAMPLE["output"])
+        cfg = Cfg.from_env()
+        translated = translate_trip_request_to_amadeus_requests(SOURCE_EXAMPLE["output"], cfg)
 
         self.assertEqual(len(translated), 5)
         self.assertEqual(translated[0]["type"], "flight")
@@ -109,7 +111,7 @@ class RequestTranslatorTest(unittest.TestCase):
 
         first_hotel_query = hotel_requests[0]["query_params"]
         self.assertEqual(first_hotel_query["cityCode"], "BEJ")
-        self.assertEqual(first_hotel_query["radius"], 20)
+        self.assertEqual(first_hotel_query["radius"], 15)
         self.assertEqual(first_hotel_query["radiusUnit"], "KM")
         self.assertEqual(first_hotel_query["hotelSource"], "ALL")
 
@@ -135,7 +137,8 @@ class RequestTranslatorTest(unittest.TestCase):
             "confidence": 0.9,
         }
 
-        translated = translate_trip_request_to_amadeus_requests(geocode_input)
+        cfg = Cfg.from_env()
+        translated = translate_trip_request_to_amadeus_requests(geocode_input, cfg)
         self.assertEqual(len(translated), 2)
         self.assertEqual(translated[1]["type"], "hotel")
         self.assertEqual(translated[1]["hotels_list_mode"], "geocode")
@@ -143,7 +146,7 @@ class RequestTranslatorTest(unittest.TestCase):
         query = translated[1]["query_params"]
         self.assertEqual(query["latitude"], 39.9042)
         self.assertEqual(query["longitude"], 116.4074)
-        self.assertEqual(query["radius"], 20)
+        self.assertEqual(query["radius"], 5)
         self.assertEqual(query["radiusUnit"], "KM")
         self.assertEqual(query["hotelSource"], "ALL")
 

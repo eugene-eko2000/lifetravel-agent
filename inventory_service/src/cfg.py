@@ -17,6 +17,8 @@ class Cfg:
     amadeus_hotels_list_by_geocode_url: str
     amadeus_hotels_offers_url: str
     amadeus_hotels_offers_limit: int
+    amadeus_hotels_citycode_radius_km: int
+    amadeus_hotels_latlng_radius_km: int
     amadeus_auth_token: str
 
     @classmethod
@@ -54,6 +56,12 @@ class Cfg:
             ),
             amadeus_hotels_offers_limit=int(
                 os.getenv("AMADEUS_HOTELS_OFFERS_LIMIT", "10")
+            ),
+            amadeus_hotels_citycode_radius_km=int(
+                os.getenv("AMADEUS_HOTELS_CITYCODE_RADIUS_KM", "15")
+            ),
+            amadeus_hotels_latlng_radius_km=int(
+                os.getenv("AMADEUS_HOTELS_LATLNG_RADIUS_KM", "5")
             ),
             amadeus_auth_token=os.getenv("AMADEUS_AUTH_TOKEN", ""),
         )

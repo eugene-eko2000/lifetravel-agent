@@ -1,5 +1,7 @@
 from typing import Any
 
+from cfg import Cfg
+
 
 def _parse_location_latlng(value: Any) -> tuple[float, float] | None:
     if isinstance(value, dict):
@@ -65,7 +67,7 @@ def _build_flight_request(trip_request: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _build_hotel_requests(trip_request: dict[str, Any]) -> list[dict[str, Any]]:
+def _build_hotel_requests(trip_request: dict[str, Any], cfg: Cfg) -> list[dict[str, Any]]:
     trip = trip_request.get("trip", {})
     stays = trip.get("stays", [])
     budgets = trip_request.get("budgets", {})
@@ -104,7 +106,7 @@ def _build_hotel_requests(trip_request: dict[str, Any]) -> list[dict[str, Any]]:
                     "query_params": {
                         "latitude": lat,
                         "longitude": lng,
-                        "radius": 20,
+                        "radius": cfg.amadeus_hotels_latlng_radius_km,
                         "radiusUnit": "KM",
                         "hotelSource": "ALL",
                     },
@@ -122,7 +124,7 @@ def _build_hotel_requests(trip_request: dict[str, Any]) -> list[dict[str, Any]]:
                 "hotels_list_mode": "city",
                 "query_params": {
                     "cityCode": city_code,
-                    "radius": 20,
+                    "radius": cfg.amadeus_hotels_citycode_radius_km,
                     "radiusUnit": "KM",
                     "hotelSource": "ALL",
                 },
@@ -134,6 +136,7 @@ def _build_hotel_requests(trip_request: dict[str, Any]) -> list[dict[str, Any]]:
 
 def translate_trip_request_to_amadeus_requests(
     trip_request: dict[str, Any],
+    cfg: Cfg,
 ) -> list[dict[str, Any]]:
     """
     Translate a structured Trip Request into downstream provider requests.
@@ -143,7 +146,7 @@ def translate_trip_request_to_amadeus_requests(
     - next items: hotel requests
     """
     flight_payload = _build_flight_request(trip_request)
-    hotel_requests = _build_hotel_requests(trip_request)
+    hotel_requests = _build_hotel_requests(trip_request, cfg)
 
     return [
         {

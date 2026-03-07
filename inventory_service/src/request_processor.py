@@ -192,7 +192,7 @@ async def process_incoming_message(
 ) -> dict[str, Any]:
     payload = json.loads(incoming_body.decode("utf-8"))
     structured_request = _extract_structured_request(payload)
-    translated_requests = translate_trip_request_to_amadeus_requests(structured_request)
+    translated_requests = translate_trip_request_to_amadeus_requests(structured_request, cfg)
     headers = _resolve_headers(payload, cfg)
     results: dict[str, Any] = {
         "flights": [],
