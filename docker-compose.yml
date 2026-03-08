@@ -70,3 +70,15 @@ services:
       rabbitmq:
         condition: service_healthy
 
+  # ── Ranking Service ──────────────────────────────────────────────────────────
+  ranking_service:
+    build:
+      context: ./ranking_service
+    ports:
+      - "8083:8080"
+    environment:
+      PORT: 8080
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
