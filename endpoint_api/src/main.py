@@ -11,7 +11,7 @@ from pydantic import BaseModel, ValidationError
 
 from cfg import Cfg
 from rabbitmq_publisher import send_itinerary
-from rabbitmq_subscriber import run_missing_info_subscriber
+from rabbitmq_subscriber import run_missing_info_subscriber, run_ranked_subscriber
 
 logger = logging.getLogger("endpoint_api")
 
@@ -111,6 +111,29 @@ async def _handle_missing_info_message(payload: dict) -> None:
         logger.warning("No active websocket mapping for missing_info id=%s", request_id)
 
 
+async def _handle_ranked_message(payload: dict) -> None:
+    request_id = payload.get("id")
+    ranked_response = payload.get("ranked_response")
+    if not isinstance(request_id, str) or not request_id.strip():
+        logger.warning("Ranked message without valid id: %s", payload)
+        return
+    if not isinstance(ranked_response, dict):
+        logger.warning("Ranked message without ranked_response: %s", payload)
+        return
+
+    message = {
+        "type": "ranked",
+        "id": request_id,
+        "ranked_response": ranked_response,
+    }
+
+    delivered = await connection_manager.send_to_request(request_id, message)
+    if delivered:
+        logger.info("Delivered ranked itinerary to websocket for id=%s", request_id)
+    else:
+        logger.warning("No active websocket mapping for ranked id=%s", request_id)
+
+
 @app.on_event("startup")
 async def on_startup() -> None:
     cfg = Cfg.from_env()
@@ -118,20 +141,28 @@ async def on_startup() -> None:
     app.state.missing_info_task = asyncio.create_task(
         run_missing_info_subscriber(_handle_missing_info_message)
     )
+    app.state.ranked_task = asyncio.create_task(
+        run_ranked_subscriber(_handle_ranked_message)
+    )
 
 
 @app.on_event("shutdown")
 async def on_shutdown() -> None:
-    task = getattr(app.state, "missing_info_task", None)
-    if task is None:
-        return
-    task.cancel()
-    try:
-        await task
-    except asyncio.CancelledError:
-        logger.info("Missing-info subscriber task cancelled")
-    except Exception:
-        logger.exception("Missing-info subscriber task failed during shutdown")
+    missing_info_task = getattr(app.state, "missing_info_task", None)
+    ranked_task = getattr(app.state, "ranked_task", None)
+    for name, task in (
+        ("missing-info", missing_info_task),
+        ("ranked", ranked_task),
+    ):
+        if task is None:
+            continue
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            logger.info("%s subscriber task cancelled", name)
+        except Exception:
+            logger.exception("%s subscriber task failed during shutdown", name)
 
 
 @app.get("/health")

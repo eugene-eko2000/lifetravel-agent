@@ -13,6 +13,8 @@ class Cfg:
     rabbitmq_routing_key: str
     rabbitmq_missing_info_routing_key: str
     rabbitmq_missing_info_queue: str
+    rabbitmq_ranked_routing_key: str
+    rabbitmq_ranked_queue: str
 
     @classmethod
     def from_env(cls) -> "Cfg":
@@ -34,6 +36,14 @@ class Cfg:
             rabbitmq_missing_info_queue=os.getenv(
                 "RABBITMQ_MISSING_INFO_QUEUE",
                 "endpoint_api_missing_info_queue",
+            ),
+            rabbitmq_ranked_routing_key=os.getenv(
+                "RABBITMQ_RANKED_ROUTING_KEY",
+                "itinerary:ranked",
+            ),
+            rabbitmq_ranked_queue=os.getenv(
+                "RABBITMQ_RANKED_QUEUE",
+                "endpoint_api_ranked_queue",
             ),
         )
 

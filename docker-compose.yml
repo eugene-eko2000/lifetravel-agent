@@ -25,6 +25,10 @@ services:
       AMQP_PASSWORD: guest
       RABBITMQ_EXCHANGE: lifetravel_agent
       RABBITMQ_ITINERARY_REQUEST_ROUTING_KEY: itinerary:user_request
+      RABBITMQ_MISSING_INFO_ROUTING_KEY: itinerary:missing_info
+      RABBITMQ_MISSING_INFO_QUEUE: endpoint_api_missing_info_queue
+      RABBITMQ_RANKED_ROUTING_KEY: itinerary:ranked
+      RABBITMQ_RANKED_QUEUE: endpoint_api_ranked_queue
     depends_on:
       rabbitmq:
         condition: service_healthy
