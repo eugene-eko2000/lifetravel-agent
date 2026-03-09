@@ -147,16 +147,8 @@ async def _handle_debug_message(payload: dict) -> None:
         logger.warning("Debug message without valid request id: %s", payload)
         return
 
-    message = payload.get("message")
-    debug_message = message if isinstance(message, str) and message.strip() else "debug payload received"
-    outgoing = {
-        "type": "debug",
-        "source": "rabbitmq",
-        "id": request_id,
-        "message": debug_message,
-        "payload": payload,
-    }
-    delivered = await connection_manager.send_to_request(request_id, outgoing)
+    payload["type"] = "debug"
+    delivered = await connection_manager.send_to_request(request_id, payload)
     if delivered:
         logger.info("Delivered debug message to itinerary websocket for id=%s", request_id)
     else:

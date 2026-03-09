@@ -17,7 +17,7 @@ async def _emit_debug_message(
     request_id: str | None,
     message: str,
     *,
-    level: str = "error",
+    level: str,
     payload: dict[str, Any] | None = None,
 ) -> None:
     if debug_publisher is None:
