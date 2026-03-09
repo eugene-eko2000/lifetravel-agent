@@ -4,7 +4,6 @@ import json
 import logging
 import os
 import pprint
-import requests
 import sys
 from pathlib import Path
 from typing import Any
@@ -33,35 +32,6 @@ def _load_env_file(path: Path) -> None:
         value = value.strip().strip('"').strip("'")
         if key and key not in os.environ:
             os.environ[key] = value
-
-
-def _get_amadeus_bearer_token():
-    # curl "https://test.api.amadeus.com/v1/security/oauth2/token" \
-    #  -H "Content-Type: application/x-www-form-urlencoded" \
-    #  -d "grant_type=client_credentials&client_id=$AMADEUS_CLIENT_ID&client_secret=$AMADEUS_CLIENT_SECRET"
-
-    client_id = os.getenv("AMADEUS_CLIENT_ID")
-    client_secret = os.getenv("AMADEUS_CLIENT_SECRET")
-    if not client_id or not client_secret:
-        raise ValueError(
-            "AMADEUS_CLIENT_ID and AMADEUS_CLIENT_SECRET must be set in env vars"
-        )
-
-    url = "https://test.api.amadeus.com/v1/security/oauth2/token"
-    payload = {
-        "grant_type": "client_credentials",
-        "client_id": client_id,
-        "client_secret": client_secret
-    }
-    headers = {
-        "Content-Type": "application/x-www-form-urlencoded"
-    }
-
-    response = requests.post(url, data=payload, headers=headers)
-    if response.status_code == 200:
-        return response.json()["access_token"]
-    else:
-        raise ValueError(f"Failed to retrieve token: {response.status_code}")
 
 
 async def _run_test() -> None:
@@ -165,7 +135,6 @@ async def _run_test() -> None:
                 "confidence": 0.84
             }
         },
-        "amadeus_headers": {"Authorization": f"Bearer {_get_amadeus_bearer_token()}"},
     }
     incoming_body = json.dumps(payload).encode("utf-8")
 

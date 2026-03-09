@@ -85,15 +85,12 @@ def _extract_structured_request(payload: dict[str, Any]) -> dict[str, Any]:
     return structured_output
 
 
-def _resolve_headers(payload: dict[str, Any], cfg: Cfg) -> dict[str, str]:
+async def _resolve_headers(payload: dict[str, Any], sender: AmadeusSender) -> dict[str, str]:
     payload_headers = payload.get("amadeus_headers")
     if isinstance(payload_headers, dict):
         return {str(k): str(v) for k, v in payload_headers.items()}
-
-    if cfg.amadeus_auth_token:
-        return {"Authorization": f"Bearer {cfg.amadeus_auth_token}"}
-
-    return {}
+    token = await sender.get_amadeus_bearer_token()
+    return {"Authorization": f"Bearer {token}"}
 
 
 async def _process_translated_request(
@@ -190,7 +187,7 @@ async def process_incoming_message(
     payload = json.loads(incoming_body.decode("utf-8"))
     structured_request = _extract_structured_request(payload)
     translated_requests = translate_trip_request_to_amadeus_requests(structured_request, cfg)
-    headers = _resolve_headers(payload, cfg)
+    headers = await _resolve_headers(payload, sender)
     results: dict[str, Any] = {
         "flights": [],
         "hotels": {},

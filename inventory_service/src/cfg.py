@@ -17,10 +17,12 @@ class Cfg:
     amadeus_hotels_list_url: str
     amadeus_hotels_list_by_geocode_url: str
     amadeus_hotels_offers_url: str
+    amadeus_token_url: str
     amadeus_hotels_offers_limit: int
     amadeus_hotels_citycode_radius_km: int
     amadeus_hotels_latlng_radius_km: int
-    amadeus_auth_token: str
+    amadeus_client_id: str
+    amadeus_client_secret: str
 
     @classmethod
     def from_env(cls) -> "Cfg":
@@ -59,6 +61,10 @@ class Cfg:
                 "AMADEUS_HOTELS_OFFERS_URL",
                 "https://test.api.amadeus.com/v3/shopping/hotel-offers",
             ),
+            amadeus_token_url=os.getenv(
+                "AMADEUS_TOKEN_URL",
+                "https://test.api.amadeus.com/v1/security/oauth2/token",
+            ),
             amadeus_hotels_offers_limit=int(
                 os.getenv("AMADEUS_HOTELS_OFFERS_LIMIT", "10")
             ),
@@ -68,7 +74,8 @@ class Cfg:
             amadeus_hotels_latlng_radius_km=int(
                 os.getenv("AMADEUS_HOTELS_LATLNG_RADIUS_KM", "5")
             ),
-            amadeus_auth_token=os.getenv("AMADEUS_AUTH_TOKEN", ""),
+            amadeus_client_id=os.getenv("AMADEUS_CLIENT_ID", ""),
+            amadeus_client_secret=os.getenv("AMADEUS_CLIENT_SECRET", ""),
         )
 
     @property

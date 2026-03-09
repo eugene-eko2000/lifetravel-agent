@@ -8,6 +8,36 @@ from cfg import Cfg
 class AmadeusSender:
     def __init__(self, cfg: Cfg | None = None) -> None:
         self._cfg = cfg or Cfg.from_env()
+        self._bearer_token: str | None = None
+
+    async def get_amadeus_bearer_token(self) -> str:
+        if self._bearer_token:
+            return self._bearer_token
+
+        if not self._cfg.amadeus_client_id or not self._cfg.amadeus_client_secret:
+            raise ValueError(
+                "AMADEUS_CLIENT_ID and AMADEUS_CLIENT_SECRET must be set"
+            )
+
+        payload = {
+            "grant_type": "client_credentials",
+            "client_id": self._cfg.amadeus_client_id,
+            "client_secret": self._cfg.amadeus_client_secret,
+        }
+        headers = {"Content-Type": "application/x-www-form-urlencoded"}
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                self._cfg.amadeus_token_url,
+                data=payload,
+                headers=headers,
+            )
+            response.raise_for_status()
+            token = response.json().get("access_token")
+            if not isinstance(token, str) or not token:
+                raise ValueError("Failed to retrieve Amadeus access token")
+            self._bearer_token = token
+            return token
 
     async def send_flights_offers(
         self,

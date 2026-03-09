@@ -77,11 +77,12 @@ services:
       AMADEUS_HOTELS_LIST_URL: https://test.api.amadeus.com/v1/reference-data/locations/hotels/by-city
       AMADEUS_HOTELS_LIST_BY_GEOCODE_URL: https://test.api.amadeus.com/v1/reference-data/locations/hotels/by-geocode
       AMADEUS_HOTELS_OFFERS_URL: https://test.api.amadeus.com/v3/shopping/hotel-offers
+      AMADEUS_TOKEN_URL: https://test.api.amadeus.com/v1/security/oauth2/token
       AMADEUS_HOTELS_OFFERS_LIMIT: 10
       AMADEUS_HOTELS_CITYCODE_RADIUS_KM: 15
       AMADEUS_HOTELS_LATLNG_RADIUS_KM: 5
       AMADEUS_CLIENT_ID: ${AMADEUS_CLIENT_ID:-}
-      AMADEUS_AUTH_TOKEN: ${AMADEUS_AUTH_TOKEN:-}
+      AMADEUS_CLIENT_SECRET: ${AMADEUS_CLIENT_SECRET:-}
     depends_on:
       rabbitmq:
         condition: service_healthy
