@@ -50,6 +50,9 @@ services:
       RABBITMQ_PUBLISH_ROUTING_KEY: itinerary:query_router_response
       RABBITMQ_MISSING_INFO_ROUTING_KEY: itinerary:missing_info
       RABBITMQ_QUEUE_NAME: query_router_itinerary_user_request_queue
+      OPENAI_API_KEY: ""
+      OPENAI_MODEL: gpt-5.2
+      OPENAI_BASE_URL: https://api.openai.com/v1
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -70,6 +73,14 @@ services:
       RABBITMQ_SUBSCRIBE_ROUTING_KEY: itinerary:query_router_response
       RABBITMQ_PUBLISH_ROUTING_KEY: itinerary:provider_response
       RABBITMQ_QUEUE_NAME: inventory_service_structured_request_queue
+      AMADEUS_FLIGHTS_OFFERS_URL: https://test.api.amadeus.com/v2/shopping/flight-offers
+      AMADEUS_HOTELS_LIST_URL: https://test.api.amadeus.com/v1/reference-data/locations/hotels/by-city
+      AMADEUS_HOTELS_LIST_BY_GEOCODE_URL: https://test.api.amadeus.com/v1/reference-data/locations/hotels/by-geocode
+      AMADEUS_HOTELS_OFFERS_URL: https://test.api.amadeus.com/v3/shopping/hotel-offers
+      AMADEUS_HOTELS_OFFERS_LIMIT: 10
+      AMADEUS_HOTELS_CITYCODE_RADIUS_KM: 15
+      AMADEUS_HOTELS_LATLNG_RADIUS_KM: 5
+      AMADEUS_AUTH_TOKEN: ""
     depends_on:
       rabbitmq:
         condition: service_healthy
