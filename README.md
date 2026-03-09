@@ -216,6 +216,51 @@ and consumed by `endpoint_api` subscriber/websocket bridge.
 }
 ```
 
+### 5) DebugMessage
+
+Message consumed by `endpoint_api` debug subscriber and forwarded to the websocket
+request owner (correlated by request id).
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DebugMessage",
+  "type": "object",
+  "required": ["message"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Primary request correlation id."
+    },
+    "request_id": {
+      "type": "string",
+      "description": "Fallback request correlation id when `id` is not set."
+    },
+    "message": {
+      "type": "string",
+      "description": "Debug text shown to the client."
+    },
+    "source": {
+      "type": "string",
+      "description": "Optional source service/component."
+    },
+    "level": {
+      "type": "string",
+      "enum": ["debug", "info", "warning", "error"]
+    },
+    "payload": {
+      "type": "object",
+      "description": "Optional extra structured debug details."
+    }
+  },
+  "oneOf": [
+    { "required": ["id"] },
+    { "required": ["request_id"] }
+  ],
+  "additionalProperties": true
+}
+```
+
 ## Message Routing Table
 
 `exchange name` is configurable via `RABBITMQ_EXCHANGE` (default: `lifetravel_agent`) in all services.
