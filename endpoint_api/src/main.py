@@ -90,57 +90,7 @@ class ConnectionManager:
         return True
 
 
-class DebugConnectionManager:
-    def __init__(self) -> None:
-        self._sessions: dict[int, ClientSession] = {}
-        self._lock = asyncio.Lock()
-
-    async def connect(self, websocket: WebSocket) -> int:
-        session_id = id(websocket)
-        async with self._lock:
-            self._sessions[session_id] = ClientSession(websocket=websocket)
-        return session_id
-
-    async def disconnect(self, session_id: int) -> None:
-        async with self._lock:
-            self._sessions.pop(session_id, None)
-
-    async def send_to_session(self, session_id: int, payload: dict) -> bool:
-        async with self._lock:
-            session = self._sessions.get(session_id)
-
-        if session is None:
-            return False
-
-        async with session.send_lock:
-            await session.websocket.send_json(payload)
-        return True
-
-    async def broadcast(self, payload: dict) -> int:
-        async with self._lock:
-            sessions = list(self._sessions.values())
-
-        delivered = 0
-        for session in sessions:
-            try:
-                async with session.send_lock:
-                    await session.websocket.send_json(payload)
-                delivered += 1
-            except Exception:
-                logger.exception("Failed to send debug message to websocket client")
-        return delivered
-
-
 connection_manager = ConnectionManager()
-debug_connection_manager = DebugConnectionManager()
-
-
-async def send_debug_message(message: str, *, source: str = "endpoint_api", **extra: object) -> int:
-    payload: dict[str, object] = {"type": "debug", "source": source, "message": message}
-    payload.update(extra)
-    delivered = await debug_connection_manager.broadcast(payload)
-    logger.info("Debug message delivered to %s websocket client(s)", delivered)
-    return delivered
 
 
 async def _handle_missing_info_message(payload: dict) -> None:
@@ -208,9 +158,9 @@ async def _handle_debug_message(payload: dict) -> None:
     }
     delivered = await connection_manager.send_to_request(request_id, outgoing)
     if delivered:
-        logger.info("Delivered debug message to websocket for id=%s", request_id)
+        logger.info("Delivered debug message to itinerary websocket for id=%s", request_id)
     else:
-        logger.warning("No active websocket mapping for debug id=%s", request_id)
+        logger.warning("No active itinerary websocket mapping for debug id=%s", request_id)
 
 
 @app.on_event("startup")
@@ -332,44 +282,6 @@ async def itinerary_websocket(websocket: WebSocket) -> None:
     except Exception:
         logger.exception("Unhandled error in itinerary WebSocket handler")
         await connection_manager.disconnect(session_id)
-        return
-
-
-@app.websocket("/api/v1/debug")
-async def debug_websocket(websocket: WebSocket) -> None:
-    await websocket.accept()
-    session_id = await debug_connection_manager.connect(websocket)
-    logger.info("WebSocket client connected to /api/v1/debug")
-
-    await debug_connection_manager.send_to_session(
-        session_id,
-        {
-            "type": "debug",
-            "source": "endpoint_api",
-            "message": "debug websocket connected",
-        },
-    )
-
-    try:
-        while True:
-            # Keep the socket alive and optionally accept client-side debug pings.
-            incoming = await websocket.receive_text()
-            await debug_connection_manager.send_to_session(
-                session_id,
-                {
-                    "type": "debug",
-                    "source": "endpoint_api",
-                    "message": "debug message received",
-                    "echo": incoming,
-                },
-            )
-    except WebSocketDisconnect:
-        logger.info("WebSocket client disconnected from /api/v1/debug")
-        await debug_connection_manager.disconnect(session_id)
-        return
-    except Exception:
-        logger.exception("Unhandled error in debug WebSocket handler")
-        await debug_connection_manager.disconnect(session_id)
         return
 
 
