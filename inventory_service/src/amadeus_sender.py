@@ -10,7 +10,7 @@ class AmadeusSender:
         self._cfg = cfg or Cfg.from_env()
         self._bearer_token: str | None = None
 
-    async def get_amadeus_bearer_token(self) -> str:
+    async def _get_amadeus_bearer_token(self) -> str:
         if self._bearer_token:
             return self._bearer_token
 
@@ -39,58 +39,92 @@ class AmadeusSender:
             self._bearer_token = token
             return token
 
+    async def _authorized_request(
+        self,
+        method: str,
+        url: str,
+        *,
+        params: dict[str, Any] | None = None,
+        json_payload: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
+    ) -> dict[str, Any]:
+        merged_headers: dict[str, str] = {}
+        if isinstance(headers, dict):
+            merged_headers = {str(k): str(v) for k, v in headers.items()}
+
+        # First attempt with current cached token.
+        token = await self._get_amadeus_bearer_token()
+        merged_headers["Authorization"] = f"Bearer {token}"
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.request(
+                method=method,
+                url=url,
+                params=params,
+                json=json_payload,
+                headers=merged_headers,
+            )
+
+            # Token may have expired, refresh and retry once.
+            if response.status_code == 401:
+                self._bearer_token = None
+                refreshed_token = await self._get_amadeus_bearer_token()
+                merged_headers["Authorization"] = f"Bearer {refreshed_token}"
+                response = await client.request(
+                    method=method,
+                    url=url,
+                    params=params,
+                    json=json_payload,
+                    headers=merged_headers,
+                )
+
+            response.raise_for_status()
+            return response.json()
+
     async def send_flights_offers(
         self,
         payload: dict[str, Any],
         headers: dict[str, str] | None = None,
     ) -> dict[str, Any]:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(
-                self._cfg.amadeus_flights_offers_url,
-                json=payload,
-                headers=headers,
-            )
-            response.raise_for_status()
-            return response.json()
+        return await self._authorized_request(
+            "POST",
+            self._cfg.amadeus_flights_offers_url,
+            json_payload=payload,
+            headers=headers,
+        )
 
     async def send_hotels_list(
         self,
         query_params: dict[str, Any],
         headers: dict[str, str] | None = None,
     ) -> dict[str, Any]:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.get(
-                self._cfg.amadeus_hotels_list_url,
-                params=query_params,
-                headers=headers,
-            )
-            response.raise_for_status()
-            return response.json()
+        return await self._authorized_request(
+            "GET",
+            self._cfg.amadeus_hotels_list_url,
+            params=query_params,
+            headers=headers,
+        )
 
     async def send_hotels_list_by_geocode(
         self,
         query_params: dict[str, Any],
         headers: dict[str, str] | None = None,
     ) -> dict[str, Any]:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.get(
-                self._cfg.amadeus_hotels_list_by_geocode_url,
-                params=query_params,
-                headers=headers,
-            )
-            response.raise_for_status()
-            return response.json()
+        return await self._authorized_request(
+            "GET",
+            self._cfg.amadeus_hotels_list_by_geocode_url,
+            params=query_params,
+            headers=headers,
+        )
 
     async def send_hotels_offers(
         self,
         query_params: dict[str, Any],
         headers: dict[str, str] | None = None,
     ) -> dict[str, Any]:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.get(
-                self._cfg.amadeus_hotels_offers_url,
-                params=query_params,
-                headers=headers,
-            )
-            response.raise_for_status()
-            return response.json()
+        return await self._authorized_request(
+            "GET",
+            self._cfg.amadeus_hotels_offers_url,
+            params=query_params,
+            headers=headers,
+        )

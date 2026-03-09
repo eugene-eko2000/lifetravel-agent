@@ -15,6 +15,8 @@ class Cfg:
     rabbitmq_missing_info_queue: str
     rabbitmq_ranked_routing_key: str
     rabbitmq_ranked_queue: str
+    rabbitmq_debug_routing_key: str
+    rabbitmq_debug_queue: str
 
     @classmethod
     def from_env(cls) -> "Cfg":
@@ -44,6 +46,14 @@ class Cfg:
             rabbitmq_ranked_queue=os.getenv(
                 "RABBITMQ_RANKED_QUEUE",
                 "endpoint_api_ranked_queue",
+            ),
+            rabbitmq_debug_routing_key=os.getenv(
+                "RABBITMQ_DEBUG_ROUTING_KEY",
+                "debug:message",
+            ),
+            rabbitmq_debug_queue=os.getenv(
+                "RABBITMQ_DEBUG_QUEUE",
+                "endpoint_api_debug_queue",
             ),
         )
 

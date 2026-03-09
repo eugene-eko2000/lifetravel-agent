@@ -85,26 +85,16 @@ def _extract_structured_request(payload: dict[str, Any]) -> dict[str, Any]:
     return structured_output
 
 
-async def _resolve_headers(payload: dict[str, Any], sender: AmadeusSender) -> dict[str, str]:
-    payload_headers = payload.get("amadeus_headers")
-    if isinstance(payload_headers, dict):
-        return {str(k): str(v) for k, v in payload_headers.items()}
-    token = await sender.get_amadeus_bearer_token()
-    return {"Authorization": f"Bearer {token}"}
-
-
 async def _process_translated_request(
     sender: AmadeusSender,
     cfg: Cfg,
     translated: dict[str, Any],
-    headers: dict[str, str],
 ) -> Any:
     request_type = translated.get("type")
 
     if request_type == "flight":
         return await sender.send_flights_offers(
             payload=translated.get("payload", {}),
-            headers=headers,
         )
 
     if request_type == "hotel":
@@ -119,12 +109,10 @@ async def _process_translated_request(
         if hotel_mode == "geocode":
             hotels_list_response = await sender.send_hotels_list_by_geocode(
                 query_params=translated.get("query_params", {}),
-                headers=headers,
             )
         else:
             hotels_list_response = await sender.send_hotels_list(
                 query_params=translated.get("query_params", {}),
-                headers=headers,
             )
 
         hotel_ids = _extract_hotel_ids(hotels_list_response)
@@ -154,7 +142,6 @@ async def _process_translated_request(
             offers_tasks.append(
                 sender.send_hotels_offers(
                     query_params=offers_query,
-                    headers=headers,
                 )
             )
 
@@ -187,13 +174,12 @@ async def process_incoming_message(
     payload = json.loads(incoming_body.decode("utf-8"))
     structured_request = _extract_structured_request(payload)
     translated_requests = translate_trip_request_to_amadeus_requests(structured_request, cfg)
-    headers = await _resolve_headers(payload, sender)
     results: dict[str, Any] = {
         "flights": [],
         "hotels": {},
     }
     tasks = [
-        _process_translated_request(sender, cfg, translated, headers)
+        _process_translated_request(sender, cfg, translated)
         for translated in translated_requests
     ]
     processed_results = await asyncio.gather(*tasks, return_exceptions=True)

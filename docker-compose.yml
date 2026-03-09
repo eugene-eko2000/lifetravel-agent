@@ -29,6 +29,8 @@ services:
       RABBITMQ_MISSING_INFO_QUEUE: endpoint_api_missing_info_queue
       RABBITMQ_RANKED_ROUTING_KEY: itinerary:ranked
       RABBITMQ_RANKED_QUEUE: endpoint_api_ranked_queue
+      RABBITMQ_DEBUG_ROUTING_KEY: debug:message
+      RABBITMQ_DEBUG_QUEUE: endpoint_api_debug_queue
     depends_on:
       rabbitmq:
         condition: service_healthy

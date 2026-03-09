@@ -11,7 +11,11 @@ from pydantic import BaseModel, ValidationError
 
 from cfg import Cfg
 from rabbitmq_publisher import send_itinerary
-from rabbitmq_subscriber import run_missing_info_subscriber, run_ranked_subscriber
+from rabbitmq_subscriber import (
+    run_debug_subscriber,
+    run_missing_info_subscriber,
+    run_ranked_subscriber,
+)
 
 logger = logging.getLogger("endpoint_api")
 
@@ -185,6 +189,30 @@ async def _handle_ranked_message(payload: dict) -> None:
         logger.warning("No active websocket mapping for ranked id=%s", request_id)
 
 
+async def _handle_debug_message(payload: dict) -> None:
+    request_id = payload.get("id")
+    if not isinstance(request_id, str) or not request_id.strip():
+        request_id = payload.get("request_id")
+    if not isinstance(request_id, str) or not request_id.strip():
+        logger.warning("Debug message without valid request id: %s", payload)
+        return
+
+    message = payload.get("message")
+    debug_message = message if isinstance(message, str) and message.strip() else "debug payload received"
+    outgoing = {
+        "type": "debug",
+        "source": "rabbitmq",
+        "id": request_id,
+        "message": debug_message,
+        "payload": payload,
+    }
+    delivered = await connection_manager.send_to_request(request_id, outgoing)
+    if delivered:
+        logger.info("Delivered debug message to websocket for id=%s", request_id)
+    else:
+        logger.warning("No active websocket mapping for debug id=%s", request_id)
+
+
 @app.on_event("startup")
 async def on_startup() -> None:
     cfg = Cfg.from_env()
@@ -195,15 +223,20 @@ async def on_startup() -> None:
     app.state.ranked_task = asyncio.create_task(
         run_ranked_subscriber(_handle_ranked_message)
     )
+    app.state.debug_task = asyncio.create_task(
+        run_debug_subscriber(_handle_debug_message)
+    )
 
 
 @app.on_event("shutdown")
 async def on_shutdown() -> None:
     missing_info_task = getattr(app.state, "missing_info_task", None)
     ranked_task = getattr(app.state, "ranked_task", None)
+    debug_task = getattr(app.state, "debug_task", None)
     for name, task in (
         ("missing-info", missing_info_task),
         ("ranked", ranked_task),
+        ("debug", debug_task),
     ):
         if task is None:
             continue
