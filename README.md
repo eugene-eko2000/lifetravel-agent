@@ -272,3 +272,4 @@ request owner (correlated by request id).
 | `lifetravel_agent` | `itinerary:provider_response` | `ItineraryInventoryResponse` | `inventory_service` | `ranking_service` |
 | `lifetravel_agent` | `itinerary:ranked` | `RankedItineraryResponse` | `ranking_service` | `endpoint_api` |
 | `lifetravel_agent` | `itinerary:missing_info` | `MissingInfoMessage` (`structured_response.type = "missing_info"`) | `query_router` | `endpoint_api` |
+| `lifetravel_agent` | `debug:message` | `DebugMessage` | `inventory_service`, `query_router`, `ranking_service` | `endpoint_api` |
