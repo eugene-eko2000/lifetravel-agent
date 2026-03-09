@@ -21,8 +21,8 @@ services:
       PORT: 8080
       AMQP_HOST: rabbitmq
       AMQP_PORT: 5672
-      AMQP_USER: guest
-      AMQP_PASSWORD: guest
+      AMQP_USER: ${AMQP_USER:-guest}
+      AMQP_PASSWORD: ${AMQP_PASSWORD:-guest}
       RABBITMQ_EXCHANGE: lifetravel_agent
       RABBITMQ_ITINERARY_REQUEST_ROUTING_KEY: itinerary:user_request
       RABBITMQ_MISSING_INFO_ROUTING_KEY: itinerary:missing_info
@@ -43,14 +43,14 @@ services:
       PORT: 8080
       AMQP_HOST: rabbitmq
       AMQP_PORT: 5672
-      AMQP_USER: guest
-      AMQP_PASSWORD: guest
+      AMQP_USER: ${AMQP_USER:-guest}
+      AMQP_PASSWORD: ${AMQP_PASSWORD:-guest}
       RABBITMQ_EXCHANGE: lifetravel_agent
       RABBITMQ_SUBSCRIBE_ROUTING_KEY: itinerary:user_request
       RABBITMQ_PUBLISH_ROUTING_KEY: itinerary:query_router_response
       RABBITMQ_MISSING_INFO_ROUTING_KEY: itinerary:missing_info
       RABBITMQ_QUEUE_NAME: query_router_itinerary_user_request_queue
-      OPENAI_API_KEY: ""
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_MODEL: gpt-5.2
       OPENAI_BASE_URL: https://api.openai.com/v1
     depends_on:
@@ -67,8 +67,8 @@ services:
       PORT: 8080
       AMQP_HOST: rabbitmq
       AMQP_PORT: 5672
-      AMQP_USER: guest
-      AMQP_PASSWORD: guest
+      AMQP_USER: ${AMQP_USER:-guest}
+      AMQP_PASSWORD: ${AMQP_PASSWORD:-guest}
       RABBITMQ_EXCHANGE: lifetravel_agent
       RABBITMQ_SUBSCRIBE_ROUTING_KEY: itinerary:query_router_response
       RABBITMQ_PUBLISH_ROUTING_KEY: itinerary:provider_response
@@ -80,7 +80,7 @@ services:
       AMADEUS_HOTELS_OFFERS_LIMIT: 10
       AMADEUS_HOTELS_CITYCODE_RADIUS_KM: 15
       AMADEUS_HOTELS_LATLNG_RADIUS_KM: 5
-      AMADEUS_AUTH_TOKEN: ""
+      AMADEUS_AUTH_TOKEN: ${AMADEUS_AUTH_TOKEN:-}
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -95,8 +95,8 @@ services:
       PORT: 8080
       AMQP_HOST: rabbitmq
       AMQP_PORT: 5672
-      AMQP_USER: guest
-      AMQP_PASSWORD: guest
+      AMQP_USER: ${AMQP_USER:-guest}
+      AMQP_PASSWORD: ${AMQP_PASSWORD:-guest}
       RABBITMQ_EXCHANGE: lifetravel_agent
       RABBITMQ_SUBSCRIBE_ROUTING_KEY: itinerary:provider_response
       RABBITMQ_PUBLISH_ROUTING_KEY: itinerary:ranked
