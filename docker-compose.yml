@@ -75,6 +75,7 @@ services:
       RABBITMQ_EXCHANGE: lifetravel_agent
       RABBITMQ_SUBSCRIBE_ROUTING_KEY: itinerary:query_router_response
       RABBITMQ_PUBLISH_ROUTING_KEY: itinerary:provider_response
+      RABBITMQ_DEBUG_ROUTING_KEY: debug:message
       RABBITMQ_QUEUE_NAME: inventory_service_structured_request_queue
       AMADEUS_FLIGHTS_OFFERS_URL: https://test.api.amadeus.com/v2/shopping/flight-offers
       AMADEUS_HOTELS_LIST_URL: https://test.api.amadeus.com/v1/reference-data/locations/hotels/by-city

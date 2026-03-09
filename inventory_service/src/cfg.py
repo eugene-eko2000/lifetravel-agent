@@ -12,6 +12,7 @@ class Cfg:
     rabbitmq_exchange: str
     rabbitmq_subscribe_routing_key: str
     rabbitmq_publish_routing_key: str
+    rabbitmq_debug_routing_key: str
     rabbitmq_queue_name: str
     amadeus_flights_offers_url: str
     amadeus_hotels_list_url: str
@@ -40,6 +41,10 @@ class Cfg:
             rabbitmq_publish_routing_key=os.getenv(
                 "RABBITMQ_PUBLISH_ROUTING_KEY",
                 "itinerary:provider_response",
+            ),
+            rabbitmq_debug_routing_key=os.getenv(
+                "RABBITMQ_DEBUG_ROUTING_KEY",
+                "debug:message",
             ),
             rabbitmq_queue_name=os.getenv(
                 "RABBITMQ_QUEUE_NAME",

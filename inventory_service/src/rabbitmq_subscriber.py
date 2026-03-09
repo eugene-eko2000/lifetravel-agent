@@ -7,7 +7,7 @@ from aio_pika import ExchangeType
 from amadeus_sender import AmadeusSender
 from cfg import Cfg
 from request_processor import process_incoming_message
-from rabbitmq_publisher import publish_provider_response
+from rabbitmq_publisher import publish_debug_message, publish_provider_response
 
 # Backward-compat alias for existing tests/imports.
 _process_incoming_message = process_incoming_message
@@ -42,7 +42,6 @@ async def run_inventory_subscriber() -> None:
             async for incoming in queue_iter:
                 async with incoming.process():
                     try:
-                        results = await process_incoming_message(sender, cfg, incoming.body)
                         request_id = None
                         try:
                             incoming_payload = json.loads(incoming.body.decode("utf-8"))
@@ -51,6 +50,21 @@ async def run_inventory_subscriber() -> None:
                                 request_id = candidate_request_id
                         except Exception:
                             logger.warning("Failed to parse incoming payload for request id")
+
+                        async def _debug_publisher(payload: dict) -> None:
+                            await publish_debug_message(
+                                exchange=exchange,
+                                routing_key=cfg.rabbitmq_debug_routing_key,
+                                payload=payload,
+                            )
+
+                        results = await process_incoming_message(
+                            sender,
+                            cfg,
+                            incoming.body,
+                            request_id=request_id,
+                            debug_publisher=_debug_publisher,
+                        )
 
                         outgoing_payload = {
                             "id": request_id,
