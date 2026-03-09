@@ -195,8 +195,10 @@ GOLDEN_RANKED_PROVIDER_RESPONSE = {
         {
             "_ranking": {
                 "duration_minutes": 240.0,
+                "eligible": True,
+                "ineligibility_reason": "",
                 "price": 300.0,
-                "score": 95.0,
+                "score": 100.0,
                 "stops": 0,
             },
             "id": "1",
@@ -220,8 +222,10 @@ GOLDEN_RANKED_PROVIDER_RESPONSE = {
         {
             "_ranking": {
                 "duration_minutes": 320.0,
+                "eligible": True,
+                "ineligibility_reason": "",
                 "price": 420.0,
-                "score": 36.0,
+                "score": 85.71,
                 "stops": 0,
             },
             "id": "2",
@@ -241,12 +245,45 @@ GOLDEN_RANKED_PROVIDER_RESPONSE = {
                     ],
                 }
             ],
-        }
+        },
+        {
+            "_ranking": {
+                "duration_minutes": 570.0,
+                "eligible": False,
+                "ineligibility_reason": "departure_outside_window",
+                "price": 690.0,
+                "score": 13.25,
+                "stops": 1,
+            },
+            "id": "3",
+            "type": "flight-offer",
+            "source": "GDS",
+            "price": {"grandTotal": "690.00"},
+            "itineraries": [
+                {
+                    "duration": "PT9H30M",
+                    "segments": [
+                        {
+                            "carrierCode": "SQ",
+                            "departure": {"at": "2026-04-19T01:15:00"},
+                            "arrival": {"at": "2026-04-19T04:15:00"},
+                        },
+                        {
+                            "carrierCode": "SQ",
+                            "departure": {"at": "2026-04-19T05:00:00"},
+                            "arrival": {"at": "2026-04-19T10:45:00"},
+                        },
+                    ],
+                }
+            ],
+        },
     ],
     "hotels": {
         "2026-04-19": [
             {
                 "_ranking": {
+                    "eligible": True,
+                    "ineligibility_reason": "",
                     "price_per_night": 130.0,
                     "score": 55.0,
                 },
@@ -271,6 +308,8 @@ GOLDEN_RANKED_PROVIDER_RESPONSE = {
             },
             {
                 "_ranking": {
+                    "eligible": True,
+                    "ineligibility_reason": "",
                     "price_per_night": 110.0,
                     "score": 36.89,
                 },
@@ -295,6 +334,8 @@ GOLDEN_RANKED_PROVIDER_RESPONSE = {
             },
             {
                 "_ranking": {
+                    "eligible": True,
+                    "ineligibility_reason": "",
                     "price_per_night": 90.0,
                     "score": 35.0,
                 },
@@ -321,6 +362,8 @@ GOLDEN_RANKED_PROVIDER_RESPONSE = {
         "2026-04-21": [
             {
                 "_ranking": {
+                    "eligible": True,
+                    "ineligibility_reason": "",
                     "price_per_night": 150.0,
                     "score": 55.0,
                 },
@@ -345,6 +388,8 @@ GOLDEN_RANKED_PROVIDER_RESPONSE = {
             },
             {
                 "_ranking": {
+                    "eligible": True,
+                    "ineligibility_reason": "",
                     "price_per_night": 95.0,
                     "score": 35.0,
                 },
@@ -372,7 +417,7 @@ GOLDEN_RANKED_PROVIDER_RESPONSE = {
     "ranking_meta": {
         "pipeline": ["filter", "score", "re-rank", "diversify"],
         "flight_count_in": 3,
-        "flight_count_out": 2,
+        "flight_count_out": 3,
         "hotel_dates_out": 2,
     },
 }

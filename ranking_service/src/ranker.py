@@ -252,7 +252,6 @@ def _rank_flights(
         arr_start, arr_end = 8 * 60, 20 * 60
 
     eligible: list[dict[str, Any]] = []
-    over_budget_bucket: list[dict[str, Any]] = []
     for offer in offers:
         price = _flight_price(offer)
         duration = _flight_total_duration_minutes(offer)
@@ -263,18 +262,19 @@ def _rank_flights(
         arr_min = arr_dt.hour * 60 + arr_dt.minute if arr_dt else None
         flex = _flight_flex_norm(offer)
 
+        reasons: list[str] = []
         if max_stops is not None and stops > int(max_stops):
-            continue
+            reasons.append("max_stops_exceeded")
         if max_duration > 0 and duration > max_duration:
-            continue
+            reasons.append("max_duration_exceeded")
         if min_conn < min_layover:
-            continue
+            reasons.append("connection_too_tight")
         if require_refundable and flex < 0.99:
-            continue
+            reasons.append("not_refundable")
         if dep_min is not None and not (dep_start <= dep_min <= dep_end):
-            continue
+            reasons.append("departure_outside_window")
         if arr_min is not None and not (arr_start <= arr_min <= arr_end):
-            continue
+            reasons.append("arrival_outside_window")
 
         rec = {
             "offer": offer,
@@ -286,18 +286,19 @@ def _rank_flights(
             "min_conn": min_conn,
             "flex": flex,
             "airline": _flight_airline_code(offer),
+            "eligible": True,
+            "ineligibility_reason": "",
         }
 
         if budget_cap > 0 and price > budget_cap:
             if budget_strict:
-                continue
-            if price <= budget_cap * 1.15:
-                over_budget_bucket.append(rec)
-            continue
-        eligible.append(rec)
+                reasons.append("over_budget_strict")
+            elif price > budget_cap * 1.15:
+                reasons.append("over_budget_over_15_percent")
 
-    if not eligible and over_budget_bucket:
-        eligible = over_budget_bucket
+        rec["eligible"] = len(reasons) == 0
+        rec["ineligibility_reason"] = "; ".join(reasons)
+        eligible.append(rec)
 
     if not eligible:
         return []
@@ -351,10 +352,12 @@ def _rank_flights(
             "price": rec["price"],
             "duration": rec["duration"],
             "stops": rec["stops"],
+            "eligible": rec["eligible"],
+            "ineligibility_reason": rec["ineligibility_reason"],
         }
         scored.append(rec_scored)
 
-    scored.sort(key=lambda x: x["score"], reverse=True)
+    scored.sort(key=lambda x: (x["eligible"], x["score"]), reverse=True)
 
     # Diversify: avoid near-duplicates.
     selected: list[dict[str, Any]] = []
@@ -394,6 +397,8 @@ def _rank_flights(
             "stops": item["stops"],
             "price": item["price"],
             "duration_minutes": round(item["duration"], 2),
+            "eligible": item["eligible"],
+            "ineligibility_reason": item["ineligibility_reason"],
         }
         ranked.append(offer)
     return ranked
@@ -492,16 +497,15 @@ def _rank_hotels_for_date(
     must_have_list = must_have if isinstance(must_have, list) else []
 
     eligible: list[dict[str, Any]] = []
-    over_budget_bucket: list[dict[str, Any]] = []
     for offer in offers:
         ppn = _hotel_price_per_night(offer)
         rating = _hotel_rating(offer)
         amen_match = _hotel_amenities_match(offer, must_have_list)
-
+        reasons: list[str] = []
         if min_star > 0 and rating < min_star:
-            continue
+            reasons.append("below_min_star_rating")
         if must_have_list and amen_match < 1.0:
-            continue
+            reasons.append("missing_required_amenities")
 
         rec = {
             "offer": offer,
@@ -510,18 +514,20 @@ def _rank_hotels_for_date(
             "rating": rating,
             "cancel": _hotel_cancellation_norm(offer),
             "amen": amen_match,
+            "eligible": True,
+            "ineligibility_reason": "",
         }
 
         if budget > 0 and ppn > budget:
             if strict_budget:
-                continue
-            if ppn <= budget * 1.15:
-                over_budget_bucket.append(rec)
-            continue
+                reasons.append("over_budget_strict")
+            elif ppn > budget * 1.15:
+                reasons.append("over_budget_over_15_percent")
+
+        rec["eligible"] = len(reasons) == 0
+        rec["ineligibility_reason"] = "; ".join(reasons)
         eligible.append(rec)
 
-    if not eligible and over_budget_bucket:
-        eligible = over_budget_bucket
     if not eligible:
         return []
 
@@ -551,10 +557,12 @@ def _rank_hotels_for_date(
                 "score": _clamp(score, 0.0, 100.0),
                 "ppn": rec["ppn"],
                 "hotel_id": str(((rec["offer"].get("hotel") or {}).get("hotelId", ""))),
+                "eligible": rec["eligible"],
+                "ineligibility_reason": rec["ineligibility_reason"],
             }
         )
 
-    scored.sort(key=lambda x: x["score"], reverse=True)
+    scored.sort(key=lambda x: (x["eligible"], x["score"]), reverse=True)
 
     # Diversify: avoid duplicates of same hotel id.
     selected: list[dict[str, Any]] = []
@@ -575,6 +583,8 @@ def _rank_hotels_for_date(
         offer["_ranking"] = {
             "score": round(item["score"], 2),
             "price_per_night": round(item["ppn"], 2),
+            "eligible": item["eligible"],
+            "ineligibility_reason": item["ineligibility_reason"],
         }
         ranked.append(offer)
     return ranked
