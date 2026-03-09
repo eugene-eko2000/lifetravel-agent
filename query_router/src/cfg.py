@@ -13,6 +13,7 @@ class Cfg:
     rabbitmq_subscribe_routing_key: str
     rabbitmq_publish_routing_key: str
     rabbitmq_missing_info_routing_key: str
+    rabbitmq_debug_routing_key: str
     rabbitmq_queue_name: str
     openai_api_key: str
     openai_model: str
@@ -38,6 +39,10 @@ class Cfg:
             rabbitmq_missing_info_routing_key=os.getenv(
                 "RABBITMQ_MISSING_INFO_ROUTING_KEY",
                 "itinerary:missing_info",
+            ),
+            rabbitmq_debug_routing_key=os.getenv(
+                "RABBITMQ_DEBUG_ROUTING_KEY",
+                "debug:message",
             ),
             rabbitmq_queue_name=os.getenv(
                 "RABBITMQ_QUEUE_NAME",

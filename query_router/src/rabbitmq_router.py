@@ -91,3 +91,20 @@ async def _handle_message(
         request_id,
         routing_key,
     )
+
+    debug_payload = {
+        "id": request_id,
+        "level": "debug",
+        "source": "query_router",
+        "message": "Structured request produced by LLM",
+        "payload": {
+            "structured_response": llm_response,
+        },
+    }
+    debug_outgoing = Message(
+        body=json.dumps(debug_payload).encode("utf-8"),
+        delivery_mode=DeliveryMode.PERSISTENT,
+        content_type="application/json",
+    )
+    await exchange.publish(debug_outgoing, routing_key=cfg.rabbitmq_debug_routing_key)
+    logger.info("Published debug message for itinerary id=%s", request_id)
