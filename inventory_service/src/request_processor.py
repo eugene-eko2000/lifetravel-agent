@@ -17,6 +17,7 @@ async def _emit_debug_message(
     request_id: str | None,
     message: str,
     *,
+    level: str = "error",
     payload: dict[str, Any] | None = None,
 ) -> None:
     if debug_publisher is None:
@@ -25,7 +26,7 @@ async def _emit_debug_message(
         return
     debug_payload: dict[str, Any] = {
         "id": request_id,
-        "level": "debug",
+        "level": level,
         "source": "inventory_service",
         "message": message,
     }
@@ -130,6 +131,7 @@ async def _process_translated_request(
                 debug_publisher,
                 request_id,
                 "Amadeus send_flights_offers failed",
+                level="error",
                 payload={
                     "request_type": request_type,
                     "translated": translated,
@@ -157,6 +159,7 @@ async def _process_translated_request(
                     debug_publisher,
                     request_id,
                     "Amadeus send_hotels_list_by_geocode failed",
+                    level="error",
                     payload={
                         "request_type": request_type,
                         "translated": translated,
@@ -174,6 +177,7 @@ async def _process_translated_request(
                     debug_publisher,
                     request_id,
                     "Amadeus send_hotels_list failed",
+                    level="error",
                     payload={
                         "request_type": request_type,
                         "translated": translated,
@@ -222,6 +226,7 @@ async def _process_translated_request(
                         debug_publisher,
                         request_id,
                         "Amadeus send_hotels_offers failed",
+                        level="error",
                         payload={
                             "request_type": request_type,
                             "translated": translated,
@@ -280,6 +285,7 @@ async def process_incoming_message(
                 debug_publisher,
                 request_id,
                 "Failed to process translated request",
+                level="error",
                 payload={
                     "translated": translated,
                     "error": str(result),
