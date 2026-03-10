@@ -90,39 +90,3 @@ class AmadeusSender:
             json_payload=payload,
             headers=headers,
         )
-
-    async def send_hotels_list(
-        self,
-        query_params: dict[str, Any],
-        headers: dict[str, str] | None = None,
-    ) -> dict[str, Any]:
-        return await self._authorized_request(
-            "GET",
-            self._cfg.amadeus_hotels_list_url,
-            params=query_params,
-            headers=headers,
-        )
-
-    async def send_hotels_list_by_geocode(
-        self,
-        query_params: dict[str, Any],
-        headers: dict[str, str] | None = None,
-    ) -> dict[str, Any]:
-        return await self._authorized_request(
-            "GET",
-            self._cfg.amadeus_hotels_list_by_geocode_url,
-            params=query_params,
-            headers=headers,
-        )
-
-    async def send_hotels_offers(
-        self,
-        query_params: dict[str, Any],
-        headers: dict[str, str] | None = None,
-    ) -> dict[str, Any]:
-        return await self._authorized_request(
-            "GET",
-            self._cfg.amadeus_hotels_offers_url,
-            params=query_params,
-            headers=headers,
-        )

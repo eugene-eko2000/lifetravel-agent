@@ -1,5 +1,0 @@
-amadeus_sender
-cfg
-main
-rabbitmq_subscriber
-request_translator

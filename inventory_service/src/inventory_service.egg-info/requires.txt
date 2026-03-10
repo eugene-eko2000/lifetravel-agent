@@ -1,4 +1,0 @@
-aio-pika
-fastapi==0.115.12
-httpx
-uvicorn[standard]==0.34.0

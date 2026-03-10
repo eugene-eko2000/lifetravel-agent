@@ -77,12 +77,9 @@ class RequestTranslatorTest(unittest.TestCase):
         cfg = Cfg.from_env()
         translated = translate_trip_request_to_amadeus_requests(SOURCE_EXAMPLE["output"], cfg)
 
-        self.assertEqual(len(translated), 5)
+        self.assertEqual(len(translated), 1)
         self.assertEqual(translated[0]["type"], "flight")
         self.assertEqual(translated[0]["method"], "POST")
-        self.assertEqual(translated[1]["type"], "hotel")
-        self.assertEqual(translated[1]["method"], "GET")
-        self.assertEqual(translated[1]["hotels_list_mode"], "city")
 
         flight_payload = translated[0]["payload"]
         self.assertEqual(len(flight_payload["originDestinations"]), 5)
@@ -105,51 +102,6 @@ class RequestTranslatorTest(unittest.TestCase):
         self.assertEqual(flight_payload["travelers"][0]["travelerType"], "ADULT")
         self.assertEqual(flight_payload["sources"], ["GDS"])
         self.assertEqual(flight_payload["searchCriteria"]["maxFlightOffers"], 10)
-
-        hotel_requests = translated[1:]
-        self.assertEqual(len(hotel_requests), 4)
-
-        first_hotel_query = hotel_requests[0]["query_params"]
-        self.assertEqual(first_hotel_query["cityCode"], "BEJ")
-        self.assertEqual(first_hotel_query["radius"], 15)
-        self.assertEqual(first_hotel_query["radiusUnit"], "KM")
-        self.assertEqual(first_hotel_query["hotelSource"], "ALL")
-
-    def test_translate_hotel_request_uses_geocode_when_location_latlng_set(self) -> None:
-        geocode_input = {
-            "trip": {
-                "timezone": "Europe/Zurich",
-                "travelers": 1,
-                "legs": [
-                    {"from": "Zurich", "to": "Beijing", "depart_date": "2026-03-12"},
-                ],
-                "stays": [
-                    {
-                        "city": "Beijing",
-                        "check_in": "2026-03-12",
-                        "check_out": "2026-03-15",
-                        "min_rooms": 1,
-                        "location_latlng": {"lat": 39.9042, "lng": 116.4074},
-                    }
-                ],
-            },
-            "budgets": {},
-            "confidence": 0.9,
-        }
-
-        cfg = Cfg.from_env()
-        translated = translate_trip_request_to_amadeus_requests(geocode_input, cfg)
-        self.assertEqual(len(translated), 2)
-        self.assertEqual(translated[1]["type"], "hotel")
-        self.assertEqual(translated[1]["hotels_list_mode"], "geocode")
-
-        query = translated[1]["query_params"]
-        self.assertEqual(query["latitude"], 39.9042)
-        self.assertEqual(query["longitude"], 116.4074)
-        self.assertEqual(query["radius"], 5)
-        self.assertEqual(query["radiusUnit"], "KM")
-        self.assertEqual(query["hotelSource"], "ALL")
-
 
 if __name__ == "__main__":
     unittest.main()

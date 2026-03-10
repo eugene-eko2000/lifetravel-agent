@@ -15,13 +15,7 @@ class Cfg:
     rabbitmq_debug_routing_key: str
     rabbitmq_queue_name: str
     amadeus_flights_offers_url: str
-    amadeus_hotels_list_url: str
-    amadeus_hotels_list_by_geocode_url: str
-    amadeus_hotels_offers_url: str
     amadeus_token_url: str
-    amadeus_hotels_offers_limit: int
-    amadeus_hotels_citycode_radius_km: int
-    amadeus_hotels_latlng_radius_km: int
     amadeus_client_id: str
     amadeus_client_secret: str
 
@@ -54,30 +48,9 @@ class Cfg:
                 "AMADEUS_FLIGHTS_OFFERS_URL",
                 "https://test.api.amadeus.com/v2/shopping/flight-offers",
             ),
-            amadeus_hotels_list_url=os.getenv(
-                "AMADEUS_HOTELS_LIST_URL",
-                "https://test.api.amadeus.com/v1/reference-data/locations/hotels/by-city",
-            ),
-            amadeus_hotels_list_by_geocode_url=os.getenv(
-                "AMADEUS_HOTELS_LIST_BY_GEOCODE_URL",
-                "https://test.api.amadeus.com/v1/reference-data/locations/hotels/by-geocode",
-            ),
-            amadeus_hotels_offers_url=os.getenv(
-                "AMADEUS_HOTELS_OFFERS_URL",
-                "https://test.api.amadeus.com/v3/shopping/hotel-offers",
-            ),
             amadeus_token_url=os.getenv(
                 "AMADEUS_TOKEN_URL",
                 "https://test.api.amadeus.com/v1/security/oauth2/token",
-            ),
-            amadeus_hotels_offers_limit=int(
-                os.getenv("AMADEUS_HOTELS_OFFERS_LIMIT", "10")
-            ),
-            amadeus_hotels_citycode_radius_km=int(
-                os.getenv("AMADEUS_HOTELS_CITYCODE_RADIUS_KM", "15")
-            ),
-            amadeus_hotels_latlng_radius_km=int(
-                os.getenv("AMADEUS_HOTELS_LATLNG_RADIUS_KM", "5")
             ),
             amadeus_client_id=os.getenv("AMADEUS_CLIENT_ID", ""),
             amadeus_client_secret=os.getenv("AMADEUS_CLIENT_SECRET", ""),
