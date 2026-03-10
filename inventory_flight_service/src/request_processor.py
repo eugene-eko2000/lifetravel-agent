@@ -37,17 +37,10 @@ async def _emit_debug_message(
         logger.exception("Failed to publish debug message")
 
 def _extract_structured_request(payload: dict[str, Any]) -> dict[str, Any]:
-    structured_response = payload.get("structured_response")
-    if not isinstance(structured_response, dict):
-        raise ValueError("Incoming payload must contain object field 'structured_response'")
-
-    structured_output = structured_response.get("output")
-    if not isinstance(structured_output, dict):
-        raise ValueError(
-            "Incoming payload must contain object field 'structured_response.output'"
-        )
-
-    return structured_output
+    structured_request = payload.get("structured_request")
+    if not isinstance(structured_request, dict):
+        raise ValueError("Incoming payload must contain object field 'structured_request'")
+    return structured_request
 
 
 async def _process_translated_request(

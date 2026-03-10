@@ -203,11 +203,11 @@ async def request_structured_itinerary(
     prompt_id = str(response_json.get("id", ""))
     raw_output_text = _extract_output_text(response_json)
 
-    structured_response: Any = json.loads(raw_output_text)
+    structured_request: Any = json.loads(raw_output_text)
 
     return {
         "request_id": request_id,
         "prompt_id": prompt_id,
-        "type": "missing_info" if structured_response.get("missing_info") is not None else "valid_request",
-        "output": structured_response,
+        "type": "missing_info" if structured_request.get("missing_info") is not None else "valid_request",
+        "output": structured_request,
     }

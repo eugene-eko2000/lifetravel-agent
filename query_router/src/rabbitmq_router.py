@@ -70,7 +70,7 @@ async def _handle_message(
     outgoing_payload = {
         "id": request_id,
         "content": content,
-        "structured_response": llm_response,
+        "structured_request": llm_response,
     }
 
     llm_response_type = llm_response.get("type")
@@ -98,7 +98,7 @@ async def _handle_message(
         "source": "query_router",
         "message": "Structured request produced by LLM",
         "payload": {
-            "structured_response": llm_response,
+            "structured_request": llm_response,
         },
     }
     debug_outgoing = Message(

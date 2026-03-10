@@ -457,6 +457,27 @@ class RankerTest(unittest.TestCase):
         self.assertEqual(ranked["flights"], [])
         self.assertEqual(ranked["hotels"], {})
 
+    def test_rank_provider_response_handles_itineraries_shape(self) -> None:
+        provider_response = {
+            "itineraries": [
+                {
+                    "flight": INPUT_PROVIDER_RESPONSE["flights"][0]["data"][0],
+                    "hotels": INPUT_PROVIDER_RESPONSE["hotels"]["2026-04-19"],
+                },
+                {
+                    "flight": INPUT_PROVIDER_RESPONSE["flights"][1]["data"][1],
+                    "hotels": INPUT_PROVIDER_RESPONSE["hotels"]["2026-04-21"],
+                },
+            ]
+        }
+        ranked = rank_provider_response(provider_response)
+        self.assertIn("itineraries", ranked)
+        self.assertEqual(len(ranked["itineraries"]), 2)
+        first = ranked["itineraries"][0]
+        self.assertIn("flight", first)
+        self.assertIn("hotels", first)
+        self.assertIn("_ranking", first)
+
 
 if __name__ == "__main__":
     unittest.main()

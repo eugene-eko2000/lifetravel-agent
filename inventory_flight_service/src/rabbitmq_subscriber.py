@@ -69,7 +69,7 @@ async def run_inventory_subscriber() -> None:
 
                         outgoing_payload = {
                             "id": request_id,
-                            "structured_response": incoming_payload.get("structured_response"),
+                            "structured_request": incoming_payload.get("structured_request"),
                             "provider_flight_response": {
                                 "flights": results.get("flights", []),
                             },

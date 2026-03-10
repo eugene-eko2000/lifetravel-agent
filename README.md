@@ -36,7 +36,7 @@ Message consumed by `query_router` from RabbitMQ.
 ### 2) Structured Request Produced by LLM
 
 Object returned by `query_router.llm_client.request_structured_itinerary(...)`
-and published as `payload.structured_response`.
+and published as `payload.structured_request`.
 
 ```json
 {
@@ -181,7 +181,7 @@ and consumed by `endpoint_api` subscriber/websocket bridge.
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "MissingInfoMessage",
   "type": "object",
-  "required": ["id", "content", "structured_response"],
+  "required": ["id", "content", "structured_request"],
   "properties": {
     "id": {
       "type": "string",
@@ -191,7 +191,7 @@ and consumed by `endpoint_api` subscriber/websocket bridge.
       "type": "string",
       "description": "Original user prompt content."
     },
-    "structured_response": {
+    "structured_request": {
       "type": "object",
       "required": ["request_id", "prompt_id", "type", "output"],
       "properties": {
@@ -275,5 +275,5 @@ request owner (correlated by request id). Current publishers use:
 | `lifetravel_agent` | `itinerary:provider_flight_response` | `ItineraryFlightResponse` | `inventory_flight_service` | `inventory_hotel_service` |
 | `lifetravel_agent` | `itinerary:provider_response` | `ItineraryInventoryResponse` | `inventory_hotel_service` | `ranking_service` |
 | `lifetravel_agent` | `itinerary:ranked` | `RankedItineraryResponse` | `ranking_service` | `endpoint_api` |
-| `lifetravel_agent` | `itinerary:missing_info` | `MissingInfoMessage` (`structured_response.type = "missing_info"`) | `query_router` | `endpoint_api` |
+| `lifetravel_agent` | `itinerary:missing_info` | `MissingInfoMessage` (`structured_request.type = "missing_info"`) | `query_router` | `endpoint_api` |
 | `lifetravel_agent` | `debug:message` | `DebugMessage` | `inventory_flight_service`, `inventory_hotel_service`, `query_router`, `ranking_service` | `endpoint_api` |

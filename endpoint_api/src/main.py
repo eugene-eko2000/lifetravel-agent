@@ -95,18 +95,18 @@ connection_manager = ConnectionManager()
 
 async def _handle_missing_info_message(payload: dict) -> None:
     request_id = payload.get("id")
-    structured_response = payload.get("structured_response")
+    structured_request = payload.get("structured_request")
     if not isinstance(request_id, str) or not request_id.strip():
         logger.warning("Missing-info message without valid id: %s", payload)
         return
-    if not isinstance(structured_response, dict):
-        logger.warning("Missing-info message without structured_response: %s", payload)
+    if not isinstance(structured_request, dict):
+        logger.warning("Missing-info message without structured_request: %s", payload)
         return
 
     message = {
         "type": "missing_info",
         "id": request_id,
-        "structured_response": structured_response,
+        "structured_request": structured_request,
     }
 
     delivered = await connection_manager.send_to_request(request_id, message)

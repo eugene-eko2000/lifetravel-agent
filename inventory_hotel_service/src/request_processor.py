@@ -2,11 +2,11 @@ import asyncio
 import json
 import logging
 import math
+from datetime import datetime
 from typing import Any, Awaitable, Callable
 
 from amadeus_sender import AmadeusSender
 from cfg import Cfg
-from request_translator import translate_trip_request_to_amadeus_requests
 
 logger = logging.getLogger("inventory_hotel_service.request_processor")
 DebugPublisher = Callable[[dict[str, Any]], Awaitable[None]]
@@ -36,6 +36,32 @@ async def _emit_debug_message(
         await debug_publisher(debug_payload)
     except Exception:
         logger.exception("Failed to publish debug message")
+
+
+def _parse_iso_dt(value: Any) -> datetime | None:
+    if not isinstance(value, str) or not value:
+        return None
+    try:
+        if value.endswith("Z"):
+            value = value[:-1] + "+00:00"
+        return datetime.fromisoformat(value)
+    except ValueError:
+        return None
+
+
+def _parse_location_latlng(value: Any) -> tuple[float, float] | None:
+    if isinstance(value, dict):
+        lat = value.get("lat", value.get("latitude"))
+        lng = value.get("lng", value.get("longitude", value.get("lobgitude")))
+        if lat is None or lng is None:
+            return None
+        return (float(lat), float(lng))
+    if isinstance(value, (list, tuple)) and len(value) == 2:
+        return (float(value[0]), float(value[1]))
+    if isinstance(value, str) and "," in value:
+        first, second = value.split(",", 1)
+        return (float(first.strip()), float(second.strip()))
+    return None
 
 
 def _extract_hotel_ids(hotels_list_response: dict[str, Any]) -> list[str]:
@@ -93,29 +119,155 @@ def _select_nearest_hotel_ids(
     return sorted_ids[:limit]
 
 
-async def _process_hotel_request(
+def _extract_structured_request(payload: dict[str, Any]) -> dict[str, Any]:
+    # Backward-compatible inputs from flight stage.
+    structured = payload.get("structured_response")
+    if isinstance(structured, dict):
+        output = structured.get("output")
+        if isinstance(output, dict):
+            return output
+    structured = payload.get("structured_request")
+    if isinstance(structured, dict):
+        return structured
+    raise ValueError("Incoming payload must contain object field 'structured_response.output'")
+
+
+def _extract_flights(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    response = payload.get("provider_flight_response")
+    if not isinstance(response, dict):
+        return []
+    flights = response.get("flights")
+    if not isinstance(flights, list):
+        return []
+    return [x for x in flights if isinstance(x, dict)]
+
+
+def _extract_stays(structured_request: dict[str, Any]) -> list[dict[str, Any]]:
+    trip = structured_request.get("trip")
+    if not isinstance(trip, dict):
+        return []
+    stays = trip.get("stays")
+    if not isinstance(stays, list):
+        return []
+    return [x for x in stays if isinstance(x, dict)]
+
+
+def _adjust_stays_for_flight(
+    flight_offer: dict[str, Any],
+    stays: list[dict[str, Any]],
+    currency: str,
+    travelers: int,
+) -> list[dict[str, Any]]:
+    itineraries = flight_offer.get("itineraries")
+    if not isinstance(itineraries, list):
+        itineraries = []
+
+    adjusted: list[dict[str, Any]] = []
+    for idx, stay in enumerate(stays):
+        check_in = str(stay.get("check_in", "")).strip()
+        check_out = str(stay.get("check_out", "")).strip()
+
+        if idx < len(itineraries):
+            segs = itineraries[idx].get("segments") if isinstance(itineraries[idx], dict) else None
+            if isinstance(segs, list) and segs:
+                arr = _parse_iso_dt((segs[-1].get("arrival") or {}).get("at"))
+                if arr is not None:
+                    check_in = arr.date().isoformat()
+        if idx + 1 < len(itineraries):
+            next_segs = (
+                itineraries[idx + 1].get("segments")
+                if isinstance(itineraries[idx + 1], dict)
+                else None
+            )
+            if isinstance(next_segs, list) and next_segs:
+                dep = _parse_iso_dt((next_segs[0].get("departure") or {}).get("at"))
+                if dep is not None:
+                    check_out = dep.date().isoformat()
+
+        if not check_in or not check_out:
+            continue
+
+        adjusted.append(
+            {
+                "check_in": check_in,
+                "check_out": check_out,
+                "min_rooms": int(stay.get("min_rooms", 1) or 1),
+                "travelers": travelers,
+                "currency": currency,
+                "city_code": str(stay.get("city_code", "")).strip().upper(),
+                "location_latlng": stay.get("location_latlng"),
+                "city": stay.get("city"),
+            }
+        )
+    return adjusted
+
+
+def _build_hotel_request(stay: dict[str, Any], cfg: Cfg) -> dict[str, Any]:
+    latlng = _parse_location_latlng(stay.get("location_latlng"))
+    if latlng is not None:
+        lat, lng = latlng
+        return {
+            "hotels_list_mode": "geocode",
+            "query_params": {
+                "latitude": lat,
+                "longitude": lng,
+                "radius": cfg.amadeus_hotels_latlng_radius_km,
+                "radiusUnit": "KM",
+                "hotelSource": "ALL",
+            },
+            "stay": stay,
+        }
+
+    city_code = str(stay.get("city_code", "")).strip().upper()
+    if not city_code:
+        raise ValueError("Stay is missing required field: city_code or location_latlng")
+    return {
+        "hotels_list_mode": "city",
+        "query_params": {
+            "cityCode": city_code,
+            "radius": cfg.amadeus_hotels_citycode_radius_km,
+            "radiusUnit": "KM",
+            "hotelSource": "ALL",
+        },
+        "stay": stay,
+    }
+
+
+def _stay_cache_key(req: dict[str, Any]) -> str:
+    stay = req.get("stay", {})
+    qp = req.get("query_params", {})
+    mode = req.get("hotels_list_mode", "city")
+    return json.dumps(
+        {
+            "mode": mode,
+            "query_params": qp,
+            "check_in": stay.get("check_in"),
+            "check_out": stay.get("check_out"),
+            "travelers": stay.get("travelers"),
+            "min_rooms": stay.get("min_rooms"),
+            "currency": stay.get("currency"),
+        },
+        sort_keys=True,
+    )
+
+
+async def _fetch_hotels_for_request(
     sender: AmadeusSender,
     cfg: Cfg,
-    translated: dict[str, Any],
+    req: dict[str, Any],
     request_id: str | None,
     debug_publisher: DebugPublisher | None,
-) -> dict[str, Any]:
-    hotel_mode = translated.get("hotels_list_mode", "city")
-    stay = translated.get("stay", {}) if isinstance(translated.get("stay"), dict) else {}
-    check_in = str(stay.get("check_in", "")).strip()
-    check_out = str(stay.get("check_out", "")).strip()
-    adults = int(stay.get("travelers", 1) or 1)
-    room_quantity = int(stay.get("min_rooms", 1) or 1)
-    currency = str(stay.get("currency", "USD")).strip() or "USD"
-
+) -> list[dict[str, Any]]:
+    stay = req.get("stay", {})
+    mode = req.get("hotels_list_mode", "city")
     try:
-        if hotel_mode == "geocode":
+        if mode == "geocode":
             hotels_list_response = await sender.send_hotels_list_by_geocode(
-                query_params=translated.get("query_params", {}),
+                query_params=req.get("query_params", {}),
             )
         else:
             hotels_list_response = await sender.send_hotels_list(
-                query_params=translated.get("query_params", {}),
+                query_params=req.get("query_params", {}),
             )
     except Exception as error:
         await _emit_debug_message(
@@ -123,14 +275,20 @@ async def _process_hotel_request(
             request_id,
             "Failed to fetch hotels list",
             level="error",
-            payload={"translated": translated, "error": str(error)},
+            payload={"request": req, "error": str(error)},
         )
-        raise
+        return []
 
     hotel_ids = _extract_hotel_ids(hotels_list_response)
     distance_index = _extract_distance_index(hotels_list_response)
     sorted_hotel_ids = _select_nearest_hotel_ids(hotel_ids, distance_index, limit=len(hotel_ids))
     chunk_size = max(1, cfg.amadeus_hotels_offers_limit)
+
+    adults = int(stay.get("travelers", 1) or 1)
+    room_quantity = int(stay.get("min_rooms", 1) or 1)
+    check_in = str(stay.get("check_in", "")).strip()
+    check_out = str(stay.get("check_out", "")).strip()
+    currency = str(stay.get("currency", "USD")).strip() or "USD"
 
     offers_tasks = []
     for offset in range(0, len(sorted_hotel_ids), chunk_size):
@@ -161,26 +319,23 @@ async def _process_hotel_request(
                     request_id,
                     "Failed to fetch hotels offers chunk",
                     level="error",
-                    payload={"translated": translated, "error": str(response)},
+                    payload={"request": req, "error": str(response)},
                 )
                 continue
             all_offers.extend(_collect_hotel_offers(response))
 
-    filtered_offers = [offer for offer in all_offers if _is_offer_available(offer)]
-    return {
-        "date": check_in or "unknown",
-        "suggestions": filtered_offers,
-    }
-
-
-def _extract_structured_request_from_flight_payload(payload: dict[str, Any]) -> dict[str, Any]:
-    structured_response = payload.get("structured_response")
-    if not isinstance(structured_response, dict):
-        raise ValueError("Incoming payload must contain object field 'structured_response'")
-    structured_output = structured_response.get("output")
-    if not isinstance(structured_output, dict):
-        raise ValueError("Incoming payload must contain object field 'structured_response.output'")
-    return structured_output
+    filtered = [x for x in all_offers if _is_offer_available(x)]
+    enriched: list[dict[str, Any]] = []
+    for offer in filtered:
+        offer_copy = dict(offer)
+        offer_copy["_stay"] = {
+            "city": stay.get("city"),
+            "city_code": stay.get("city_code"),
+            "check_in": check_in,
+            "check_out": check_out,
+        }
+        enriched.append(offer_copy)
+    return enriched
 
 
 async def process_incoming_message(
@@ -191,42 +346,41 @@ async def process_incoming_message(
     debug_publisher: DebugPublisher | None = None,
 ) -> dict[str, Any]:
     payload = json.loads(incoming_body.decode("utf-8"))
-    structured_request = _extract_structured_request_from_flight_payload(payload)
-    translated_requests = translate_trip_request_to_amadeus_requests(structured_request, cfg)
-    hotel_requests = [x for x in translated_requests if x.get("type") == "hotel"]
+    structured_request = _extract_structured_request(payload)
+    flights = _extract_flights(payload)
+    stays = _extract_stays(structured_request)
 
-    flights_payload = payload.get("provider_flight_response")
-    flights = []
-    if isinstance(flights_payload, dict):
-        flights_candidate = flights_payload.get("flights")
-        if isinstance(flights_candidate, list):
-            flights = flights_candidate
+    trip = structured_request.get("trip", {})
+    travelers = int(trip.get("travelers", 1) or 1) if isinstance(trip, dict) else 1
+    budgets = structured_request.get("budgets", {})
+    hotels_budget = budgets.get("hotels", {}) if isinstance(budgets, dict) else {}
+    currency = str(hotels_budget.get("currency", "USD")).strip() or "USD"
 
-    results: dict[str, Any] = {"flights": flights, "hotels": {}}
-    tasks = [
-        _process_hotel_request(sender, cfg, translated, request_id, debug_publisher)
-        for translated in hotel_requests
-    ]
-    processed_results = await asyncio.gather(*tasks, return_exceptions=True)
+    cache: dict[str, list[dict[str, Any]]] = {}
+    itineraries_out: list[dict[str, Any]] = []
 
-    for translated, result in zip(hotel_requests, processed_results):
-        if isinstance(result, Exception):
-            await _emit_debug_message(
-                debug_publisher,
-                request_id,
-                "Failed to process hotel translated request",
-                level="error",
-                payload={"translated": translated, "error": str(result)},
-            )
-            continue
-        if isinstance(result, dict):
-            date_key = str(result.get("date", "unknown"))
-            suggestions = result.get("suggestions", [])
-            if isinstance(suggestions, list):
-                results["hotels"].setdefault(date_key, []).extend(suggestions)
+    for flight in flights:
+        adjusted_stays = _adjust_stays_for_flight(flight, stays, currency, travelers)
+        itinerary_hotels: list[dict[str, Any]] = []
+        for stay in adjusted_stays:
+            req = _build_hotel_request(stay, cfg)
+            key = _stay_cache_key(req)
+            if key not in cache:
+                cache[key] = await _fetch_hotels_for_request(
+                    sender, cfg, req, request_id, debug_publisher
+                )
+            itinerary_hotels.extend([dict(x) for x in cache.get(key, [])])
+
+        itineraries_out.append(
+            {
+                "flight": flight,
+                "hotels": itinerary_hotels,
+            }
+        )
 
     logger.info(
-        "Processed inventory hotel message with %d hotel translated requests",
-        len(hotel_requests),
+        "Processed inventory hotel message for %d flights into %d itineraries",
+        len(flights),
+        len(itineraries_out),
     )
-    return results
+    return {"itineraries": itineraries_out}

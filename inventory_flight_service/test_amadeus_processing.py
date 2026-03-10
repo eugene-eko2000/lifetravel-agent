@@ -38,7 +38,7 @@ def _load_env_file(path: Path) -> None:
 async def _run_test() -> None:
     payload: dict[str, Any] = {
         "id": "req-test-001",
-        "structured_response": {
+        "structured_request": {
             "request_id": "d38eedc3-977a-46ea-b59d-a09e30f108b8",
             "prompt_id": "resp_03a1bd9f25e178e40069a6d93fae848196910a89b09ab6e96d",
             "type": "valid_request",

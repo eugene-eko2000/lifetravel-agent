@@ -647,6 +647,52 @@ def _rank_hotels_for_date(
     return ranked
 
 
+def _rank_itineraries(
+    itineraries_input: list[dict[str, Any]],
+    flight_constraints: dict[str, Any],
+    hotel_constraints: dict[str, Any],
+) -> list[dict[str, Any]]:
+    ranked: list[dict[str, Any]] = []
+    for item in itineraries_input:
+        flight_raw = item.get("flight")
+        hotels_raw = item.get("hotels")
+        flight_offer = flight_raw if isinstance(flight_raw, dict) else {}
+        hotels = hotels_raw if isinstance(hotels_raw, list) else []
+        hotels = [x for x in hotels if isinstance(x, dict)]
+
+        ranked_flight_list = _rank_flights([flight_offer], flight_constraints, top_n=1)
+        ranked_flight = ranked_flight_list[0] if ranked_flight_list else flight_offer
+        ranked_hotels = _rank_hotels_for_date(hotels, hotel_constraints)
+
+        flight_ranking = ranked_flight.get("_ranking") if isinstance(ranked_flight, dict) else {}
+        flight_score = _safe_float(
+            flight_ranking.get("score") if isinstance(flight_ranking, dict) else 0.0,
+            0.0,
+        )
+        flight_eligible = bool(
+            flight_ranking.get("eligible") if isinstance(flight_ranking, dict) else True
+        )
+        ranked.append(
+            {
+                "flight": ranked_flight,
+                "hotels": ranked_hotels,
+                "_ranking": {
+                    "flight_score": round(flight_score, 2),
+                    "flight_eligible": flight_eligible,
+                },
+            }
+        )
+
+    ranked.sort(
+        key=lambda x: (
+            bool((x.get("_ranking") or {}).get("flight_eligible", True)),
+            _safe_float((x.get("_ranking") or {}).get("flight_score"), 0.0),
+        ),
+        reverse=True,
+    )
+    return ranked
+
+
 def rank_provider_response(provider_response: dict[str, Any]) -> dict[str, Any]:
     """
     Ranking pipeline: Filter -> Score -> Re-rank -> Diversify.
@@ -666,6 +712,23 @@ def rank_provider_response(provider_response: dict[str, Any]) -> dict[str, Any]:
         flight_constraints = {}
     if not isinstance(hotel_constraints, dict):
         hotel_constraints = {}
+
+    itineraries_raw = provider_response.get("itineraries")
+    if isinstance(itineraries_raw, list):
+        itineraries_input = [x for x in itineraries_raw if isinstance(x, dict)]
+        ranked_itineraries = _rank_itineraries(
+            itineraries_input,
+            flight_constraints,
+            hotel_constraints,
+        )
+        result = dict(provider_response)
+        result["itineraries"] = ranked_itineraries
+        result["ranking_meta"] = {
+            "pipeline": ["filter", "score", "re-rank", "diversify"],
+            "itinerary_count_in": len(itineraries_input),
+            "itinerary_count_out": len(ranked_itineraries),
+        }
+        return result
 
     flights_raw = provider_response.get("flights")
     hotels_raw = provider_response.get("hotels")
