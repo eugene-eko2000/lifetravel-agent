@@ -143,7 +143,7 @@ and published as `payload.structured_response`.
 
 ### 3) Itinerary Flight & Hotel Response Message
 
-Output produced by `inventory_service.request_processor.process_incoming_message(...)`.
+Output produced by `inventory_hotel_service.request_processor.process_incoming_message(...)`.
 
 ```json
 {
@@ -221,7 +221,7 @@ and consumed by `endpoint_api` subscriber/websocket bridge.
 Message consumed by `endpoint_api` debug subscriber and forwarded to the websocket
 request owner (correlated by request id). Current publishers use:
 - `query_router` with `level = "debug"`
-- `inventory_service` (Amadeus send failures) with `level = "error"`
+- `inventory_flight_service` and `inventory_hotel_service` (Amadeus send failures) with `level = "error"`
 
 ```json
 {
@@ -271,8 +271,9 @@ request owner (correlated by request id). Current publishers use:
 | exchange name | routing key | message name | publishers services list | subscribers services list |
 | --- | --- | --- | --- | --- |
 | `lifetravel_agent` | `itinerary:user_request` | `UserRequestMessage` | `endpoint_api` | `query_router` |
-| `lifetravel_agent` | `itinerary:structured_request` | `StructuredLLMResponse` | `query_router` | `inventory_service` |
-| `lifetravel_agent` | `itinerary:provider_response` | `ItineraryInventoryResponse` | `inventory_service` | `ranking_service` |
+| `lifetravel_agent` | `itinerary:structured_request` | `StructuredLLMResponse` | `query_router` | `inventory_flight_service` |
+| `lifetravel_agent` | `itinerary:provider_flight_response` | `ItineraryFlightResponse` | `inventory_flight_service` | `inventory_hotel_service` |
+| `lifetravel_agent` | `itinerary:provider_response` | `ItineraryInventoryResponse` | `inventory_hotel_service` | `ranking_service` |
 | `lifetravel_agent` | `itinerary:ranked` | `RankedItineraryResponse` | `ranking_service` | `endpoint_api` |
 | `lifetravel_agent` | `itinerary:missing_info` | `MissingInfoMessage` (`structured_response.type = "missing_info"`) | `query_router` | `endpoint_api` |
-| `lifetravel_agent` | `debug:message` | `DebugMessage` | `inventory_service`, `query_router`, `ranking_service` | `endpoint_api` |
+| `lifetravel_agent` | `debug:message` | `DebugMessage` | `inventory_flight_service`, `inventory_hotel_service`, `query_router`, `ranking_service` | `endpoint_api` |

@@ -60,10 +60,10 @@ services:
       rabbitmq:
         condition: service_healthy
 
-  # ── Inventory Service ────────────────────────────────────────────────────────
-  inventory_service:
+  # ── Inventory Flight Service ────────────────────────────────────────────────
+  inventory_flight_service:
     build:
-      context: ./inventory_service
+      context: ./inventory_flight_service
     ports:
       - "8082:8080"
     environment:
@@ -74,9 +74,9 @@ services:
       AMQP_PASSWORD: ${AMQP_PASSWORD:-guest}
       RABBITMQ_EXCHANGE: lifetravel_agent
       RABBITMQ_SUBSCRIBE_ROUTING_KEY: itinerary:query_router_response
-      RABBITMQ_PUBLISH_ROUTING_KEY: itinerary:provider_response
+      RABBITMQ_PUBLISH_ROUTING_KEY: itinerary:provider_flight_response
       RABBITMQ_DEBUG_ROUTING_KEY: debug:message
-      RABBITMQ_QUEUE_NAME: inventory_service_structured_request_queue
+      RABBITMQ_QUEUE_NAME: inventory_flight_service_structured_request_queue
       AMADEUS_FLIGHTS_OFFERS_URL: https://test.api.amadeus.com/v2/shopping/flight-offers
       AMADEUS_HOTELS_LIST_URL: https://test.api.amadeus.com/v1/reference-data/locations/hotels/by-city
       AMADEUS_HOTELS_LIST_BY_GEOCODE_URL: https://test.api.amadeus.com/v1/reference-data/locations/hotels/by-geocode
@@ -90,6 +90,38 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
+
+  # ── Inventory Hotel Service ─────────────────────────────────────────────────
+  inventory_hotel_service:
+    build:
+      context: ./inventory_hotel_service
+    ports:
+      - "8084:8080"
+    environment:
+      PORT: 8080
+      AMQP_HOST: rabbitmq
+      AMQP_PORT: 5672
+      AMQP_USER: ${AMQP_USER:-guest}
+      AMQP_PASSWORD: ${AMQP_PASSWORD:-guest}
+      RABBITMQ_EXCHANGE: lifetravel_agent
+      RABBITMQ_SUBSCRIBE_ROUTING_KEY: itinerary:provider_flight_response
+      RABBITMQ_PUBLISH_ROUTING_KEY: itinerary:provider_response
+      RABBITMQ_DEBUG_ROUTING_KEY: debug:message
+      RABBITMQ_QUEUE_NAME: inventory_hotel_service_provider_flight_response_queue
+      AMADEUS_HOTELS_LIST_URL: https://test.api.amadeus.com/v1/reference-data/locations/hotels/by-city
+      AMADEUS_HOTELS_LIST_BY_GEOCODE_URL: https://test.api.amadeus.com/v1/reference-data/locations/hotels/by-geocode
+      AMADEUS_HOTELS_OFFERS_URL: https://test.api.amadeus.com/v3/shopping/hotel-offers
+      AMADEUS_TOKEN_URL: https://test.api.amadeus.com/v1/security/oauth2/token
+      AMADEUS_HOTELS_OFFERS_LIMIT: 10
+      AMADEUS_HOTELS_CITYCODE_RADIUS_KM: 15
+      AMADEUS_HOTELS_LATLNG_RADIUS_KM: 5
+      AMADEUS_CLIENT_ID: ${AMADEUS_CLIENT_ID:-}
+      AMADEUS_CLIENT_SECRET: ${AMADEUS_CLIENT_SECRET:-}
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      inventory_flight_service:
+        condition: service_started
 
   # ── Ranking Service ──────────────────────────────────────────────────────────
   ranking_service:

@@ -1,0 +1,12 @@
+pyproject.toml
+src/amadeus_sender.py
+src/cfg.py
+src/main.py
+src/rabbitmq_subscriber.py
+src/request_translator.py
+src/inventory_service.egg-info/PKG-INFO
+src/inventory_service.egg-info/SOURCES.txt
+src/inventory_service.egg-info/dependency_links.txt
+src/inventory_service.egg-info/requires.txt
+src/inventory_service.egg-info/top_level.txt
+tests/test_request_translator.py

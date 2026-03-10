@@ -1,0 +1,232 @@
+import asyncio
+import json
+import logging
+import math
+from typing import Any, Awaitable, Callable
+
+from amadeus_sender import AmadeusSender
+from cfg import Cfg
+from request_translator import translate_trip_request_to_amadeus_requests
+
+logger = logging.getLogger("inventory_hotel_service.request_processor")
+DebugPublisher = Callable[[dict[str, Any]], Awaitable[None]]
+
+
+async def _emit_debug_message(
+    debug_publisher: DebugPublisher | None,
+    request_id: str | None,
+    message: str,
+    *,
+    level: str,
+    payload: dict[str, Any] | None = None,
+) -> None:
+    if debug_publisher is None:
+        return
+    if not isinstance(request_id, str) or not request_id.strip():
+        return
+    debug_payload: dict[str, Any] = {
+        "id": request_id,
+        "level": level,
+        "source": "inventory_hotel_service",
+        "message": message,
+    }
+    if isinstance(payload, dict):
+        debug_payload["payload"] = payload
+    try:
+        await debug_publisher(debug_payload)
+    except Exception:
+        logger.exception("Failed to publish debug message")
+
+
+def _extract_hotel_ids(hotels_list_response: dict[str, Any]) -> list[str]:
+    ids: list[str] = []
+    data = hotels_list_response.get("data")
+    if not isinstance(data, list):
+        return ids
+    for item in data:
+        if not isinstance(item, dict):
+            continue
+        hotel_id = item.get("hotelId")
+        if isinstance(hotel_id, str) and hotel_id:
+            ids.append(hotel_id)
+    return ids
+
+
+def _extract_distance_index(hotels_list_response: dict[str, Any]) -> dict[str, float]:
+    index: dict[str, float] = {}
+    data = hotels_list_response.get("data")
+    if not isinstance(data, list):
+        return index
+    for item in data:
+        if not isinstance(item, dict):
+            continue
+        hotel_id = item.get("hotelId")
+        if not isinstance(hotel_id, str) or not hotel_id:
+            continue
+        distance = item.get("distance")
+        if isinstance(distance, dict):
+            value = distance.get("value")
+            if isinstance(value, (int, float)):
+                index[hotel_id] = float(value)
+    return index
+
+
+def _collect_hotel_offers(offers_response: dict[str, Any]) -> list[dict[str, Any]]:
+    data = offers_response.get("data")
+    if not isinstance(data, list):
+        return []
+    return [item for item in data if isinstance(item, dict)]
+
+
+def _is_offer_available(offer: dict[str, Any]) -> bool:
+    if offer.get("error") is not None or offer.get("errors") is not None:
+        return False
+    return offer.get("available") is True
+
+
+def _select_nearest_hotel_ids(
+    hotel_ids: list[str],
+    distance_index: dict[str, float],
+    limit: int = 10,
+) -> list[str]:
+    sorted_ids = sorted(hotel_ids, key=lambda hid: distance_index.get(hid, math.inf))
+    return sorted_ids[:limit]
+
+
+async def _process_hotel_request(
+    sender: AmadeusSender,
+    cfg: Cfg,
+    translated: dict[str, Any],
+    request_id: str | None,
+    debug_publisher: DebugPublisher | None,
+) -> dict[str, Any]:
+    hotel_mode = translated.get("hotels_list_mode", "city")
+    stay = translated.get("stay", {}) if isinstance(translated.get("stay"), dict) else {}
+    check_in = str(stay.get("check_in", "")).strip()
+    check_out = str(stay.get("check_out", "")).strip()
+    adults = int(stay.get("travelers", 1) or 1)
+    room_quantity = int(stay.get("min_rooms", 1) or 1)
+    currency = str(stay.get("currency", "USD")).strip() or "USD"
+
+    try:
+        if hotel_mode == "geocode":
+            hotels_list_response = await sender.send_hotels_list_by_geocode(
+                query_params=translated.get("query_params", {}),
+            )
+        else:
+            hotels_list_response = await sender.send_hotels_list(
+                query_params=translated.get("query_params", {}),
+            )
+    except Exception as error:
+        await _emit_debug_message(
+            debug_publisher,
+            request_id,
+            "Failed to fetch hotels list",
+            level="error",
+            payload={"translated": translated, "error": str(error)},
+        )
+        raise
+
+    hotel_ids = _extract_hotel_ids(hotels_list_response)
+    distance_index = _extract_distance_index(hotels_list_response)
+    sorted_hotel_ids = _select_nearest_hotel_ids(hotel_ids, distance_index, limit=len(hotel_ids))
+    chunk_size = max(1, cfg.amadeus_hotels_offers_limit)
+
+    offers_tasks = []
+    for offset in range(0, len(sorted_hotel_ids), chunk_size):
+        hotel_ids_chunk = sorted_hotel_ids[offset : offset + chunk_size]
+        if not hotel_ids_chunk:
+            continue
+        offers_tasks.append(
+            sender.send_hotels_offers(
+                query_params={
+                    "hotelIds": ",".join(hotel_ids_chunk),
+                    "adults": adults,
+                    "checkInDate": check_in,
+                    "checkOutDate": check_out,
+                    "roomQuantity": room_quantity,
+                    "currency": currency,
+                    "includeClosed": True,
+                }
+            )
+        )
+
+    all_offers: list[dict[str, Any]] = []
+    if offers_tasks:
+        offers_responses = await asyncio.gather(*offers_tasks, return_exceptions=True)
+        for response in offers_responses:
+            if isinstance(response, Exception):
+                await _emit_debug_message(
+                    debug_publisher,
+                    request_id,
+                    "Failed to fetch hotels offers chunk",
+                    level="error",
+                    payload={"translated": translated, "error": str(response)},
+                )
+                continue
+            all_offers.extend(_collect_hotel_offers(response))
+
+    filtered_offers = [offer for offer in all_offers if _is_offer_available(offer)]
+    return {
+        "date": check_in or "unknown",
+        "suggestions": filtered_offers,
+    }
+
+
+def _extract_structured_request_from_flight_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    structured_response = payload.get("structured_response")
+    if not isinstance(structured_response, dict):
+        raise ValueError("Incoming payload must contain object field 'structured_response'")
+    structured_output = structured_response.get("output")
+    if not isinstance(structured_output, dict):
+        raise ValueError("Incoming payload must contain object field 'structured_response.output'")
+    return structured_output
+
+
+async def process_incoming_message(
+    sender: AmadeusSender,
+    cfg: Cfg,
+    incoming_body: bytes,
+    request_id: str | None = None,
+    debug_publisher: DebugPublisher | None = None,
+) -> dict[str, Any]:
+    payload = json.loads(incoming_body.decode("utf-8"))
+    structured_request = _extract_structured_request_from_flight_payload(payload)
+    translated_requests = translate_trip_request_to_amadeus_requests(structured_request, cfg)
+    hotel_requests = [x for x in translated_requests if x.get("type") == "hotel"]
+
+    flights_payload = payload.get("provider_flight_response")
+    flights = []
+    if isinstance(flights_payload, dict):
+        flights_candidate = flights_payload.get("flights")
+        if isinstance(flights_candidate, list):
+            flights = flights_candidate
+
+    results: dict[str, Any] = {"flights": flights, "hotels": {}}
+    tasks = [
+        _process_hotel_request(sender, cfg, translated, request_id, debug_publisher)
+        for translated in hotel_requests
+    ]
+    processed_results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    for translated, result in zip(hotel_requests, processed_results):
+        if isinstance(result, Exception):
+            await _emit_debug_message(
+                debug_publisher,
+                request_id,
+                "Failed to process hotel translated request",
+                level="error",
+                payload={"translated": translated, "error": str(result)},
+            )
+            continue
+        if isinstance(result, dict):
+            date_key = str(result.get("date", "unknown"))
+            suggestions = result.get("suggestions", [])
+            if isinstance(suggestions, list):
+                results["hotels"].setdefault(date_key, []).extend(suggestions)
+
+    logger.info(
+        "Processed inventory hotel message with %d hotel translated requests",
+        len(hotel_requests),
+    )
+    return results
