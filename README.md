@@ -76,6 +76,14 @@ and published as `payload.structured_request`.
                       "earliest": { "type": "string", "format": "time" },
                       "latest": { "type": "string", "format": "time" }
                     }
+                  },
+                  "arrive_date": { "type": "string", "format": "date", "description": "Optional flight arrival date (e.g. for stay alignment)." },
+                  "arrive_time_window": {
+                    "type": "object",
+                    "properties": {
+                      "earliest": { "type": "string", "format": "time" },
+                      "latest": { "type": "string", "format": "time" }
+                    }
                   }
                 }
               }

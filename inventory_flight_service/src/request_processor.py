@@ -40,7 +40,12 @@ def _extract_structured_request(payload: dict[str, Any]) -> dict[str, Any]:
     structured_request = payload.get("structured_request")
     if not isinstance(structured_request, dict):
         raise ValueError("Incoming payload must contain object field 'structured_request'")
-    return structured_request
+    output = structured_request.get("output")
+    if not isinstance(output, dict):
+        raise ValueError(
+            "Incoming payload must contain object field 'structured_request.output' (trip request)"
+        )
+    return output
 
 
 async def _process_translated_request(
