@@ -31,6 +31,14 @@ VALID_REQUEST_OUTPUT_SCHEMA = {
                   "earliest": {"type": "string", "format": "time"},
                   "latest": {"type": "string", "format": "time"}
                 }
+              },
+              "arrive_date": {"type": "string", "format": "date"},
+              "arrive_time_window": {
+                "type": "object",
+                "properties": {
+                  "earliest": {"type": "string", "format": "time"},
+                  "latest": {"type": "string", "format": "time"}
+                }
               }
             }
           }
@@ -115,11 +123,16 @@ The structured output should be a JSON object that matches the following schema:
 For flights, the from and to fields should be the IATA code of the airport.
 For hotels, the city_code field should be the IATA code of the city metropolitan area.
 
+When computing flight and stay dates, please consider the arrival date = departure date + 1 day.
+For hotels, please use check-in date as a flight arrival date, next flight departure date as a
+hotel check-out date. Calculate the hotel check-out date as a hotel check-in date plus
+a number of stayed day unless exact check-in and check-out dates are specified in the user prompt. 
+
 If the user specifies a certain location, not only a city, please find a lat / lng
 for this location and put it into the location_latlng field. Leave the location_latlng empty
 if the user specifies only the city name or code.
 
-If the user query misses an infor for filling in required fields,
+If the user query misses an info for filling in required fields,
 the output should contain a text reply that asks the user to provide the missing information.
 Example: missing dates for the flight haul, missing cities / locations for the hotel stays.
 In that case the missing info output should be a JSON object that matches the following schema:

@@ -249,8 +249,8 @@ GOLDEN_RANKED_PROVIDER_RESPONSE = {
         {
             "_ranking": {
                 "duration_minutes": 570.0,
-                "eligible": False,
-                "ineligibility_reason": "departure_outside_window",
+                "eligible": True,
+                "ineligibility_reason": "",
                 "price": 690.0,
                 "score": 13.25,
                 "stops": 1,

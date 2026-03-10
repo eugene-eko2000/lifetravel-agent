@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
 
@@ -40,6 +40,15 @@ def _parse_iso_dt(value: Any) -> datetime | None:
         if value.endswith("Z"):
             value = value[:-1] + "+00:00"
         return datetime.fromisoformat(value)
+    except ValueError:
+        return None
+
+
+def _parse_iso_date(value: Any) -> date | None:
+    if not isinstance(value, str) or not value:
+        return None
+    try:
+        return date.fromisoformat(value)
     except ValueError:
         return None
 
@@ -160,6 +169,51 @@ def _first_departure_and_last_arrival(offer: dict[str, Any]) -> tuple[datetime |
     return first_dep, last_arr
 
 
+def _flight_leg_departure_arrival(offer: dict[str, Any]) -> list[tuple[datetime | None, datetime | None]]:
+    itineraries = offer.get("itineraries")
+    if not isinstance(itineraries, list):
+        return []
+    leg_ranges: list[tuple[datetime | None, datetime | None]] = []
+    for itinerary in itineraries:
+        segments = itinerary.get("segments") if isinstance(itinerary, dict) else None
+        if not isinstance(segments, list) or not segments:
+            leg_ranges.append((None, None))
+            continue
+        dep = _parse_iso_dt((segments[0].get("departure") or {}).get("at"))
+        arr = _parse_iso_dt((segments[-1].get("arrival") or {}).get("at"))
+        leg_ranges.append((dep, arr))
+    return leg_ranges
+
+
+def _extract_leg_date_constraints(constraints: dict[str, Any]) -> list[tuple[date | None, date | None]]:
+    raw_legs = constraints.get("legs")
+    if not isinstance(raw_legs, list):
+        trip = constraints.get("trip")
+        if isinstance(trip, dict):
+            raw_legs = trip.get("legs")
+
+    out: list[tuple[date | None, date | None]] = []
+    if isinstance(raw_legs, list):
+        for leg in raw_legs:
+            if not isinstance(leg, dict):
+                continue
+            out.append(
+                (
+                    _parse_iso_date(leg.get("depart_date")),
+                    _parse_iso_date(leg.get("arrive_date")),
+                )
+            )
+    if out:
+        return out
+
+    # Backward-compatible single-leg shape.
+    single_dep = _parse_iso_date(constraints.get("depart_date"))
+    single_arr = _parse_iso_date(constraints.get("arrive_date"))
+    if single_dep is not None or single_arr is not None:
+        return [(single_dep, single_arr)]
+    return []
+
+
 def _minimum_layover_minutes(offer: dict[str, Any]) -> float:
     best: float | None = None
     itineraries = offer.get("itineraries")
@@ -237,19 +291,10 @@ def _rank_flights(
     max_duration = _safe_float(constraints.get("max_duration_minutes"), 0.0)
     require_refundable = bool(constraints.get("require_refundable", False))
     min_layover = _safe_float(constraints.get("min_layover_minutes"), 45.0)
-    dep_window = constraints.get("depart_time_window", {})
-    arr_window = constraints.get("arrive_time_window", {})
-
-    dep_start = _parse_time_hhmm(dep_window.get("start")) if isinstance(dep_window, dict) else None
-    dep_end = _parse_time_hhmm(dep_window.get("end")) if isinstance(dep_window, dict) else None
-    arr_start = _parse_time_hhmm(arr_window.get("start")) if isinstance(arr_window, dict) else None
-    arr_end = _parse_time_hhmm(arr_window.get("end")) if isinstance(arr_window, dict) else None
-
-    # Defaults when no explicit window.
-    if dep_start is None or dep_end is None:
-        dep_start, dep_end = 7 * 60, 19 * 60
-    if arr_start is None or arr_end is None:
-        arr_start, arr_end = 8 * 60, 20 * 60
+    # Ignore time-window constraints for eligibility for now.
+    dep_start, dep_end = 7 * 60, 19 * 60
+    arr_start, arr_end = 8 * 60, 20 * 60
+    leg_date_constraints = _extract_leg_date_constraints(constraints)
 
     eligible: list[dict[str, Any]] = []
     for offer in offers:
@@ -271,10 +316,22 @@ def _rank_flights(
             reasons.append("connection_too_tight")
         if require_refundable and flex < 0.99:
             reasons.append("not_refundable")
-        if dep_min is not None and not (dep_start <= dep_min <= dep_end):
-            reasons.append("departure_outside_window")
-        if arr_min is not None and not (arr_start <= arr_min <= arr_end):
-            reasons.append("arrival_outside_window")
+        if leg_date_constraints:
+            offer_legs = _flight_leg_departure_arrival(offer)
+            if len(offer_legs) != len(leg_date_constraints):
+                reasons.append("legs_count_mismatch")
+            for idx, ((dep_expected, arr_expected), (dep_actual, arr_actual)) in enumerate(
+                zip(leg_date_constraints, offer_legs),
+                start=1,
+            ):
+                if dep_expected is not None and (
+                    dep_actual is None or dep_actual.date() != dep_expected
+                ):
+                    reasons.append(f"departure_date_mismatch_leg_{idx}")
+                if arr_expected is not None and (
+                    arr_actual is None or arr_actual.date() != arr_expected
+                ):
+                    reasons.append(f"arrival_date_mismatch_leg_{idx}")
 
         rec = {
             "offer": offer,
