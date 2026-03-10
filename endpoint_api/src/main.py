@@ -147,8 +147,13 @@ async def _handle_debug_message(payload: dict) -> None:
         logger.warning("Debug message without valid request id: %s", payload)
         return
 
-    payload["type"] = "debug"
-    delivered = await connection_manager.send_to_request(request_id, payload)
+    message = {
+        "type": "debug",
+        "id": request_id,
+        "debug_message": payload,
+    }
+
+    delivered = await connection_manager.send_to_request(request_id, message)
     if delivered:
         logger.info("Delivered debug message to itinerary websocket for id=%s", request_id)
     else:

@@ -219,14 +219,16 @@ and consumed by `endpoint_api` subscriber/websocket bridge.
 ### 5) DebugMessage
 
 Message consumed by `endpoint_api` debug subscriber and forwarded to the websocket
-request owner (correlated by request id).
+request owner (correlated by request id). Current publishers use:
+- `query_router` with `level = "debug"`
+- `inventory_service` (Amadeus send failures) with `level = "error"`
 
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "DebugMessage",
   "type": "object",
-  "required": ["message"],
+  "required": ["level", "source", "message"],
   "properties": {
     "id": {
       "type": "string",
@@ -246,6 +248,7 @@ request owner (correlated by request id).
     },
     "level": {
       "type": "string",
+      "description": "Severity level of the message.",
       "enum": ["debug", "info", "warning", "error"]
     },
     "payload": {
