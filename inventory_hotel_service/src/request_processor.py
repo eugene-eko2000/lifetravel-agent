@@ -120,26 +120,40 @@ def _select_nearest_hotel_ids(
 
 
 def _extract_structured_request(payload: dict[str, Any]) -> dict[str, Any]:
-    # Backward-compatible inputs from flight stage.
-    structured = payload.get("structured_response")
-    if isinstance(structured, dict):
+    # Prefer trip request from structured_response.output or structured_request.output.
+    for key in ("structured_response", "structured_request"):
+        structured = payload.get(key)
+        if not isinstance(structured, dict):
+            continue
         output = structured.get("output")
         if isinstance(output, dict):
             return output
-    structured = payload.get("structured_request")
-    if isinstance(structured, dict):
-        return structured
-    raise ValueError("Incoming payload must contain object field 'structured_response.output'")
+        # Backward-compat: use full object if it has trip (e.g. legacy payloads).
+        if isinstance(structured.get("trip"), dict):
+            return structured
+    raise ValueError(
+        "Incoming payload must contain object field 'structured_request.output' or 'structured_response.output' (trip request)"
+    )
 
 
 def _extract_flights(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    """Extract flight offers as a flat list; each item is one offer with 'itineraries'."""
     response = payload.get("provider_flight_response")
     if not isinstance(response, dict):
         return []
-    flights = response.get("flights")
-    if not isinstance(flights, list):
+    raw = response.get("flights")
+    if not isinstance(raw, list):
         return []
-    return [x for x in flights if isinstance(x, dict)]
+    out: list[dict[str, Any]] = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        data = item.get("data")
+        if isinstance(data, list):
+            out.extend([x for x in data if isinstance(x, dict) and x.get("itineraries")])
+        elif item.get("itineraries"):
+            out.append(item)
+    return out
 
 
 def _extract_stays(structured_request: dict[str, Any]) -> list[dict[str, Any]]:
