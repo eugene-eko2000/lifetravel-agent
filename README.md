@@ -152,25 +152,34 @@ and published as `payload.structured_request`.
 ### 3) Itinerary Flight & Hotel Response Message
 
 Output produced by `inventory_hotel_service.request_processor.process_incoming_message(...)`.
+Hotels are grouped by stay date range per itinerary.
 
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "ItineraryInventoryResponse",
   "type": "object",
-  "required": ["flights", "hotels"],
+  "required": ["itineraries"],
   "properties": {
-    "flights": {
+    "itineraries": {
       "type": "array",
-      "description": "Raw/normalized flight offers responses from Amadeus."
-    },
-    "hotels": {
-      "type": "object",
-      "description": "Map of check-in date -> list of available hotel suggestions.",
-      "additionalProperties": {
-        "type": "array",
-        "items": {
-          "type": "object"
+      "description": "One entry per flight offer; each has flight and hotels by stay period.",
+      "items": {
+        "type": "object",
+        "required": ["flight", "hotels"],
+        "properties": {
+          "flight": {
+            "type": "object",
+            "description": "Single Amadeus flight offer (with itineraries, etc.)."
+          },
+          "hotels": {
+            "type": "object",
+            "description": "Map of stay period '<date-begin - date-end>' to list of hotel offers.",
+            "additionalProperties": {
+              "type": "array",
+              "items": { "type": "object" }
+            }
+          }
         }
       }
     }

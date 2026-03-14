@@ -657,12 +657,21 @@ def _rank_itineraries(
         flight_raw = item.get("flight")
         hotels_raw = item.get("hotels")
         flight_offer = flight_raw if isinstance(flight_raw, dict) else {}
-        hotels = hotels_raw if isinstance(hotels_raw, list) else []
-        hotels = [x for x in hotels if isinstance(x, dict)]
+        if isinstance(hotels_raw, dict):
+            ranked_hotels = {
+                str(k): _rank_hotels_for_date(
+                    [x for x in v if isinstance(x, dict)], hotel_constraints
+                )
+                for k, v in hotels_raw.items()
+                if isinstance(v, list)
+            }
+        else:
+            hotels = hotels_raw if isinstance(hotels_raw, list) else []
+            hotels = [x for x in hotels if isinstance(x, dict)]
+            ranked_hotels = _rank_hotels_for_date(hotels, hotel_constraints)
 
         ranked_flight_list = _rank_flights([flight_offer], flight_constraints, top_n=1)
         ranked_flight = ranked_flight_list[0] if ranked_flight_list else flight_offer
-        ranked_hotels = _rank_hotels_for_date(hotels, hotel_constraints)
 
         flight_ranking = ranked_flight.get("_ranking") if isinstance(ranked_flight, dict) else {}
         flight_score = _safe_float(

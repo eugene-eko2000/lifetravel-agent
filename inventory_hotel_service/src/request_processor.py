@@ -375,7 +375,7 @@ async def process_incoming_message(
 
     for flight in flights:
         adjusted_stays = _adjust_stays_for_flight(flight, stays, currency, travelers)
-        itinerary_hotels: list[dict[str, Any]] = []
+        itinerary_hotels: dict[str, list[dict[str, Any]]] = {}
         for stay in adjusted_stays:
             req = _build_hotel_request(stay, cfg)
             key = _stay_cache_key(req)
@@ -383,7 +383,8 @@ async def process_incoming_message(
                 cache[key] = await _fetch_hotels_for_request(
                     sender, cfg, req, request_id, debug_publisher
                 )
-            itinerary_hotels.extend([dict(x) for x in cache.get(key, [])])
+            stay_key = f"{stay['check_in']} - {stay['check_out']}"
+            itinerary_hotels[stay_key] = [dict(x) for x in cache.get(key, [])]
 
         itineraries_out.append(
             {
