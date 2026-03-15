@@ -166,7 +166,7 @@ def _extract_stays(structured_request: dict[str, Any]) -> list[dict[str, Any]]:
     return [x for x in stays if isinstance(x, dict)]
 
 
-def _adjust_stays_for_flight(
+def _build_stays_from_adjacent_flight_legs(
     flight_offer: dict[str, Any],
     stays: list[dict[str, Any]],
     currency: str,
@@ -176,32 +176,27 @@ def _adjust_stays_for_flight(
     if not isinstance(itineraries, list):
         itineraries = []
 
-    adjusted: list[dict[str, Any]] = []
+    built: list[dict[str, Any]] = []
     for idx, stay in enumerate(stays):
-        check_in = str(stay.get("check_in", "")).strip()
-        check_out = str(stay.get("check_out", "")).strip()
-
-        if idx < len(itineraries):
-            segs = itineraries[idx].get("segments") if isinstance(itineraries[idx], dict) else None
-            if isinstance(segs, list) and segs:
-                arr = _parse_iso_dt((segs[-1].get("arrival") or {}).get("at"))
-                if arr is not None:
-                    check_in = arr.date().isoformat()
-        if idx + 1 < len(itineraries):
-            next_segs = (
-                itineraries[idx + 1].get("segments")
-                if isinstance(itineraries[idx + 1], dict)
-                else None
-            )
-            if isinstance(next_segs, list) and next_segs:
-                dep = _parse_iso_dt((next_segs[0].get("departure") or {}).get("at"))
-                if dep is not None:
-                    check_out = dep.date().isoformat()
-
-        if not check_in or not check_out:
+        if idx >= len(itineraries) or idx + 1 >= len(itineraries):
             continue
-
-        adjusted.append(
+        segs = itineraries[idx].get("segments") if isinstance(itineraries[idx], dict) else None
+        next_segs = (
+            itineraries[idx + 1].get("segments")
+            if isinstance(itineraries[idx + 1], dict)
+            else None
+        )
+        if not isinstance(segs, list) or not segs:
+            continue
+        if not isinstance(next_segs, list) or not next_segs:
+            continue
+        arr = _parse_iso_dt((segs[-1].get("arrival") or {}).get("at"))
+        dep = _parse_iso_dt((next_segs[0].get("departure") or {}).get("at"))
+        if arr is None or dep is None:
+            continue
+        check_in = arr.date().isoformat()
+        check_out = dep.date().isoformat()
+        built.append(
             {
                 "check_in": check_in,
                 "check_out": check_out,
@@ -213,7 +208,7 @@ def _adjust_stays_for_flight(
                 "city": stay.get("city"),
             }
         )
-    return adjusted
+    return built
 
 
 def _build_hotel_request(stay: dict[str, Any], cfg: Cfg) -> dict[str, Any]:
@@ -374,7 +369,9 @@ async def process_incoming_message(
     itineraries_out: list[dict[str, Any]] = []
 
     for flight in flights:
-        adjusted_stays = _adjust_stays_for_flight(flight, stays, currency, travelers)
+        adjusted_stays = _build_stays_from_adjacent_flight_legs(
+            flight, stays, currency, travelers
+        )
         itinerary_hotels: dict[str, list[dict[str, Any]]] = {}
         for stay in adjusted_stays:
             req = _build_hotel_request(stay, cfg)

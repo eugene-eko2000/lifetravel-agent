@@ -94,6 +94,22 @@ async def process_incoming_message(
         "flights": [],
     }
     flight_requests = [x for x in translated_requests if x.get("type") == "flight"]
+    if flight_requests:
+        await _emit_debug_message(
+            debug_publisher,
+            request_id,
+            "Prepared Amadeus flight request data",
+            level="debug",
+            payload={
+                "flight_requests": [
+                    {
+                        "method": str(req.get("method", "")),
+                        "payload": req.get("payload", {}),
+                    }
+                    for req in flight_requests
+                ]
+            },
+        )
     tasks = [
         _process_translated_request(
             sender,

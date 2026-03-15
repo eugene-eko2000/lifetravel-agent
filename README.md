@@ -37,6 +37,11 @@ Message consumed by `query_router` from RabbitMQ.
 
 Object returned by `query_router.llm_client.request_structured_itinerary(...)`
 and published as `payload.structured_request`.
+`trip.stays` no longer carries `check_in` / `check_out`; hotel stay dates are derived
+from adjacent flight legs (`arrival` of leg N to `departure` of leg N+1) in
+`inventory_hotel_service`.
+Each stay includes `duration` (number of stay days), and flight departure dates are
+chosen to align with those durations between adjacent legs.
 
 ```json
 {
@@ -92,7 +97,7 @@ and published as `payload.structured_request`.
               "type": "array",
               "items": {
                 "type": "object",
-                "required": ["check_in", "check_out"],
+                "required": ["duration"],
                 "properties": {
                   "city": { "type": "string" },
                   "city_code": { "type": "string" },
@@ -104,8 +109,7 @@ and published as `payload.structured_request`.
                       "lng": { "type": "number" }
                     }
                   },
-                  "check_in": { "type": "string", "format": "date" },
-                  "check_out": { "type": "string", "format": "date" },
+                  "duration": { "type": "integer", "minimum": 1 },
                   "min_rooms": { "type": "integer" }
                 }
               }

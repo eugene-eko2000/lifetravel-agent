@@ -47,7 +47,7 @@ VALID_REQUEST_OUTPUT_SCHEMA = {
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["check_in", "check_out"],
+            "required": ["duration"],
             "properties": {
               "city": {"type": "string"},
               "city_code": {"type": "string"},
@@ -59,8 +59,7 @@ VALID_REQUEST_OUTPUT_SCHEMA = {
                   "lng": {"type": "number"}
                 }
               },
-              "check_in": {"type": "string", "format": "date"},
-              "check_out": {"type": "string", "format": "date"},
+              "duration": {"type": "integer", "minimum": 1},
               "min_rooms": {"type": "integer"}
             }
           }
@@ -123,10 +122,12 @@ The structured output should be a JSON object that matches the following schema:
 For flights, the from and to fields should be the IATA code of the airport.
 For hotels, the city_code field should be the IATA code of the city metropolitan area.
 
-When computing flight and stay dates, please consider the arrival date = departure date + 1 day.
-For hotels, please use check-in date as a flight arrival date, next flight departure date as a
-hotel check-out date. Calculate the hotel check-out date as a hotel check-in date plus
-a number of stayed day unless exact check-in and check-out dates are specified in the user prompt. 
+When computing flight and stay dates, please consider the arrival date = departure date.
+For hotels, do not include check-in/check-out fields inside stays.
+Hotel dates are derived downstream from adjacent flight legs:
+check-in = arrival date of leg N, check-out = departure date of leg N+1.
+For each stay, include duration as the number of nights/days in that location.
+Choose flight departure dates so the time between adjacent flight legs matches each stay duration.
 
 If the user specifies a certain location, not only a city, please find a lat / lng
 for this location and put it into the location_latlng field. Leave the location_latlng empty
