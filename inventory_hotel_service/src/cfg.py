@@ -17,6 +17,7 @@ class Cfg:
     amadeus_hotels_list_url: str
     amadeus_hotels_list_by_geocode_url: str
     amadeus_hotels_offers_url: str
+    amadeus_hotels_qps_limit: float | None
     amadeus_token_url: str
     amadeus_hotels_offers_limit: int
     amadeus_hotels_citycode_radius_km: int
@@ -60,6 +61,9 @@ class Cfg:
             amadeus_hotels_offers_url=os.getenv(
                 "AMADEUS_HOTELS_OFFERS_URL",
                 "https://test.api.amadeus.com/v3/shopping/hotel-offers",
+            ),
+            amadeus_hotels_qps_limit=(
+                float(os.getenv("AMADEUS_HOTELS_QPS_LIMIT", "0")) or None
             ),
             amadeus_token_url=os.getenv(
                 "AMADEUS_TOKEN_URL",

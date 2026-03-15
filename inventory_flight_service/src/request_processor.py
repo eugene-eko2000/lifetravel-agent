@@ -11,6 +11,21 @@ logger = logging.getLogger("inventory_flight_service.request_processor")
 DebugPublisher = Callable[[dict[str, Any]], Awaitable[None]]
 
 
+class _QpsLimiter:
+    def __init__(self, qps_limit: float) -> None:
+        self._interval_sec = 1.0 / qps_limit
+        self._lock = asyncio.Lock()
+        self._next_allowed_ts = 0.0
+
+    async def wait_for_slot(self) -> None:
+        async with self._lock:
+            now = asyncio.get_running_loop().time()
+            if now < self._next_allowed_ts:
+                await asyncio.sleep(self._next_allowed_ts - now)
+            now = asyncio.get_running_loop().time()
+            self._next_allowed_ts = now + self._interval_sec
+
+
 async def _emit_debug_message(
     debug_publisher: DebugPublisher | None,
     request_id: str | None,
@@ -54,11 +69,15 @@ async def _process_translated_request(
     translated: dict[str, Any],
     request_id: str | None = None,
     debug_publisher: DebugPublisher | None = None,
+    qps_limiter: _QpsLimiter | None = None,
 ) -> Any:
     request_type = translated.get("type")
+    _ = cfg
 
     if request_type == "flight":
         try:
+            if qps_limiter is not None:
+                await qps_limiter.wait_for_slot()
             return await sender.send_flights_offers(
                 payload=translated.get("payload", {}),
             )
@@ -94,22 +113,9 @@ async def process_incoming_message(
         "flights": [],
     }
     flight_requests = [x for x in translated_requests if x.get("type") == "flight"]
-    if flight_requests:
-        await _emit_debug_message(
-            debug_publisher,
-            request_id,
-            "Prepared Amadeus flight request data",
-            level="debug",
-            payload={
-                "flight_requests": [
-                    {
-                        "method": str(req.get("method", "")),
-                        "payload": req.get("payload", {}),
-                    }
-                    for req in flight_requests
-                ]
-            },
-        )
+    qps_limiter: _QpsLimiter | None = None
+    if isinstance(cfg.amadeus_flights_qps_limit, (int, float)) and cfg.amadeus_flights_qps_limit > 0:
+        qps_limiter = _QpsLimiter(float(cfg.amadeus_flights_qps_limit))
     tasks = [
         _process_translated_request(
             sender,
@@ -117,6 +123,7 @@ async def process_incoming_message(
             translated,
             request_id=request_id,
             debug_publisher=debug_publisher,
+            qps_limiter=qps_limiter,
         )
         for translated in flight_requests
     ]
@@ -144,7 +151,15 @@ async def process_incoming_message(
         request_type = translated.get("type")
 
         if request_type == "flight":
-            results["flights"].append(result)
+            options = result.get("data") if isinstance(result, dict) else []
+            if not isinstance(options, list):
+                options = []
+            results["flights"].append(
+                {
+                    "date": str(translated.get("date", "")),
+                    "options": [x for x in options if isinstance(x, dict)],
+                }
+            )
             continue
 
     logger.info(

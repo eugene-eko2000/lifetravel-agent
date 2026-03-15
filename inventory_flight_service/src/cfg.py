@@ -15,6 +15,7 @@ class Cfg:
     rabbitmq_debug_routing_key: str
     rabbitmq_queue_name: str
     amadeus_flights_offers_url: str
+    amadeus_flights_qps_limit: float | None
     amadeus_token_url: str
     amadeus_client_id: str
     amadeus_client_secret: str
@@ -47,6 +48,9 @@ class Cfg:
             amadeus_flights_offers_url=os.getenv(
                 "AMADEUS_FLIGHTS_OFFERS_URL",
                 "https://test.api.amadeus.com/v2/shopping/flight-offers",
+            ),
+            amadeus_flights_qps_limit=(
+                float(os.getenv("AMADEUS_FLIGHTS_QPS_LIMIT", "0")) or None
             ),
             amadeus_token_url=os.getenv(
                 "AMADEUS_TOKEN_URL",

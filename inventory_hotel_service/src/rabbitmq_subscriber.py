@@ -40,6 +40,7 @@ async def run_inventory_hotel_subscriber() -> None:
                 async with incoming.process():
                     try:
                         request_id = None
+                        incoming_payload: dict = {}
                         try:
                             incoming_payload = json.loads(incoming.body.decode("utf-8"))
                             candidate_request_id = incoming_payload.get("id")

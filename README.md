@@ -153,36 +153,29 @@ chosen to align with those durations between adjacent legs.
 }
 ```
 
-### 3) Itinerary Flight & Hotel Response Message
+### 3) Flight Provider Response Message
 
-Output produced by `inventory_hotel_service.request_processor.process_incoming_message(...)`.
-Hotels are grouped by stay date range per itinerary.
+Output produced by `inventory_flight_service.request_processor.process_incoming_message(...)`.
+Flights are grouped by requested departure date (one group per trip leg).
 
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "ItineraryInventoryResponse",
+  "title": "ItineraryFlightResponse",
   "type": "object",
-  "required": ["itineraries"],
+  "required": ["flights"],
   "properties": {
-    "itineraries": {
+    "flights": {
       "type": "array",
-      "description": "One entry per flight offer; each has flight and hotels by stay period.",
       "items": {
         "type": "object",
-        "required": ["flight", "hotels"],
+        "required": ["date", "options"],
         "properties": {
-          "flight": {
-            "type": "object",
-            "description": "Single Amadeus flight offer (with itineraries, etc.)."
-          },
-          "hotels": {
-            "type": "object",
-            "description": "Map of stay period '<date-begin - date-end>' to list of hotel offers.",
-            "additionalProperties": {
-              "type": "array",
-              "items": { "type": "object" }
-            }
+          "date": { "type": "string", "format": "date" },
+          "options": {
+            "type": "array",
+            "description": "Amadeus flight offers for this leg/date.",
+            "items": { "type": "object" }
           }
         }
       }
@@ -192,7 +185,52 @@ Hotels are grouped by stay date range per itinerary.
 }
 ```
 
-### 4) MissingInfoMessage
+### 4) Itinerary Flight & Hotel Response Message
+
+Output produced by `inventory_hotel_service.request_processor.process_incoming_message(...)`.
+It preserves incoming grouped flights and adds hotel options grouped by stay window.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ItineraryInventoryResponse",
+  "type": "object",
+  "required": ["flights", "hotels"],
+  "properties": {
+    "flights": {
+      "type": "array",
+      "description": "Source input from provider_flight_response.flights.",
+      "items": {
+        "type": "object",
+        "required": ["date", "options"],
+        "properties": {
+          "date": { "type": "string", "format": "date" },
+          "options": { "type": "array", "items": { "type": "object" } }
+        }
+      }
+    },
+    "hotels": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["check_in", "check_out", "options"],
+        "properties": {
+          "check_in": { "type": "string", "format": "date" },
+          "check_out": { "type": "string", "format": "date" },
+          "options": {
+            "type": "array",
+            "description": "Hotel offers for this check-in/check-out window.",
+            "items": { "type": "object" }
+          }
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}
+```
+
+### 5) MissingInfoMessage
 
 Message published by `query_router` when the LLM cannot build a complete itinerary request
 and consumed by `endpoint_api` subscriber/websocket bridge.
@@ -237,7 +275,7 @@ and consumed by `endpoint_api` subscriber/websocket bridge.
 }
 ```
 
-### 5) DebugMessage
+### 6) DebugMessage
 
 Message consumed by `endpoint_api` debug subscriber and forwarded to the websocket
 request owner (correlated by request id). Current publishers use:

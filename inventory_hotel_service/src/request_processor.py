@@ -12,6 +12,21 @@ logger = logging.getLogger("inventory_hotel_service.request_processor")
 DebugPublisher = Callable[[dict[str, Any]], Awaitable[None]]
 
 
+class _QpsLimiter:
+    def __init__(self, qps_limit: float) -> None:
+        self._interval_sec = 1.0 / qps_limit
+        self._lock = asyncio.Lock()
+        self._next_allowed_ts = 0.0
+
+    async def wait_for_slot(self) -> None:
+        async with self._lock:
+            now = asyncio.get_running_loop().time()
+            if now < self._next_allowed_ts:
+                await asyncio.sleep(self._next_allowed_ts - now)
+            now = asyncio.get_running_loop().time()
+            self._next_allowed_ts = now + self._interval_sec
+
+
 async def _emit_debug_message(
     debug_publisher: DebugPublisher | None,
     request_id: str | None,
@@ -136,24 +151,14 @@ def _extract_structured_request(payload: dict[str, Any]) -> dict[str, Any]:
     )
 
 
-def _extract_flights(payload: dict[str, Any]) -> list[dict[str, Any]]:
-    """Extract flight offers as a flat list; each item is one offer with 'itineraries'."""
+def _extract_source_flights(payload: dict[str, Any]) -> list[dict[str, Any]]:
     response = payload.get("provider_flight_response")
     if not isinstance(response, dict):
         return []
     raw = response.get("flights")
     if not isinstance(raw, list):
         return []
-    out: list[dict[str, Any]] = []
-    for item in raw:
-        if not isinstance(item, dict):
-            continue
-        data = item.get("data")
-        if isinstance(data, list):
-            out.extend([x for x in data if isinstance(x, dict) and x.get("itineraries")])
-        elif item.get("itineraries"):
-            out.append(item)
-    return out
+    return [x for x in raw if isinstance(x, dict)]
 
 
 def _extract_stays(structured_request: dict[str, Any]) -> list[dict[str, Any]]:
@@ -166,49 +171,102 @@ def _extract_stays(structured_request: dict[str, Any]) -> list[dict[str, Any]]:
     return [x for x in stays if isinstance(x, dict)]
 
 
+def _extract_arrival_dates(flight_options: list[dict[str, Any]]) -> list[str]:
+    out: set[str] = set()
+    for option in flight_options:
+        itineraries = option.get("itineraries")
+        if not isinstance(itineraries, list) or not itineraries:
+            continue
+        first_itinerary = itineraries[0]
+        if not isinstance(first_itinerary, dict):
+            continue
+        segments = first_itinerary.get("segments")
+        if not isinstance(segments, list) or not segments:
+            continue
+        arr_dt = _parse_iso_dt((segments[-1].get("arrival") or {}).get("at"))
+        if arr_dt is not None:
+            out.add(arr_dt.date().isoformat())
+    return sorted(out)
+
+
+def _extract_departure_dates(flight_options: list[dict[str, Any]]) -> list[str]:
+    out: set[str] = set()
+    for option in flight_options:
+        itineraries = option.get("itineraries")
+        if not isinstance(itineraries, list) or not itineraries:
+            continue
+        first_itinerary = itineraries[0]
+        if not isinstance(first_itinerary, dict):
+            continue
+        segments = first_itinerary.get("segments")
+        if not isinstance(segments, list) or not segments:
+            continue
+        dep_dt = _parse_iso_dt((segments[0].get("departure") or {}).get("at"))
+        if dep_dt is not None:
+            out.add(dep_dt.date().isoformat())
+    return sorted(out)
+
+
 def _build_stays_from_adjacent_flight_legs(
-    flight_offer: dict[str, Any],
+    flights_by_leg: list[dict[str, Any]],
     stays: list[dict[str, Any]],
     currency: str,
     travelers: int,
 ) -> list[dict[str, Any]]:
-    itineraries = flight_offer.get("itineraries")
-    if not isinstance(itineraries, list):
-        itineraries = []
-
     built: list[dict[str, Any]] = []
     for idx, stay in enumerate(stays):
-        if idx >= len(itineraries) or idx + 1 >= len(itineraries):
+        if idx + 1 >= len(flights_by_leg):
             continue
-        segs = itineraries[idx].get("segments") if isinstance(itineraries[idx], dict) else None
-        next_segs = (
-            itineraries[idx + 1].get("segments")
-            if isinstance(itineraries[idx + 1], dict)
-            else None
-        )
-        if not isinstance(segs, list) or not segs:
+        current_options_raw = flights_by_leg[idx].get("options")
+        next_options_raw = flights_by_leg[idx + 1].get("options")
+        if not isinstance(current_options_raw, list) or not isinstance(next_options_raw, list):
             continue
-        if not isinstance(next_segs, list) or not next_segs:
+        current_options = [x for x in current_options_raw if isinstance(x, dict)]
+        next_options = [x for x in next_options_raw if isinstance(x, dict)]
+        arrival_dates = _extract_arrival_dates(current_options)
+        departure_dates = _extract_departure_dates(next_options)
+        if not arrival_dates or not departure_dates:
             continue
-        arr = _parse_iso_dt((segs[-1].get("arrival") or {}).get("at"))
-        dep = _parse_iso_dt((next_segs[0].get("departure") or {}).get("at"))
-        if arr is None or dep is None:
-            continue
-        check_in = arr.date().isoformat()
-        check_out = dep.date().isoformat()
-        built.append(
+        duration_days = int(stay.get("duration", 0) or 0)
+        for check_in in arrival_dates:
+            in_dt = _parse_iso_dt(check_in)
+            if in_dt is None:
+                continue
+            for check_out in departure_dates:
+                out_dt = _parse_iso_dt(check_out)
+                if out_dt is None or out_dt <= in_dt:
+                    continue
+                if duration_days > 0 and (out_dt.date() - in_dt.date()).days != duration_days:
+                    continue
+                built.append(
+                    {
+                        "check_in": check_in,
+                        "check_out": check_out,
+                        "min_rooms": int(stay.get("min_rooms", 1) or 1),
+                        "travelers": travelers,
+                        "currency": currency,
+                        "city_code": str(stay.get("city_code", "")).strip().upper(),
+                        "location_latlng": stay.get("location_latlng"),
+                        "city": stay.get("city"),
+                    }
+                )
+
+    deduped: dict[str, dict[str, Any]] = {}
+    for stay in built:
+        stay_key = json.dumps(
             {
-                "check_in": check_in,
-                "check_out": check_out,
-                "min_rooms": int(stay.get("min_rooms", 1) or 1),
-                "travelers": travelers,
-                "currency": currency,
-                "city_code": str(stay.get("city_code", "")).strip().upper(),
+                "check_in": stay.get("check_in"),
+                "check_out": stay.get("check_out"),
+                "city_code": stay.get("city_code"),
                 "location_latlng": stay.get("location_latlng"),
-                "city": stay.get("city"),
-            }
+                "travelers": stay.get("travelers"),
+                "min_rooms": stay.get("min_rooms"),
+                "currency": stay.get("currency"),
+            },
+            sort_keys=True,
         )
-    return built
+        deduped[stay_key] = stay
+    return list(deduped.values())
 
 
 def _build_hotel_request(stay: dict[str, Any], cfg: Cfg) -> dict[str, Any]:
@@ -266,15 +324,21 @@ async def _fetch_hotels_for_request(
     req: dict[str, Any],
     request_id: str | None,
     debug_publisher: DebugPublisher | None,
+    qps_limiter: _QpsLimiter | None = None,
 ) -> list[dict[str, Any]]:
     stay = req.get("stay", {})
     mode = req.get("hotels_list_mode", "city")
+    logger.info("Fetching hotels for request: %s", req)
     try:
         if mode == "geocode":
+            if qps_limiter is not None:
+                await qps_limiter.wait_for_slot()
             hotels_list_response = await sender.send_hotels_list_by_geocode(
                 query_params=req.get("query_params", {}),
             )
         else:
+            if qps_limiter is not None:
+                await qps_limiter.wait_for_slot()
             hotels_list_response = await sender.send_hotels_list(
                 query_params=req.get("query_params", {}),
             )
@@ -304,10 +368,13 @@ async def _fetch_hotels_for_request(
         hotel_ids_chunk = sorted_hotel_ids[offset : offset + chunk_size]
         if not hotel_ids_chunk:
             continue
-        offers_tasks.append(
-            sender.send_hotels_offers(
+
+        async def _send_offers_for_chunk(chunk: list[str]) -> dict[str, Any]:
+            if qps_limiter is not None:
+                await qps_limiter.wait_for_slot()
+            return await sender.send_hotels_offers(
                 query_params={
-                    "hotelIds": ",".join(hotel_ids_chunk),
+                    "hotelIds": ",".join(chunk),
                     "adults": adults,
                     "checkInDate": check_in,
                     "checkOutDate": check_out,
@@ -316,7 +383,8 @@ async def _fetch_hotels_for_request(
                     "includeClosed": True,
                 }
             )
-        )
+
+        offers_tasks.append(_send_offers_for_chunk(hotel_ids_chunk))
 
     all_offers: list[dict[str, Any]] = []
     if offers_tasks:
@@ -356,7 +424,7 @@ async def process_incoming_message(
 ) -> dict[str, Any]:
     payload = json.loads(incoming_body.decode("utf-8"))
     structured_request = _extract_structured_request(payload)
-    flights = _extract_flights(payload)
+    source_flights = _extract_source_flights(payload)
     stays = _extract_stays(structured_request)
 
     trip = structured_request.get("trip", {})
@@ -364,35 +432,47 @@ async def process_incoming_message(
     budgets = structured_request.get("budgets", {})
     hotels_budget = budgets.get("hotels", {}) if isinstance(budgets, dict) else {}
     currency = str(hotels_budget.get("currency", "USD")).strip() or "USD"
+    qps_limiter: _QpsLimiter | None = None
+    if isinstance(cfg.amadeus_hotels_qps_limit, (int, float)) and cfg.amadeus_hotels_qps_limit > 0:
+        qps_limiter = _QpsLimiter(float(cfg.amadeus_hotels_qps_limit))
 
+    stays_for_hotels = _build_stays_from_adjacent_flight_legs(
+        source_flights,
+        stays,
+        currency,
+        travelers,
+    )
+    logger.info("Stays for hotels: %s", stays_for_hotels)
     cache: dict[str, list[dict[str, Any]]] = {}
-    itineraries_out: list[dict[str, Any]] = []
-
-    for flight in flights:
-        adjusted_stays = _build_stays_from_adjacent_flight_legs(
-            flight, stays, currency, travelers
-        )
-        itinerary_hotels: dict[str, list[dict[str, Any]]] = {}
-        for stay in adjusted_stays:
+    hotels_out: list[dict[str, Any]] = []
+    for stay in stays_for_hotels:
+        try:
             req = _build_hotel_request(stay, cfg)
-            key = _stay_cache_key(req)
-            if key not in cache:
-                cache[key] = await _fetch_hotels_for_request(
-                    sender, cfg, req, request_id, debug_publisher
-                )
-            stay_key = f"{stay['check_in']} - {stay['check_out']}"
-            itinerary_hotels[stay_key] = [dict(x) for x in cache.get(key, [])]
-
-        itineraries_out.append(
+        except Exception as error:
+            await _emit_debug_message(
+                debug_publisher,
+                request_id,
+                "Failed to build hotel request for stay",
+                level="error",
+                payload={"stay": stay, "error": str(error)},
+            )
+            continue
+        key = _stay_cache_key(req)
+        if key not in cache:
+            cache[key] = await _fetch_hotels_for_request(
+                sender, cfg, req, request_id, debug_publisher, qps_limiter=qps_limiter
+            )
+        hotels_out.append(
             {
-                "flight": flight,
-                "hotels": itinerary_hotels,
+                "check_in": stay["check_in"],
+                "check_out": stay["check_out"],
+                "options": [dict(x) for x in cache.get(key, [])],
             }
         )
 
     logger.info(
-        "Processed inventory hotel message for %d flights into %d itineraries",
-        len(flights),
-        len(itineraries_out),
+        "Processed inventory hotel message for %d legs into %d stay combinations",
+        len(source_flights),
+        len(hotels_out),
     )
-    return {"itineraries": itineraries_out}
+    return {"flights": source_flights, "hotels": hotels_out}

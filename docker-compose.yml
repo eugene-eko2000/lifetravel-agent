@@ -81,6 +81,7 @@ services:
       AMADEUS_TOKEN_URL: https://test.api.amadeus.com/v1/security/oauth2/token
       AMADEUS_CLIENT_ID: ${AMADEUS_CLIENT_ID:-}
       AMADEUS_CLIENT_SECRET: ${AMADEUS_CLIENT_SECRET:-}
+      AMADEUS_FLIGHTS_QPS_LIMIT: 1
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -111,6 +112,7 @@ services:
       AMADEUS_HOTELS_LATLNG_RADIUS_KM: 5
       AMADEUS_CLIENT_ID: ${AMADEUS_CLIENT_ID:-}
       AMADEUS_CLIENT_SECRET: ${AMADEUS_CLIENT_SECRET:-}
+      AMADEUS_HOTELS_QPS_LIMIT: 1
     depends_on:
       rabbitmq:
         condition: service_healthy
