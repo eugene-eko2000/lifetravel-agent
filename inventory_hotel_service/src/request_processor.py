@@ -228,6 +228,7 @@ def _build_stays_from_adjacent_flight_legs(
         if not arrival_dates or not departure_dates:
             continue
         duration_days = int(stay.get("duration", 0) or 0)
+        valid_pairs: list[tuple[str, str, int]] = []
         for check_in in arrival_dates:
             in_dt = _parse_iso_dt(check_in)
             if in_dt is None:
@@ -236,20 +237,33 @@ def _build_stays_from_adjacent_flight_legs(
                 out_dt = _parse_iso_dt(check_out)
                 if out_dt is None or out_dt <= in_dt:
                     continue
-                if duration_days > 0 and (out_dt.date() - in_dt.date()).days != duration_days:
-                    continue
-                built.append(
-                    {
-                        "check_in": check_in,
-                        "check_out": check_out,
-                        "min_rooms": int(stay.get("min_rooms", 1) or 1),
-                        "travelers": travelers,
-                        "currency": currency,
-                        "city_code": str(stay.get("city_code", "")).strip().upper(),
-                        "location_latlng": stay.get("location_latlng"),
-                        "city": stay.get("city"),
-                    }
-                )
+                stay_days = (out_dt.date() - in_dt.date()).days
+                valid_pairs.append((check_in, check_out, stay_days))
+
+        if not valid_pairs:
+            continue
+
+        selected_pairs = valid_pairs
+        if duration_days > 0:
+            exact_pairs = [x for x in valid_pairs if x[2] == duration_days]
+            # Prefer exact duration matches, but don't drop a stay entirely when
+            # no exact combination exists in available flight options.
+            if exact_pairs:
+                selected_pairs = exact_pairs
+
+        for check_in, check_out, _stay_days in selected_pairs:
+            built.append(
+                {
+                    "check_in": check_in,
+                    "check_out": check_out,
+                    "min_rooms": int(stay.get("min_rooms", 1) or 1),
+                    "travelers": travelers,
+                    "currency": currency,
+                    "city_code": str(stay.get("city_code", "")).strip().upper(),
+                    "location_latlng": stay.get("location_latlng"),
+                    "city": stay.get("city"),
+                }
+            )
 
     deduped: dict[str, dict[str, Any]] = {}
     for stay in built:
@@ -265,7 +279,8 @@ def _build_stays_from_adjacent_flight_legs(
             },
             sort_keys=True,
         )
-        deduped[stay_key] = stay
+        if stay_key not in deduped:
+            deduped[stay_key] = stay
     return list(deduped.values())
 
 
@@ -328,7 +343,6 @@ async def _fetch_hotels_for_request(
 ) -> list[dict[str, Any]]:
     stay = req.get("stay", {})
     mode = req.get("hotels_list_mode", "city")
-    logger.info("Fetching hotels for request: %s", req)
     try:
         if mode == "geocode":
             if qps_limiter is not None:
@@ -442,7 +456,6 @@ async def process_incoming_message(
         currency,
         travelers,
     )
-    logger.info("Stays for hotels: %s", stays_for_hotels)
     cache: dict[str, list[dict[str, Any]]] = {}
     hotels_out: list[dict[str, Any]] = []
     for stay in stays_for_hotels:
