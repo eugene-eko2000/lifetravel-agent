@@ -46,7 +46,7 @@ chosen to align with those durations between adjacent legs.
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "StructuredLLMResponse",
+  "title": "StructuredRequest",
   "type": "object",
   "required": ["request_id", "prompt_id", "type", "output"],
   "properties": {
@@ -330,7 +330,7 @@ request owner (correlated by request id). Current publishers use:
 | exchange name | routing key | message name | publishers services list | subscribers services list |
 | --- | --- | --- | --- | --- |
 | `lifetravel_agent` | `itinerary:user_request` | `UserRequestMessage` | `endpoint_api` | `query_router` |
-| `lifetravel_agent` | `itinerary:structured_request` | `StructuredLLMResponse` | `query_router`, `itinerary_verifier` | `inventory_flight_service` |
+| `lifetravel_agent` | `itinerary:structured_request` | `StructuredRequest` | `query_router`, `itinerary_verifier` | `inventory_flight_service` |
 | `lifetravel_agent` | `itinerary:provider_flight_response` | `ItineraryFlightResponse` | `inventory_flight_service` | `inventory_hotel_service` |
 | `lifetravel_agent` | `itinerary:provider_response` | `ItineraryInventoryResponse` | `inventory_hotel_service` | `ranking_service`, `itinerary_verifier` |
 | `lifetravel_agent` | `itinerary:verified_response` | `VerifiedItineraryResponse` | `itinerary_verifier` | _TBD_ |
