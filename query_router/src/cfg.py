@@ -19,6 +19,7 @@ class Cfg:
     openai_api_key: str
     openai_model: str
     openai_base_url: str
+    amadeus_429_max_attempts: int
 
     @classmethod
     def from_env(cls) -> "Cfg":
@@ -56,6 +57,7 @@ class Cfg:
             openai_api_key=os.getenv("OPENAI_API_KEY", ""),
             openai_model=os.getenv("OPENAI_MODEL", "gpt-5.2"),
             openai_base_url=os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1"),
+            amadeus_429_max_attempts=int(os.getenv("AMADEUS_429_MAX_ATTEMPTS", "6")),
         )
 
     @property

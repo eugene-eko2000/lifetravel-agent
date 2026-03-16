@@ -19,6 +19,7 @@ class Cfg:
     amadeus_hotels_list_by_geocode_url: str
     amadeus_hotels_offers_url: str
     amadeus_hotels_qps_limit: float | None
+    amadeus_429_max_attempts: int
     amadeus_token_url: str
     amadeus_hotels_offers_limit: int
     amadeus_hotels_citycode_radius_km: int
@@ -70,6 +71,7 @@ class Cfg:
             amadeus_hotels_qps_limit=(
                 float(os.getenv("AMADEUS_HOTELS_QPS_LIMIT", "0")) or None
             ),
+            amadeus_429_max_attempts=int(os.getenv("AMADEUS_429_MAX_ATTEMPTS", "6")),
             amadeus_token_url=os.getenv(
                 "AMADEUS_TOKEN_URL",
                 "https://test.api.amadeus.com/v1/security/oauth2/token",

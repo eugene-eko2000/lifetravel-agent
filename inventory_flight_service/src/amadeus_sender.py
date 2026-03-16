@@ -1,3 +1,4 @@
+import asyncio
 from typing import Any
 
 import httpx
@@ -56,18 +57,10 @@ class AmadeusSender:
         merged_headers["Authorization"] = f"Bearer {token}"
 
         async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.request(
-                method=method,
-                url=url,
-                params=params,
-                json=json_payload,
-                headers=merged_headers,
-            )
-
-            if response.status_code == 401:
-                self._bearer_token = None
-                refreshed_token = await self._get_amadeus_bearer_token()
-                merged_headers["Authorization"] = f"Bearer {refreshed_token}"
+            max_attempts = max(1, int(self._cfg.amadeus_429_max_attempts))
+            backoff_seconds = 1.0
+            last_response: httpx.Response | None = None
+            for attempt in range(1, max_attempts + 1):
                 response = await client.request(
                     method=method,
                     url=url,
@@ -75,9 +68,32 @@ class AmadeusSender:
                     json=json_payload,
                     headers=merged_headers,
                 )
+                last_response = response
 
-            response.raise_for_status()
-            return response.json()
+                if response.status_code == 401:
+                    self._bearer_token = None
+                    refreshed_token = await self._get_amadeus_bearer_token()
+                    merged_headers["Authorization"] = f"Bearer {refreshed_token}"
+                    response = await client.request(
+                        method=method,
+                        url=url,
+                        params=params,
+                        json=json_payload,
+                        headers=merged_headers,
+                    )
+                    last_response = response
+
+                if response.status_code == 429 and attempt < max_attempts:
+                    await asyncio.sleep(backoff_seconds)
+                    backoff_seconds *= 2.0
+                    continue
+
+                response.raise_for_status()
+                return response.json()
+
+            if last_response is not None:
+                last_response.raise_for_status()
+            raise ValueError("Amadeus request failed without response")
 
     async def send_flights_offers(
         self,

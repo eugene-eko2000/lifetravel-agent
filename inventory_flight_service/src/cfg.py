@@ -17,6 +17,7 @@ class Cfg:
     rabbitmq_queue_name: str
     amadeus_flights_offers_url: str
     amadeus_flights_qps_limit: float | None
+    amadeus_429_max_attempts: int
     amadeus_token_url: str
     amadeus_client_id: str
     amadeus_client_secret: str
@@ -57,6 +58,7 @@ class Cfg:
             amadeus_flights_qps_limit=(
                 float(os.getenv("AMADEUS_FLIGHTS_QPS_LIMIT", "0")) or None
             ),
+            amadeus_429_max_attempts=int(os.getenv("AMADEUS_429_MAX_ATTEMPTS", "6")),
             amadeus_token_url=os.getenv(
                 "AMADEUS_TOKEN_URL",
                 "https://test.api.amadeus.com/v1/security/oauth2/token",
