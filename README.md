@@ -157,6 +157,8 @@ chosen to align with those durations between adjacent legs.
 
 Output produced by `inventory_flight_service.request_processor.process_incoming_message(...)`.
 Flights are grouped by requested departure date (one group per trip leg).
+In RabbitMQ transport, this object is wrapped as:
+`{ "id": "...", "structured_request": {...}, "provider_flight_response": <ItineraryFlightResponse> }`.
 
 ```json
 {
@@ -189,6 +191,8 @@ Flights are grouped by requested departure date (one group per trip leg).
 
 Output produced by `inventory_hotel_service.request_processor.process_incoming_message(...)`.
 It preserves incoming grouped flights and adds hotel options grouped by stay window.
+In RabbitMQ transport, this object is wrapped as:
+`{ "id": "...", "structured_request": {...}, "provider_response": <ItineraryInventoryResponse> }`.
 
 ```json
 {

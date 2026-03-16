@@ -14,6 +14,9 @@ class Cfg:
     rabbitmq_publish_verified_message_routing_key: str
     rabbitmq_publish_adjusted_request_routing_key: str
     rabbitmq_queue_name: str
+    openai_api_key: str
+    openai_model: str
+    openai_base_url: str
 
     @classmethod
     def from_env(cls) -> "Cfg":
@@ -40,6 +43,9 @@ class Cfg:
                 "RABBITMQ_QUEUE_NAME",
                 "itinerary_verifier_provider_response_queue",
             ),
+            openai_api_key=os.getenv("OPENAI_API_KEY", ""),
+            openai_model=os.getenv("OPENAI_MODEL", "gpt-5.2"),
+            openai_base_url=os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1"),
         )
 
     @property

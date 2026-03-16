@@ -156,6 +156,9 @@ services:
       RABBITMQ_PUBLISH_VERIFIED_MESSAGE_ROUTING_KEY: itinerary:verified_response
       RABBITMQ_PUBLISH_ADJUSTED_REQUEST_ROUTING_KEY: itinerary:user_request
       RABBITMQ_QUEUE_NAME: itinerary_verifier_provider_response_queue
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: gpt-5.2
+      OPENAI_BASE_URL: https://api.openai.com/v1
     depends_on:
       rabbitmq:
         condition: service_healthy

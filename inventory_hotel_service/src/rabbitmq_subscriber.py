@@ -69,6 +69,7 @@ async def run_inventory_hotel_subscriber() -> None:
                             routing_key=cfg.rabbitmq_publish_routing_key,
                             payload={
                                 "id": request_id,
+                                "structured_request": incoming_payload.get("structured_request"),
                                 "provider_response": results,
                             },
                         )
