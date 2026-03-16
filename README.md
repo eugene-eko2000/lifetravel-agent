@@ -327,6 +327,32 @@ request owner (correlated by request id). Current publishers use:
 }
 ```
 
+### 7) StatusMessage
+
+Message consumed by `endpoint_api` status subscriber and forwarded to the websocket
+request owner (correlated by request id). Published by pipeline stages to report
+user-facing processing progress.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "StatusMessage",
+  "type": "object",
+  "required": ["id", "message"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Request correlation id."
+    },
+    "message": {
+      "type": "string",
+      "description": "Human-readable status text."
+    }
+  },
+  "additionalProperties": true
+}
+```
+
 ## Message Routing Table
 
 `exchange name` is configurable via `RABBITMQ_EXCHANGE` (default: `lifetravel_agent`) in all services.
@@ -340,4 +366,5 @@ request owner (correlated by request id). Current publishers use:
 | `lifetravel_agent` | `itinerary:verified_response` | `VerifiedItineraryResponse` | `itinerary_verifier` | _TBD_ |
 | `lifetravel_agent` | `itinerary:ranked` | `RankedItineraryResponse` | `ranking_service` | `endpoint_api` |
 | `lifetravel_agent` | `itinerary:missing_info` | `MissingInfoMessage` (`structured_request.type = "missing_info"`) | `query_router` | `endpoint_api` |
+| `lifetravel_agent` | `status:message` | `StatusMessage` | `query_router`, `inventory_flight_service`, `inventory_hotel_service`, `ranking_service` | `endpoint_api` |
 | `lifetravel_agent` | `debug:message` | `DebugMessage` | `inventory_flight_service`, `inventory_hotel_service`, `query_router`, `ranking_service` | `endpoint_api` |
