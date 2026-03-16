@@ -147,4 +147,16 @@ services:
       - "8085:8080"
     environment:
       PORT: 8080
+      AMQP_HOST: rabbitmq
+      AMQP_PORT: 5672
+      AMQP_USER: ${AMQP_USER:-guest}
+      AMQP_PASSWORD: ${AMQP_PASSWORD:-guest}
+      RABBITMQ_EXCHANGE: lifetravel_agent
+      RABBITMQ_SUBSCRIBE_ROUTING_KEY: itinerary:provider_response
+      RABBITMQ_PUBLISH_VERIFIED_MESSAGE_ROUTING_KEY: itinerary:verified_response
+      RABBITMQ_PUBLISH_ADJUSTED_REQUEST_ROUTING_KEY: itinerary:user_request
+      RABBITMQ_QUEUE_NAME: itinerary_verifier_provider_response_queue
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
 

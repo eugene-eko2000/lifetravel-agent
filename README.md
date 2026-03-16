@@ -329,10 +329,11 @@ request owner (correlated by request id). Current publishers use:
 
 | exchange name | routing key | message name | publishers services list | subscribers services list |
 | --- | --- | --- | --- | --- |
-| `lifetravel_agent` | `itinerary:user_request` | `UserRequestMessage` | `endpoint_api` | `query_router` |
+| `lifetravel_agent` | `itinerary:user_request` | `UserRequestMessage` | `endpoint_api`, `itinerary_verifier` | `query_router` |
 | `lifetravel_agent` | `itinerary:structured_request` | `StructuredLLMResponse` | `query_router` | `inventory_flight_service` |
 | `lifetravel_agent` | `itinerary:provider_flight_response` | `ItineraryFlightResponse` | `inventory_flight_service` | `inventory_hotel_service` |
-| `lifetravel_agent` | `itinerary:provider_response` | `ItineraryInventoryResponse` | `inventory_hotel_service` | `ranking_service` |
+| `lifetravel_agent` | `itinerary:provider_response` | `ItineraryInventoryResponse` | `inventory_hotel_service` | `ranking_service`, `itinerary_verifier` |
+| `lifetravel_agent` | `itinerary:verified_response` | `VerifiedItineraryResponse` | `itinerary_verifier` | _TBD_ |
 | `lifetravel_agent` | `itinerary:ranked` | `RankedItineraryResponse` | `ranking_service` | `endpoint_api` |
 | `lifetravel_agent` | `itinerary:missing_info` | `MissingInfoMessage` (`structured_request.type = "missing_info"`) | `query_router` | `endpoint_api` |
 | `lifetravel_agent` | `debug:message` | `DebugMessage` | `inventory_flight_service`, `inventory_hotel_service`, `query_router`, `ranking_service` | `endpoint_api` |
