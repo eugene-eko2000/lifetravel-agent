@@ -362,8 +362,8 @@ user-facing processing progress.
 | `lifetravel_agent` | `itinerary:user_request` | `UserRequestMessage` | `endpoint_api` | `query_router` |
 | `lifetravel_agent` | `itinerary:structured_request` | `StructuredRequest` | `query_router`, `itinerary_verifier` | `inventory_flight_service` |
 | `lifetravel_agent` | `itinerary:provider_flight_response` | `ItineraryFlightResponse` | `inventory_flight_service` | `inventory_hotel_service` |
-| `lifetravel_agent` | `itinerary:provider_response` | `ItineraryInventoryResponse` | `inventory_hotel_service` | `ranking_service`, `itinerary_verifier` |
-| `lifetravel_agent` | `itinerary:verified_response` | `VerifiedItineraryResponse` | `itinerary_verifier` | _TBD_ |
+| `lifetravel_agent` | `itinerary:provider_response` | `ItineraryInventoryResponse` | `inventory_hotel_service` | `itinerary_verifier` |
+| `lifetravel_agent` | `itinerary:verified_response` | `VerifiedItineraryResponse` | `itinerary_verifier` | `ranking_service` |
 | `lifetravel_agent` | `itinerary:ranked` | `RankedItineraryResponse` | `ranking_service` | `endpoint_api` |
 | `lifetravel_agent` | `itinerary:missing_info` | `MissingInfoMessage` (`structured_request.type = "missing_info"`) | `query_router` | `endpoint_api` |
 | `lifetravel_agent` | `status:message` | `StatusMessage` | `query_router`, `inventory_flight_service`, `inventory_hotel_service`, `ranking_service` | `endpoint_api` |

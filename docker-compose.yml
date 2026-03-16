@@ -51,7 +51,7 @@ services:
       AMQP_PASSWORD: ${AMQP_PASSWORD:-guest}
       RABBITMQ_EXCHANGE: lifetravel_agent
       RABBITMQ_SUBSCRIBE_ROUTING_KEY: itinerary:user_request
-      RABBITMQ_PUBLISH_ROUTING_KEY: itinerary:query_router_response
+      RABBITMQ_PUBLISH_ROUTING_KEY: itinerary:structured_request
       RABBITMQ_MISSING_INFO_ROUTING_KEY: itinerary:missing_info
       RABBITMQ_DEBUG_ROUTING_KEY: debug:message
       RABBITMQ_STATUS_ROUTING_KEY: status:message
@@ -77,7 +77,7 @@ services:
       AMQP_USER: ${AMQP_USER:-guest}
       AMQP_PASSWORD: ${AMQP_PASSWORD:-guest}
       RABBITMQ_EXCHANGE: lifetravel_agent
-      RABBITMQ_SUBSCRIBE_ROUTING_KEY: itinerary:query_router_response
+      RABBITMQ_SUBSCRIBE_ROUTING_KEY: itinerary:structured_request
       RABBITMQ_PUBLISH_ROUTING_KEY: itinerary:provider_flight_response
       RABBITMQ_DEBUG_ROUTING_KEY: debug:message
       RABBITMQ_STATUS_ROUTING_KEY: status:message
@@ -138,10 +138,10 @@ services:
       AMQP_USER: ${AMQP_USER:-guest}
       AMQP_PASSWORD: ${AMQP_PASSWORD:-guest}
       RABBITMQ_EXCHANGE: lifetravel_agent
-      RABBITMQ_SUBSCRIBE_ROUTING_KEY: itinerary:provider_response
+      RABBITMQ_SUBSCRIBE_ROUTING_KEY: itinerary:verified_response
       RABBITMQ_PUBLISH_ROUTING_KEY: itinerary:ranked
       RABBITMQ_STATUS_ROUTING_KEY: status:message
-      RABBITMQ_QUEUE_NAME: ranking_service_provider_response_queue
+      RABBITMQ_QUEUE_NAME: ranking_service_verified_response_queue
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -161,7 +161,7 @@ services:
       RABBITMQ_EXCHANGE: lifetravel_agent
       RABBITMQ_SUBSCRIBE_ROUTING_KEY: itinerary:provider_response
       RABBITMQ_PUBLISH_VERIFIED_MESSAGE_ROUTING_KEY: itinerary:verified_response
-      RABBITMQ_PUBLISH_ADJUSTED_REQUEST_ROUTING_KEY: itinerary:user_request
+      RABBITMQ_PUBLISH_ADJUSTED_REQUEST_ROUTING_KEY: itinerary:structured_request
       RABBITMQ_QUEUE_NAME: itinerary_verifier_provider_response_queue
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_MODEL: gpt-5.2
