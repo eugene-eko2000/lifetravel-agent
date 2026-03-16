@@ -7,7 +7,11 @@ from aio_pika import ExchangeType
 from amadeus_sender import AmadeusSender
 from cfg import Cfg
 from request_processor import process_incoming_message
-from rabbitmq_publisher import publish_debug_message, publish_provider_response
+from rabbitmq_publisher import (
+    publish_debug_message,
+    publish_provider_response,
+    publish_status_message,
+)
 
 # Backward-compat alias for existing tests/imports.
 _process_incoming_message = process_incoming_message
@@ -59,6 +63,24 @@ async def run_inventory_subscriber() -> None:
                                 payload=payload,
                             )
 
+                        verification = incoming_payload.get("verification")
+                        is_corrected_request = (
+                            isinstance(verification, dict)
+                            and verification.get("match_ok") is False
+                        )
+                        await publish_status_message(
+                            exchange=exchange,
+                            routing_key=cfg.rabbitmq_status_routing_key,
+                            payload={
+                                "id": request_id,
+                                "message": (
+                                    "Adjusting flight options..."
+                                    if is_corrected_request
+                                    else "Fetching flight options..."
+                                ),
+                            },
+                        )
+
                         results = await process_incoming_message(
                             sender,
                             cfg,
@@ -70,6 +92,7 @@ async def run_inventory_subscriber() -> None:
                         outgoing_payload = {
                             "id": request_id,
                             "structured_request": incoming_payload.get("structured_request"),
+                            "verification": verification,
                             "provider_flight_response": {
                                 "flights": results.get("flights", []),
                             },

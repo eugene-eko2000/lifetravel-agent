@@ -54,6 +54,7 @@ services:
       RABBITMQ_PUBLISH_ROUTING_KEY: itinerary:query_router_response
       RABBITMQ_MISSING_INFO_ROUTING_KEY: itinerary:missing_info
       RABBITMQ_DEBUG_ROUTING_KEY: debug:message
+      RABBITMQ_STATUS_ROUTING_KEY: status:message
       RABBITMQ_QUEUE_NAME: query_router_itinerary_user_request_queue
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_MODEL: gpt-5.2
@@ -78,6 +79,7 @@ services:
       RABBITMQ_SUBSCRIBE_ROUTING_KEY: itinerary:query_router_response
       RABBITMQ_PUBLISH_ROUTING_KEY: itinerary:provider_flight_response
       RABBITMQ_DEBUG_ROUTING_KEY: debug:message
+      RABBITMQ_STATUS_ROUTING_KEY: status:message
       RABBITMQ_QUEUE_NAME: inventory_flight_service_structured_request_queue
       AMADEUS_FLIGHTS_OFFERS_URL: https://test.api.amadeus.com/v2/shopping/flight-offers
       AMADEUS_TOKEN_URL: https://test.api.amadeus.com/v1/security/oauth2/token
@@ -104,6 +106,7 @@ services:
       RABBITMQ_SUBSCRIBE_ROUTING_KEY: itinerary:provider_flight_response
       RABBITMQ_PUBLISH_ROUTING_KEY: itinerary:provider_response
       RABBITMQ_DEBUG_ROUTING_KEY: debug:message
+      RABBITMQ_STATUS_ROUTING_KEY: status:message
       RABBITMQ_QUEUE_NAME: inventory_hotel_service_provider_flight_response_queue
       AMADEUS_HOTELS_LIST_URL: https://test.api.amadeus.com/v1/reference-data/locations/hotels/by-city
       AMADEUS_HOTELS_LIST_BY_GEOCODE_URL: https://test.api.amadeus.com/v1/reference-data/locations/hotels/by-geocode
@@ -136,6 +139,7 @@ services:
       RABBITMQ_EXCHANGE: lifetravel_agent
       RABBITMQ_SUBSCRIBE_ROUTING_KEY: itinerary:provider_response
       RABBITMQ_PUBLISH_ROUTING_KEY: itinerary:ranked
+      RABBITMQ_STATUS_ROUTING_KEY: status:message
       RABBITMQ_QUEUE_NAME: ranking_service_provider_response_queue
     depends_on:
       rabbitmq:

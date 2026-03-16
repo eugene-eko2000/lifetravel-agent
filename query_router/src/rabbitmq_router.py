@@ -58,6 +58,16 @@ async def _handle_message(
     request_id = payload.get("id")
     if not isinstance(request_id, str) or not request_id.strip():
         request_id = str(uuid.uuid4())
+    status_payload = {
+        "id": request_id,
+        "message": "Analyzing your request...",
+    }
+    status_outgoing = Message(
+        body=json.dumps(status_payload).encode("utf-8"),
+        delivery_mode=DeliveryMode.PERSISTENT,
+        content_type="application/json",
+    )
+    await exchange.publish(status_outgoing, routing_key=cfg.rabbitmq_status_routing_key)
     
     prompt_id = payload.get("prompt_id")
 

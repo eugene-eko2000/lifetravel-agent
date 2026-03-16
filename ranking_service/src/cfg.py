@@ -12,6 +12,7 @@ class Cfg:
     rabbitmq_exchange: str
     rabbitmq_subscribe_routing_key: str
     rabbitmq_publish_routing_key: str
+    rabbitmq_status_routing_key: str
     rabbitmq_queue_name: str
 
     @classmethod
@@ -30,6 +31,10 @@ class Cfg:
             rabbitmq_publish_routing_key=os.getenv(
                 "RABBITMQ_PUBLISH_ROUTING_KEY",
                 "itinerary:ranked",
+            ),
+            rabbitmq_status_routing_key=os.getenv(
+                "RABBITMQ_STATUS_ROUTING_KEY",
+                "status:message",
             ),
             rabbitmq_queue_name=os.getenv(
                 "RABBITMQ_QUEUE_NAME",

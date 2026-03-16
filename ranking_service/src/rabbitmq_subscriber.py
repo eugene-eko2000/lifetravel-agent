@@ -7,7 +7,7 @@ import aio_pika
 from aio_pika import ExchangeType
 
 from cfg import Cfg
-from rabbitmq_publisher import publish_ranked_response
+from rabbitmq_publisher import publish_ranked_response, publish_status_message
 from ranker import rank_provider_response
 
 logger = logging.getLogger("ranking_service.rabbitmq_subscriber")
@@ -24,6 +24,15 @@ async def _process_message(incoming: aio_pika.abc.AbstractIncomingMessage, excha
                     payload,
                 )
                 return
+
+            await publish_status_message(
+                exchange=exchange,
+                routing_key=cfg.rabbitmq_status_routing_key,
+                payload={
+                    "id": payload.get("id"),
+                    "message": "Ranking flight and hotel options...",
+                },
+            )
 
             ranked_response = rank_provider_response(provider_response)
             outgoing_payload = {
