@@ -34,7 +34,7 @@ class Cfg:
             ),
             rabbitmq_publish_adjusted_request_routing_key=os.getenv(
                 "RABBITMQ_PUBLISH_ADJUSTED_REQUEST_ROUTING_KEY",
-                "itinerary:user_request",
+                "itinerary:structured_request",
             ),
             rabbitmq_queue_name=os.getenv(
                 "RABBITMQ_QUEUE_NAME",
