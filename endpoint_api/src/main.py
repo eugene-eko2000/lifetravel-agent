@@ -15,6 +15,7 @@ from rabbitmq_subscriber import (
     run_debug_subscriber,
     run_missing_info_subscriber,
     run_ranked_subscriber,
+    run_status_subscriber,
 )
 
 logger = logging.getLogger("endpoint_api")
@@ -160,6 +161,28 @@ async def _handle_debug_message(payload: dict) -> None:
         logger.warning("No active itinerary websocket mapping for debug id=%s", request_id)
 
 
+async def _handle_status_message(payload: dict) -> None:
+    request_id = payload.get("id")
+    status_text = payload.get("message")
+    if not isinstance(request_id, str) or not request_id.strip():
+        logger.warning("Status message without valid id: %s", payload)
+        return
+    if not isinstance(status_text, str) or not status_text.strip():
+        logger.warning("Status message without text: %s", payload)
+        return
+
+    message = {
+        "type": "status",
+        "id": request_id,
+        "message": status_text,
+    }
+    delivered = await connection_manager.send_to_request(request_id, message)
+    if delivered:
+        logger.info("Delivered status message to websocket for id=%s", request_id)
+    else:
+        logger.warning("No active websocket mapping for status id=%s", request_id)
+
+
 @app.on_event("startup")
 async def on_startup() -> None:
     cfg = Cfg.from_env()
@@ -173,6 +196,9 @@ async def on_startup() -> None:
     app.state.debug_task = asyncio.create_task(
         run_debug_subscriber(_handle_debug_message)
     )
+    app.state.status_task = asyncio.create_task(
+        run_status_subscriber(_handle_status_message)
+    )
 
 
 @app.on_event("shutdown")
@@ -180,10 +206,12 @@ async def on_shutdown() -> None:
     missing_info_task = getattr(app.state, "missing_info_task", None)
     ranked_task = getattr(app.state, "ranked_task", None)
     debug_task = getattr(app.state, "debug_task", None)
+    status_task = getattr(app.state, "status_task", None)
     for name, task in (
         ("missing-info", missing_info_task),
         ("ranked", ranked_task),
         ("debug", debug_task),
+        ("status", status_task),
     ):
         if task is None:
             continue

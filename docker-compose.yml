@@ -31,6 +31,8 @@ services:
       RABBITMQ_RANKED_QUEUE: endpoint_api_ranked_queue
       RABBITMQ_DEBUG_ROUTING_KEY: debug:message
       RABBITMQ_DEBUG_QUEUE: endpoint_api_debug_queue
+      RABBITMQ_STATUS_ROUTING_KEY: status:message
+      RABBITMQ_STATUS_QUEUE: endpoint_api_status_queue
     depends_on:
       rabbitmq:
         condition: service_healthy
