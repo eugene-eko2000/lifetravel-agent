@@ -291,15 +291,6 @@ async def itinerary_websocket(websocket: WebSocket) -> None:
                 )
                 continue
 
-            # Placeholder response. Business logic will be added later.
-            await connection_manager.send_to_session(
-                session_id,
-                {
-                    "id": request_id,
-                    "content": request.content,
-                    "status": "received",
-                }
-            )
     except WebSocketDisconnect:
         logger.info("WebSocket client disconnected")
         await connection_manager.disconnect(session_id)
