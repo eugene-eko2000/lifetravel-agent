@@ -8,7 +8,11 @@ from aio_pika.abc import AbstractExchange
 
 from cfg import Cfg
 from llm_client import request_structured_output
-from rabbitmq_publisher import publish_adjusted_request, publish_verified_response
+from rabbitmq_publisher import (
+    publish_adjusted_request,
+    publish_debug_message,
+    publish_verified_response,
+)
 
 logger = logging.getLogger("itinerary_verifier.rabbitmq_subscriber")
 
@@ -92,6 +96,20 @@ async def run_itinerary_verifier_subscriber() -> None:
                 async with incoming.process():
                     try:
                         payload: dict[str, Any] = json.loads(incoming.body.decode("utf-8"))
+                        request_id = payload.get("id")
+                        await publish_debug_message(
+                            exchange=exchange,
+                            routing_key=cfg.rabbitmq_debug_routing_key,
+                            payload={
+                                "id": request_id if isinstance(request_id, str) else None,
+                                "level": "debug",
+                                "source": "itinerary_verifier",
+                                "message": "Received itinerary verifier message size",
+                                "payload": {
+                                    "message_size_bytes": len(incoming.body),
+                                },
+                            },
+                        )
                         await _handle_message(payload, exchange, cfg)
                     except Exception:
                         logger.exception("Failed to process itinerary verifier message")

@@ -11,6 +11,7 @@ class Cfg:
     amqp_password: str
     rabbitmq_exchange: str
     rabbitmq_subscribe_routing_key: str
+    rabbitmq_debug_routing_key: str
     rabbitmq_publish_verified_message_routing_key: str
     rabbitmq_publish_adjusted_request_routing_key: str
     rabbitmq_queue_name: str
@@ -30,6 +31,10 @@ class Cfg:
             rabbitmq_subscribe_routing_key=os.getenv(
                 "RABBITMQ_SUBSCRIBE_ROUTING_KEY",
                 "itinerary:provider_response",
+            ),
+            rabbitmq_debug_routing_key=os.getenv(
+                "RABBITMQ_DEBUG_ROUTING_KEY",
+                "debug:message",
             ),
             rabbitmq_publish_verified_message_routing_key=os.getenv(
                 "RABBITMQ_PUBLISH_VERIFIED_MESSAGE_ROUTING_KEY",

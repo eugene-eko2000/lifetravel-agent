@@ -183,6 +183,102 @@ def _extract_structured_request_and_itinerary(content: str) -> tuple[dict[str, A
     return structured_request, itinerary
 
 
+def _extract_date_part(value: Any) -> str | None:
+    if not isinstance(value, str) or not value.strip():
+        return None
+    raw = value.strip()
+    if "T" in raw:
+        raw = raw.split("T", 1)[0]
+    if len(raw) == 10 and raw[4] == "-" and raw[7] == "-":
+        return raw
+    return None
+
+
+def _extract_flight_dates(itinerary: dict[str, Any]) -> list[dict[str, Any]]:
+    flights = itinerary.get("flights")
+    if not isinstance(flights, list):
+        return []
+    extracted: list[dict[str, Any]] = []
+    for leg in flights:
+        if not isinstance(leg, dict):
+            continue
+        options_raw = leg.get("options")
+        options = options_raw if isinstance(options_raw, list) else []
+        departures: set[str] = set()
+        arrivals: set[str] = set()
+        for option in options:
+            if not isinstance(option, dict):
+                continue
+            itineraries = option.get("itineraries")
+            if not isinstance(itineraries, list) or not itineraries:
+                continue
+            first_itinerary = itineraries[0]
+            if not isinstance(first_itinerary, dict):
+                continue
+            segments = first_itinerary.get("segments")
+            if not isinstance(segments, list) or not segments:
+                continue
+            dep = _extract_date_part((segments[0].get("departure") or {}).get("at"))
+            arr = _extract_date_part((segments[-1].get("arrival") or {}).get("at"))
+            if dep is not None:
+                departures.add(dep)
+            if arr is not None:
+                arrivals.add(arr)
+        extracted.append(
+            {
+                "date": _extract_date_part(leg.get("date")) or str(leg.get("date", "")),
+                "departure_dates": sorted(departures),
+                "arrival_dates": sorted(arrivals),
+            }
+        )
+    return extracted
+
+
+def _extract_hotel_dates(itinerary: dict[str, Any]) -> list[dict[str, Any]]:
+    hotels = itinerary.get("hotels")
+    if not isinstance(hotels, list):
+        return []
+    extracted: list[dict[str, Any]] = []
+    for stay in hotels:
+        if not isinstance(stay, dict):
+            continue
+        option_check_in_dates: set[str] = set()
+        option_check_out_dates: set[str] = set()
+        options_raw = stay.get("options")
+        options = options_raw if isinstance(options_raw, list) else []
+        for option in options:
+            if not isinstance(option, dict):
+                continue
+            offers = option.get("offers")
+            if not isinstance(offers, list):
+                continue
+            for offer in offers:
+                if not isinstance(offer, dict):
+                    continue
+                in_date = _extract_date_part(offer.get("checkInDate"))
+                out_date = _extract_date_part(offer.get("checkOutDate"))
+                if in_date is not None:
+                    option_check_in_dates.add(in_date)
+                if out_date is not None:
+                    option_check_out_dates.add(out_date)
+        extracted.append(
+            {
+                "check_in": _extract_date_part(stay.get("check_in")) or str(stay.get("check_in", "")),
+                "check_out": _extract_date_part(stay.get("check_out")) or str(stay.get("check_out", "")),
+                "option_check_in_dates": sorted(option_check_in_dates),
+                "option_check_out_dates": sorted(option_check_out_dates),
+            }
+        )
+    return extracted
+
+
+def _extract_itinerary_dates(itinerary: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "flights": _extract_flight_dates(itinerary),
+        "hotels": _extract_hotel_dates(itinerary),
+    }
+
+
 async def request_structured_output(
     request_id: str,
     prompt_id: str,
@@ -197,6 +293,7 @@ async def request_structured_output(
     }
     """
     structured_request, itinerary = _extract_structured_request_and_itinerary(content)
+    itinerary_dates = _extract_itinerary_dates(itinerary)
     cfg = Cfg.from_env()
     if not cfg.openai_api_key:
         raise ValueError("OPENAI_API_KEY is not set")
@@ -214,7 +311,7 @@ async def request_structured_output(
                 "role": "user",
                 "content": [{"type": "input_text", "text": f"""
                 Structured request: {structured_request}
-                Itinerary: {itinerary}
+                Itinerary dates: {itinerary_dates}
                 """}],
             },
         ],
