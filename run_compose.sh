@@ -21,13 +21,36 @@ else
   echo "Warning: ${ENV_FILE} not found. Using current shell environment only."
 fi
 
-# Allow attached mode if explicitly requested.
 # Usage:
-#   ./run_compose.sh            -> up --build -d
-#   ./run_compose.sh --attach   -> up --build
+#   ./run_compose.sh                 -> up --build -d
+#   ./run_compose.sh --attach        -> up --build (foreground)
+#   ./run_compose.sh --rerun         -> up --build -d --force-recreate (recreate all containers)
+#   ./run_compose.sh --attach --rerun
+ATTACH=false
+RERUN=false
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --attach)
+      ATTACH=true
+      ;;
+    --rerun)
+      RERUN=true
+      ;;
+    *)
+      echo "Unknown option: $1" >&2
+      echo "Usage: $0 [--attach] [--rerun]" >&2
+      exit 1
+      ;;
+  esac
+  shift
+done
+
 UP_ARGS=(up --build -d)
-if [[ "${1:-}" == "--attach" ]]; then
+if [[ "${ATTACH}" == true ]]; then
   UP_ARGS=(up --build)
+fi
+if [[ "${RERUN}" == true ]]; then
+  UP_ARGS+=(--force-recreate)
 fi
 
 docker compose -f "${COMPOSE_FILE}" "${UP_ARGS[@]}"

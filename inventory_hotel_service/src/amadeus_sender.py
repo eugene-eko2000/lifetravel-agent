@@ -4,6 +4,7 @@ from typing import Any
 import httpx
 
 from cfg import Cfg
+from debug_messages import DebugPublisher, emit_debug_message
 
 
 class AmadeusSender:
@@ -123,10 +124,29 @@ class AmadeusSender:
         self,
         query_params: dict[str, Any],
         headers: dict[str, str] | None = None,
+        *,
+        debug_publisher: DebugPublisher | None = None,
+        request_id: str | None = None,
+        debug_extra: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        return await self._authorized_request(
-            "GET",
-            self._cfg.amadeus_hotels_offers_url,
-            params=query_params,
-            headers=headers,
-        )
+        try:
+            return await self._authorized_request(
+                "GET",
+                self._cfg.amadeus_hotels_offers_url,
+                params=query_params,
+                headers=headers,
+            )
+        except Exception as error:
+            # Published after internal 429 retries (and other failures) in _authorized_request.
+            payload: dict[str, Any] = {}
+            if debug_extra:
+                payload.update(debug_extra)
+            payload["error"] = str(error)
+            await emit_debug_message(
+                debug_publisher,
+                request_id,
+                "Failed to fetch hotels offers chunk",
+                level="error",
+                payload=payload,
+            )
+            raise

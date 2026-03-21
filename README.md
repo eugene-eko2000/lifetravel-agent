@@ -357,14 +357,16 @@ user-facing processing progress.
 
 `exchange name` is configurable via `RABBITMQ_EXCHANGE` (default: `lifetravel_agent`) in all services.
 
+**Pipeline order:** (1) `inventory_flight_service` fetches flights → `itinerary:provider_flight_response`; (2) `itinerary_verifier` checks flights vs the structured request and either republishes an adjusted `itinerary:structured_request` (loop back to flight) or, on success, publishes `itinerary:verified_response` with the same flight payload shape; (3) `inventory_hotel_service` fetches hotels → `itinerary:provider_response`; (4) `ranking_service` ranks → `itinerary:ranked`.
+
 | exchange name | routing key | message name | publishers services list | subscribers services list |
 | --- | --- | --- | --- | --- |
 | `lifetravel_agent` | `itinerary:user_request` | `UserRequestMessage` | `endpoint_api` | `query_router` |
 | `lifetravel_agent` | `itinerary:structured_request` | `StructuredRequest` | `query_router`, `itinerary_verifier` | `inventory_flight_service` |
-| `lifetravel_agent` | `itinerary:provider_flight_response` | `ItineraryFlightResponse` | `inventory_flight_service` | `inventory_hotel_service` |
-| `lifetravel_agent` | `itinerary:provider_response` | `ItineraryInventoryResponse` | `inventory_hotel_service` | `itinerary_verifier` |
-| `lifetravel_agent` | `itinerary:verified_response` | `VerifiedItineraryResponse` | `itinerary_verifier` | `ranking_service` |
+| `lifetravel_agent` | `itinerary:provider_flight_response` | `ItineraryFlightResponse` | `inventory_flight_service` | `itinerary_verifier` |
+| `lifetravel_agent` | `itinerary:verified_response` | `FlightVerifiedMessage` | `itinerary_verifier` | `inventory_hotel_service` |
+| `lifetravel_agent` | `itinerary:provider_response` | `ItineraryInventoryResponse` | `inventory_hotel_service` | `ranking_service` |
 | `lifetravel_agent` | `itinerary:ranked` | `RankedItineraryResponse` | `ranking_service` | `endpoint_api` |
 | `lifetravel_agent` | `itinerary:missing_info` | `MissingInfoMessage` (`structured_request.type = "missing_info"`) | `query_router` | `endpoint_api` |
 | `lifetravel_agent` | `status:message` | `StatusMessage` | `query_router`, `inventory_flight_service`, `inventory_hotel_service`, `ranking_service` | `endpoint_api` |
-| `lifetravel_agent` | `debug:message` | `DebugMessage` | `inventory_flight_service`, `inventory_hotel_service`, `query_router`, `ranking_service` | `endpoint_api` |
+| `lifetravel_agent` | `debug:message` | `DebugMessage` | `inventory_flight_service`, `inventory_hotel_service`, `itinerary_verifier`, `query_router`, `ranking_service` | `endpoint_api` |

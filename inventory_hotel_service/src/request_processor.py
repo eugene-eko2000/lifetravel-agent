@@ -3,13 +3,13 @@ import json
 import logging
 import math
 from datetime import datetime
-from typing import Any, Awaitable, Callable
+from typing import Any
 
 from amadeus_sender import AmadeusSender
 from cfg import Cfg
+from debug_messages import DebugPublisher, emit_debug_message
 
 logger = logging.getLogger("inventory_hotel_service.request_processor")
-DebugPublisher = Callable[[dict[str, Any]], Awaitable[None]]
 
 
 class _QpsLimiter:
@@ -25,32 +25,6 @@ class _QpsLimiter:
                 await asyncio.sleep(self._next_allowed_ts - now)
             now = asyncio.get_running_loop().time()
             self._next_allowed_ts = now + self._interval_sec
-
-
-async def _emit_debug_message(
-    debug_publisher: DebugPublisher | None,
-    request_id: str | None,
-    message: str,
-    *,
-    level: str,
-    payload: dict[str, Any] | None = None,
-) -> None:
-    if debug_publisher is None:
-        return
-    if not isinstance(request_id, str) or not request_id.strip():
-        return
-    debug_payload: dict[str, Any] = {
-        "id": request_id,
-        "level": level,
-        "source": "inventory_hotel_service",
-        "message": message,
-    }
-    if isinstance(payload, dict):
-        debug_payload["payload"] = payload
-    try:
-        await debug_publisher(debug_payload)
-    except Exception:
-        logger.exception("Failed to publish debug message")
 
 
 def _parse_iso_dt(value: Any) -> datetime | None:
@@ -357,7 +331,7 @@ async def _fetch_hotels_for_request(
                 query_params=req.get("query_params", {}),
             )
     except Exception as error:
-        await _emit_debug_message(
+        await emit_debug_message(
             debug_publisher,
             request_id,
             "Failed to fetch hotels list",
@@ -377,12 +351,18 @@ async def _fetch_hotels_for_request(
     check_out = str(stay.get("check_out", "")).strip()
     currency = str(stay.get("currency", "USD")).strip() or "USD"
 
-    offers_tasks = []
+    if cfg.amadeus_max_hotel_offers is not None:
+        sorted_hotel_ids = sorted_hotel_ids[:cfg.amadeus_max_hotel_offers]
+
+    hotel_id_chunks: list[list[str]] = []
     for offset in range(0, len(sorted_hotel_ids), chunk_size):
         hotel_ids_chunk = sorted_hotel_ids[offset : offset + chunk_size]
         if not hotel_ids_chunk:
             continue
+        hotel_id_chunks.append(hotel_ids_chunk)
 
+    offers_tasks = []
+    for hotel_ids_chunk in hotel_id_chunks:
         async def _send_offers_for_chunk(chunk: list[str]) -> dict[str, Any]:
             if qps_limiter is not None:
                 await qps_limiter.wait_for_slot()
@@ -395,7 +375,10 @@ async def _fetch_hotels_for_request(
                     "roomQuantity": room_quantity,
                     "currency": currency,
                     "includeClosed": True,
-                }
+                },
+                debug_publisher=debug_publisher,
+                request_id=request_id,
+                debug_extra={"request": req},
             )
 
         offers_tasks.append(_send_offers_for_chunk(hotel_ids_chunk))
@@ -405,13 +388,7 @@ async def _fetch_hotels_for_request(
         offers_responses = await asyncio.gather(*offers_tasks, return_exceptions=True)
         for response in offers_responses:
             if isinstance(response, Exception):
-                await _emit_debug_message(
-                    debug_publisher,
-                    request_id,
-                    "Failed to fetch hotels offers chunk",
-                    level="error",
-                    payload={"request": req, "error": str(response)},
-                )
+                # Error debug is published from AmadeusSender.send_hotels_offers after retries.
                 continue
             all_offers.extend(_collect_hotel_offers(response))
 
@@ -462,7 +439,7 @@ async def process_incoming_message(
         try:
             req = _build_hotel_request(stay, cfg)
         except Exception as error:
-            await _emit_debug_message(
+            await emit_debug_message(
                 debug_publisher,
                 request_id,
                 "Failed to build hotel request for stay",

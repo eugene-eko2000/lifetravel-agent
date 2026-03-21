@@ -23,11 +23,19 @@ async def _handle_message(payload: dict[str, Any], exchange: AbstractExchange, c
     structured_request_obj = structured_request if isinstance(structured_request, dict) else {}
     prompt_id = str(structured_request_obj.get("prompt_id", "") or "")
 
-    logger.info("Received provider response message for verification: %s", request_id)
+    async def _publish_debug(debug_payload: dict[str, Any]) -> None:
+        await publish_debug_message(
+            exchange=exchange,
+            routing_key=cfg.rabbitmq_debug_routing_key,
+            payload=debug_payload,
+        )
+
+    logger.info("Received flight response message for verification: %s", request_id)
     verification = await request_structured_output(
         request_id=request_id,
         prompt_id=prompt_id,
         content=json.dumps(payload),
+        publish_debug=_publish_debug,
     )
     verification_output = verification.get("output")
     output_obj = verification_output if isinstance(verification_output, dict) else {}
@@ -36,13 +44,17 @@ async def _handle_message(payload: dict[str, Any], exchange: AbstractExchange, c
     mismatches_list = mismatches if isinstance(mismatches, list) else []
 
     if match_ok:
+        # Flight itinerary is verified; hotel service consumes this (same shape as flight output).
+        provider_flight = payload.get("provider_flight_response")
+        if not isinstance(provider_flight, dict):
+            provider_flight = {}
         await publish_verified_response(
             exchange=exchange,
             routing_key=cfg.rabbitmq_publish_verified_message_routing_key,
             payload={
                 "id": request_id,
                 "structured_request": structured_request_obj,
-                "provider_response": payload.get("provider_response"),
+                "provider_flight_response": provider_flight,
                 "verification": {
                     "match_ok": True,
                 },

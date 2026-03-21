@@ -1,10 +1,15 @@
 import json
+import logging
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 from openai import AsyncOpenAI
 
 from cfg import Cfg
 
+logger = logging.getLogger(__name__)
+
+DebugPublisher = Callable[[dict[str, Any]], Awaitable[None]]
 
 ADJUSTED_STRUCTURED_REQUEST_SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -122,14 +127,15 @@ You are expected to return either a verification success or a verification
 failure with explanation of all mismatchings between the itinerary and the structured request.
 
 You will get the structured request and the itinerary as two JSON objects.
-The structured request is the original request from the user, and the itinerary is the verified
-itinerary.
+The structured request is the original request from the user, and the itinerary contains flights dates.
 
-You should verify matches between stay durations in the structured request and stay durations
-in the itinerary. If there are mismatches, the flight departure dates should be stretched to
-fit all stay durations. The initial structured request might be unresolvable because some flights
-have duration longer than one day. To make it matching, you should move flight legs forward in
-time to make stays durations fit between flights.
+Verify that flight legs, dates, and time windows are consistent with the trip legs and stay durations in
+the structured request (stays are the planned nights between consecutive flight legs).
+
+If there are mismatches between flight legs in the itinerary dates and stays in the structured request,
+the flight departure dates should be adjusted to fit all stay durations. The initial structured request
+might be unresolvable because some flights legs have duration longer than one day. To make it matching,
+you should move flight legs forward in time to make stays durations fit between flights.
 
 The verification output should be a JSON object that matches the following schema:
 {VERIFIER_OUTPUT_SCHEMA}.
@@ -174,11 +180,22 @@ def _extract_structured_request_and_itinerary(content: str) -> tuple[dict[str, A
         raise ValueError("content must decode to an object payload")
 
     structured_request = payload.get("structured_request")
-    itinerary = payload.get("provider_response")
+    provider_response = payload.get("provider_response")
+    provider_flight_response = payload.get("provider_flight_response")
+    if isinstance(provider_response, dict):
+        itinerary = provider_response
+    elif isinstance(provider_flight_response, dict):
+        # Flight-stage verification: hotels are not fetched yet.
+        flights_raw = provider_flight_response.get("flights")
+        flights = flights_raw if isinstance(flights_raw, list) else []
+        itinerary = {"flights": flights, "hotels": []}
+    else:
+        raise ValueError(
+            "content payload must contain object field 'provider_response' and/or 'provider_flight_response'"
+        )
+
     if not isinstance(structured_request, dict):
         raise ValueError("content payload must contain object field 'structured_request'")
-    if not isinstance(itinerary, dict):
-        raise ValueError("content payload must contain object field 'provider_response'")
 
     return structured_request, itinerary
 
@@ -234,48 +251,9 @@ def _extract_flight_dates(itinerary: dict[str, Any]) -> list[dict[str, Any]]:
     return extracted
 
 
-def _extract_hotel_dates(itinerary: dict[str, Any]) -> list[dict[str, Any]]:
-    hotels = itinerary.get("hotels")
-    if not isinstance(hotels, list):
-        return []
-    extracted: list[dict[str, Any]] = []
-    for stay in hotels:
-        if not isinstance(stay, dict):
-            continue
-        option_check_in_dates: set[str] = set()
-        option_check_out_dates: set[str] = set()
-        options_raw = stay.get("options")
-        options = options_raw if isinstance(options_raw, list) else []
-        for option in options:
-            if not isinstance(option, dict):
-                continue
-            offers = option.get("offers")
-            if not isinstance(offers, list):
-                continue
-            for offer in offers:
-                if not isinstance(offer, dict):
-                    continue
-                in_date = _extract_date_part(offer.get("checkInDate"))
-                out_date = _extract_date_part(offer.get("checkOutDate"))
-                if in_date is not None:
-                    option_check_in_dates.add(in_date)
-                if out_date is not None:
-                    option_check_out_dates.add(out_date)
-        extracted.append(
-            {
-                "check_in": _extract_date_part(stay.get("check_in")) or str(stay.get("check_in", "")),
-                "check_out": _extract_date_part(stay.get("check_out")) or str(stay.get("check_out", "")),
-                "option_check_in_dates": sorted(option_check_in_dates),
-                "option_check_out_dates": sorted(option_check_out_dates),
-            }
-        )
-    return extracted
-
-
 def _extract_itinerary_dates(itinerary: dict[str, Any]) -> dict[str, Any]:
     return {
         "flights": _extract_flight_dates(itinerary),
-        "hotels": _extract_hotel_dates(itinerary),
     }
 
 
@@ -283,6 +261,8 @@ async def request_structured_output(
     request_id: str,
     prompt_id: str,
     content: str,
+    *,
+    publish_debug: DebugPublisher | None = None,
 ) -> dict[str, Any]:
     """
     Sends a request to OpenAI Responses API and returns:
@@ -294,6 +274,22 @@ async def request_structured_output(
     """
     structured_request, itinerary = _extract_structured_request_and_itinerary(content)
     itinerary_dates = _extract_itinerary_dates(itinerary)
+    if publish_debug is not None:
+        try:
+            await publish_debug(
+                {
+                    "id": request_id if isinstance(request_id, str) else None,
+                    "level": "debug",
+                    "source": "itinerary_verifier",
+                    "message": "Extracted itinerary dates for verification",
+                    "payload": {
+                        "itinerary_dates": itinerary_dates,
+                    },
+                }
+            )
+        except Exception:
+            logger.exception("Failed to publish debug message (itinerary dates)")
+
     cfg = Cfg.from_env()
     if not cfg.openai_api_key:
         raise ValueError("OPENAI_API_KEY is not set")
@@ -324,6 +320,24 @@ async def request_structured_output(
     raw_output_text = _extract_output_text(response_json)
 
     structured_output: Any = json.loads(raw_output_text)
+
+    if publish_debug is not None:
+        try:
+            await publish_debug(
+                {
+                    "id": request_id if isinstance(request_id, str) else None,
+                    "level": "debug",
+                    "source": "itinerary_verifier",
+                    "message": "Verifier model output",
+                    "payload": {
+                        "prompt_id": next_prompt_id,
+                        "model_output": structured_output,
+                        "raw_output_text": raw_output_text,
+                    },
+                }
+            )
+        except Exception:
+            logger.exception("Failed to publish debug message (model output)")
 
     return {
         "request_id": request_id,
