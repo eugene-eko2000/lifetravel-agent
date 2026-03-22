@@ -62,7 +62,7 @@ class Cfg:
             rabbitmq_exchange=os.getenv("RABBITMQ_EXCHANGE", "lifetravel_agent"),
             rabbitmq_subscribe_routing_key=os.getenv(
                 "RABBITMQ_SUBSCRIBE_ROUTING_KEY",
-                "itinerary:verified_response",
+                "itinerary:provider_flight_response",
             ),
             rabbitmq_publish_routing_key=os.getenv(
                 "RABBITMQ_PUBLISH_ROUTING_KEY",
@@ -78,7 +78,7 @@ class Cfg:
             ),
             rabbitmq_queue_name=os.getenv(
                 "RABBITMQ_QUEUE_NAME",
-                "inventory_hotel_service_verified_response_queue",
+                "inventory_hotel_service_provider_flight_response_queue",
             ),
             amadeus_hotels_list_url=os.getenv(
                 "AMADEUS_HOTELS_LIST_URL",

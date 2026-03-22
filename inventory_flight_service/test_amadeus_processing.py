@@ -47,11 +47,11 @@ async def _run_test() -> None:
                     "timezone": "Europe/Zurich",
                     "travelers": 1,
                     "legs": [
-                        {"from": "ZRH", "to": "BJS", "depart_date": "2026-04-12"},
-                        {"from": "BJS", "to": "HKG", "depart_date": "2026-04-15"},
-                        {"from": "HKG", "to": "SIN", "depart_date": "2026-04-17"},
-                        {"from": "SIN", "to": "DEL", "depart_date": "2026-04-19"},
-                        {"from": "DEL", "to": "ZRH", "depart_date": "2026-04-24"},
+                        {"from": "ZRH", "to": "BJS", "depart_dates": ["2026-04-12"]},
+                        {"from": "BJS", "to": "HKG", "depart_dates": ["2026-04-15"]},
+                        {"from": "HKG", "to": "SIN", "depart_dates": ["2026-04-17"]},
+                        {"from": "SIN", "to": "DEL", "depart_dates": ["2026-04-19"]},
+                        {"from": "DEL", "to": "ZRH", "depart_dates": ["2026-04-24"]},
                     ],
                     "stays": [
                         {

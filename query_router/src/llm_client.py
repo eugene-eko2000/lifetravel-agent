@@ -6,7 +6,7 @@ from openai import AsyncOpenAI
 from cfg import Cfg
 
 
-VALID_REQUEST_OUTPUT_SCHEMA = {
+VALID_STRUCTURED_REQUEST_SCHEMA = {
   "type": "object",
   "required": ["trip", "budgets", "confidence"],
   "properties": {
@@ -20,25 +20,15 @@ VALID_REQUEST_OUTPUT_SCHEMA = {
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["from", "to", "depart_date"],
+            "required": ["from", "to", "depart_dates"],
             "properties": {
               "from": {"type": "string"},
               "to": {"type": "string"},
-              "depart_date": {"type": "string", "format": "date"},
-              "depart_time_window": {
-                "type": "object",
-                "properties": {
-                  "earliest": {"type": "string", "format": "time"},
-                  "latest": {"type": "string", "format": "time"}
-                }
-              },
-              "arrive_date": {"type": "string", "format": "date"},
-              "arrive_time_window": {
-                "type": "object",
-                "properties": {
-                  "earliest": {"type": "string", "format": "time"},
-                  "latest": {"type": "string", "format": "time"}
-                }
+              "depart_dates": {
+                "type": "array",
+                "items": {"type": "string"},
+                "minItems": 1,
+                "description": "Candidate departure dates (YYYY-MM-DD) for this leg; inventory searches each."
               }
             }
           }
@@ -100,7 +90,7 @@ VALID_REQUEST_OUTPUT_SCHEMA = {
 }
 
 
-MISSING_INFO_OUTPUT_SCHEMA = {
+MISSING_INFO_SCHEMA = {
   "type": "object",
   "required": ["missing_info"],
   "properties": {
@@ -117,10 +107,22 @@ with dates ranges for each haul and stay and other conditions like
 flight class, hotel rating, etc.
 
 The structured output should be a JSON object that matches the following schema:
-{VALID_REQUEST_OUTPUT_SCHEMA}.
+{VALID_STRUCTURED_REQUEST_SCHEMA}.
 
 For flights, the from and to fields should be the IATA code of the airport.
+Each leg must include depart_dates: an array of one or more candidate departure dates (YYYY-MM-DD);
+inventory will search flights for each date and merge options.
 For hotels, the city_code field should be the IATA code of the city metropolitan area.
+
+The flight legs requests should consider different arrival dates variants for each leg.
+Each following leg should have multiple departure dates options. The 1st leg is to have
+one departure date equal to the trip start date. the second one should have two departure dates,
+the third one three departure dates, etc.
+
+Example:
+First flight leg has departure date 2026-05-01.
+The next flight leg should consider 2 departure dates: 2026-05-05 and 2026-05-06.
+Hotel stays after the 2nd leg should consider check-in dates: 2026-05-06, 2026-05-07, 2026-05-08.
 
 When computing flight and stay dates, please consider the arrival date = departure date.
 For hotels, do not include check-in/check-out fields inside stays.
@@ -137,7 +139,7 @@ If the user query misses an info for filling in required fields,
 the output should contain a text reply that asks the user to provide the missing information.
 Example: missing dates for the flight haul, missing cities / locations for the hotel stays.
 In that case the missing info output should be a JSON object that matches the following schema:
-{MISSING_INFO_OUTPUT_SCHEMA}.
+{MISSING_INFO_SCHEMA}.
 """
 
 

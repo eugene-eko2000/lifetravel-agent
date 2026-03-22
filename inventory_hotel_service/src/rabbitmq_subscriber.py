@@ -67,21 +67,12 @@ async def run_inventory_hotel_subscriber() -> None:
                                 payload=payload,
                             )
 
-                        verification = incoming_payload.get("verification")
-                        is_corrected_itinerary = (
-                            isinstance(verification, dict)
-                            and verification.get("match_ok") is False
-                        )
                         await publish_status_message(
                             exchange=exchange,
                             routing_key=cfg.rabbitmq_status_routing_key,
                             payload={
                                 "id": request_id,
-                                "message": (
-                                    "Adjusting hotel options..."
-                                    if is_corrected_itinerary
-                                    else "Fetching hotel options..."
-                                ),
+                                "message": "Fetching hotel options...",
                             },
                         )
 
@@ -99,7 +90,6 @@ async def run_inventory_hotel_subscriber() -> None:
                             payload={
                                 "id": request_id,
                                 "structured_request": incoming_payload.get("structured_request"),
-                                "verification": verification,
                                 "provider_response": results,
                             },
                         )

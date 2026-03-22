@@ -30,7 +30,7 @@ export AMADEUS_HOTELS_LIST_URL="${AMADEUS_HOTELS_LIST_URL:-${AMADEUS_BASE_URL}/v
 export AMADEUS_HOTELS_LIST_BY_GEOCODE_URL="${AMADEUS_HOTELS_LIST_BY_GEOCODE_URL:-${AMADEUS_BASE_URL}/v1/reference-data/locations/hotels/by-geocode}"
 export AMADEUS_HOTELS_OFFERS_URL="${AMADEUS_HOTELS_OFFERS_URL:-${AMADEUS_BASE_URL}/v3/shopping/hotel-offers}"
 
-# OpenAI API base (query_router, itinerary_verifier)
+# OpenAI API base (query_router)
 export OPENAI_BASE_URL="${OPENAI_BASE_URL:-https://api.openai.com/v1}"
 
 # Usage:

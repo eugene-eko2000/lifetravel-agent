@@ -19,11 +19,11 @@ SOURCE_EXAMPLE = {
             "timezone": "Europe/Zurich",
             "travelers": 1,
             "legs": [
-                {"from": "Zurich", "to": "Beijing", "depart_date": "2026-03-12"},
-                {"from": "Beijing", "to": "Hong Kong", "depart_date": "2026-03-15"},
-                {"from": "Hong Kong", "to": "Singapore", "depart_date": "2026-03-17"},
-                {"from": "Singapore", "to": "New Delhi", "depart_date": "2026-03-19"},
-                {"from": "New Delhi", "to": "Zurich", "depart_date": "2026-03-24"},
+                {"from": "Zurich", "to": "Beijing", "depart_dates": ["2026-03-12"]},
+                {"from": "Beijing", "to": "Hong Kong", "depart_dates": ["2026-03-15"]},
+                {"from": "Hong Kong", "to": "Singapore", "depart_dates": ["2026-03-17"]},
+                {"from": "Singapore", "to": "New Delhi", "depart_dates": ["2026-03-19"]},
+                {"from": "New Delhi", "to": "Zurich", "depart_dates": ["2026-03-24"]},
             ],
             "stays": [
                 {
@@ -77,12 +77,14 @@ class RequestTranslatorTest(unittest.TestCase):
         cfg = Cfg.from_env()
         translated = translate_trip_request_to_amadeus_requests(SOURCE_EXAMPLE["output"], cfg)
 
-        self.assertEqual(len(translated), 1)
-        self.assertEqual(translated[0]["type"], "flight")
-        self.assertEqual(translated[0]["method"], "POST")
+        self.assertEqual(len(translated), 5)
+        for i, item in enumerate(translated, start=1):
+            self.assertEqual(item["type"], "flight")
+            self.assertEqual(item["method"], "POST")
+            self.assertEqual(item["leg_index"], i)
 
         flight_payload = translated[0]["payload"]
-        self.assertEqual(len(flight_payload["originDestinations"]), 5)
+        self.assertEqual(len(flight_payload["originDestinations"]), 1)
         self.assertEqual(flight_payload["originDestinations"][0]["id"], "1")
         self.assertEqual(
             flight_payload["originDestinations"][0]["originLocationCode"], "ZURICH"
@@ -95,13 +97,16 @@ class RequestTranslatorTest(unittest.TestCase):
             "2026-03-12",
         )
         self.assertEqual(
-            flight_payload["originDestinations"][-1]["departureDateTimeRange"]["date"],
+            translated[-1]["payload"]["originDestinations"][0]["departureDateTimeRange"][
+                "date"
+            ],
             "2026-03-24",
         )
         self.assertEqual(len(flight_payload["travelers"]), 1)
         self.assertEqual(flight_payload["travelers"][0]["travelerType"], "ADULT")
         self.assertEqual(flight_payload["sources"], ["GDS"])
         self.assertEqual(flight_payload["searchCriteria"]["maxFlightOffers"], 10)
+
 
 if __name__ == "__main__":
     unittest.main()

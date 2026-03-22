@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+from collections import defaultdict
 from typing import Any, Awaitable, Callable
 
 from amadeus_sender import AmadeusSender
@@ -107,6 +108,9 @@ async def process_incoming_message(
     ]
     processed_results = await asyncio.gather(*tasks, return_exceptions=True)
 
+    merged_options: dict[int, list[dict[str, Any]]] = defaultdict(list)
+    primary_date: dict[int, str] = {}
+
     for translated, result in zip(flight_requests, processed_results):
         if isinstance(result, Exception):
             logger.exception(
@@ -129,20 +133,32 @@ async def process_incoming_message(
         request_type = translated.get("type")
 
         if request_type == "flight":
+            leg_index = int(translated.get("leg_index") or 0)
+            if leg_index < 1:
+                continue
             options = result.get("data") if isinstance(result, dict) else []
             if not isinstance(options, list):
                 options = []
-            results["flights"].append(
-                {
-                    "date": str(translated.get("date", "")),
-                    "options": [x for x in options if isinstance(x, dict)],
-                }
+            d = str(translated.get("date", "")).strip()
+            if leg_index not in primary_date and d:
+                primary_date[leg_index] = d
+            merged_options[leg_index].extend(
+                [x for x in options if isinstance(x, dict)]
             )
             continue
 
+    for li in sorted(merged_options.keys()):
+        results["flights"].append(
+            {
+                "date": primary_date.get(li, ""),
+                "options": merged_options[li],
+            }
+        )
+
     logger.info(
-        "Processed inventory flight message with %d translated requests (%d flight requests)",
+        "Processed inventory flight message with %d translated requests (%d flight requests), %d legs",
         len(translated_requests),
         len(flight_requests),
+        len(results["flights"]),
     )
     return results

@@ -189,32 +189,53 @@ def _flight_leg_departure_arrival(offer: dict[str, Any]) -> list[tuple[datetime 
     return leg_ranges
 
 
-def _extract_leg_date_constraints(constraints: dict[str, Any]) -> list[tuple[date | None, date | None]]:
+def _extract_leg_date_constraints(
+    constraints: dict[str, Any],
+) -> list[tuple[set[date] | None, date | None]]:
+    """Per leg: (allowed departure dates, expected arrival date or None)."""
     raw_legs = constraints.get("legs")
     if not isinstance(raw_legs, list):
         trip = constraints.get("trip")
         if isinstance(trip, dict):
             raw_legs = trip.get("legs")
 
-    out: list[tuple[date | None, date | None]] = []
+    out: list[tuple[set[date] | None, date | None]] = []
     if isinstance(raw_legs, list):
         for leg in raw_legs:
             if not isinstance(leg, dict):
                 continue
-            out.append(
-                (
-                    _parse_iso_date(leg.get("depart_date")),
-                    _parse_iso_date(leg.get("arrive_date")),
-                )
-            )
+            dep_set: set[date] = set()
+            dd = leg.get("depart_dates")
+            if isinstance(dd, list):
+                for x in dd:
+                    d = _parse_iso_date(x)
+                    if d is not None:
+                        dep_set.add(d)
+            else:
+                d = _parse_iso_date(leg.get("depart_date"))
+                if d is not None:
+                    dep_set.add(d)
+            allowed = dep_set if dep_set else None
+            arr = _parse_iso_date(leg.get("arrive_date"))
+            out.append((allowed, arr))
     if out:
         return out
 
     # Backward-compatible single-leg shape.
+    single_deps = constraints.get("depart_dates")
+    if isinstance(single_deps, list):
+        dep_set: set[date] = set()
+        for x in single_deps:
+            d = _parse_iso_date(x)
+            if d is not None:
+                dep_set.add(d)
+        if dep_set:
+            return [(dep_set, _parse_iso_date(constraints.get("arrive_date")))]
     single_dep = _parse_iso_date(constraints.get("depart_date"))
     single_arr = _parse_iso_date(constraints.get("arrive_date"))
     if single_dep is not None or single_arr is not None:
-        return [(single_dep, single_arr)]
+        deps: set[date] | None = {single_dep} if single_dep is not None else None
+        return [(deps, single_arr)]
     return []
 
 
@@ -323,14 +344,13 @@ def _rank_flights(
             offer_legs = _flight_leg_departure_arrival(offer)
             if len(offer_legs) != len(leg_date_constraints):
                 reasons.append("legs_count_mismatch")
-            for idx, ((dep_expected, arr_expected), (dep_actual, arr_actual)) in enumerate(
+            for idx, ((dep_expected_set, arr_expected), (dep_actual, arr_actual)) in enumerate(
                 zip(leg_date_constraints, offer_legs),
                 start=1,
             ):
-                if dep_expected is not None and (
-                    dep_actual is None or dep_actual.date() != dep_expected
-                ):
-                    reasons.append(f"departure_date_mismatch_leg_{idx}")
+                if dep_expected_set is not None and len(dep_expected_set) > 0:
+                    if dep_actual is None or dep_actual.date() not in dep_expected_set:
+                        reasons.append(f"departure_date_mismatch_leg_{idx}")
                 if arr_expected is not None and (
                     arr_actual is None or arr_actual.date() != arr_expected
                 ):

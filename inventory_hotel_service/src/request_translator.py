@@ -29,11 +29,15 @@ def _build_flight_request(trip_request: dict[str, Any]) -> dict[str, Any]:
     for index, leg in enumerate(legs, start=1):
         origin = str(leg.get("from", "")).strip().upper()
         destination = str(leg.get("to", "")).strip().upper()
-        depart_date = str(leg.get("depart_date", "")).strip()
+        depart_dates = leg.get("depart_dates")
+        if isinstance(depart_dates, list) and depart_dates:
+            depart_date = str(depart_dates[0]).strip()
+        else:
+            depart_date = str(leg.get("depart_date", "")).strip()
 
         if not origin or not destination or not depart_date:
             raise ValueError(
-                f"Leg #{index} is missing required fields: from/to/depart_date"
+                f"Leg #{index} is missing required fields: from/to/depart_dates (or depart_date)"
             )
 
         origin_destinations.append(

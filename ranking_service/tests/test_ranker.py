@@ -415,7 +415,7 @@ GOLDEN_RANKED_PROVIDER_RESPONSE = {
         ],
     },
     "ranking_meta": {
-        "pipeline": ["filter", "score", "re-rank", "diversify"],
+        "pipeline": ["score", "annotate_only"],
         "flight_count_in": 3,
         "flight_count_out": 3,
         "hotel_dates_out": 2,
