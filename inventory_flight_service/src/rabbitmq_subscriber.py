@@ -4,6 +4,7 @@ import logging
 import aio_pika
 from aio_pika import ExchangeType
 
+from amadeus_interval import AmadeusQueryInterval
 from amadeus_sender import AmadeusSender
 from cfg import Cfg
 from request_processor import process_incoming_message
@@ -21,7 +22,13 @@ logger = logging.getLogger("inventory_flight_service.rabbitmq_subscriber")
 
 async def run_inventory_subscriber() -> None:
     cfg = Cfg.from_env()
-    sender = AmadeusSender(cfg)
+    query_interval: AmadeusQueryInterval | None = None
+    if (
+        cfg.amadeus_interval_between_queries is not None
+        and cfg.amadeus_interval_between_queries > 0
+    ):
+        query_interval = AmadeusQueryInterval(cfg.amadeus_interval_between_queries)
+    sender = AmadeusSender(cfg, query_interval=query_interval)
 
     logger.info(
         "Starting inventory flight RabbitMQ subscriber "

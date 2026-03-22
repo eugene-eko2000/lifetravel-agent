@@ -12,21 +12,6 @@ from debug_messages import DebugPublisher, emit_debug_message
 logger = logging.getLogger("inventory_hotel_service.request_processor")
 
 
-class _QpsLimiter:
-    def __init__(self, qps_limit: float) -> None:
-        self._interval_sec = 1.0 / qps_limit
-        self._lock = asyncio.Lock()
-        self._next_allowed_ts = 0.0
-
-    async def wait_for_slot(self) -> None:
-        async with self._lock:
-            now = asyncio.get_running_loop().time()
-            if now < self._next_allowed_ts:
-                await asyncio.sleep(self._next_allowed_ts - now)
-            now = asyncio.get_running_loop().time()
-            self._next_allowed_ts = now + self._interval_sec
-
-
 def _parse_iso_dt(value: Any) -> datetime | None:
     if not isinstance(value, str) or not value:
         return None
@@ -313,20 +298,15 @@ async def _fetch_hotels_for_request(
     req: dict[str, Any],
     request_id: str | None,
     debug_publisher: DebugPublisher | None,
-    qps_limiter: _QpsLimiter | None = None,
 ) -> list[dict[str, Any]]:
     stay = req.get("stay", {})
     mode = req.get("hotels_list_mode", "city")
     try:
         if mode == "geocode":
-            if qps_limiter is not None:
-                await qps_limiter.wait_for_slot()
             hotels_list_response = await sender.send_hotels_list_by_geocode(
                 query_params=req.get("query_params", {}),
             )
         else:
-            if qps_limiter is not None:
-                await qps_limiter.wait_for_slot()
             hotels_list_response = await sender.send_hotels_list(
                 query_params=req.get("query_params", {}),
             )
@@ -364,8 +344,6 @@ async def _fetch_hotels_for_request(
     offers_tasks = []
     for hotel_ids_chunk in hotel_id_chunks:
         async def _send_offers_for_chunk(chunk: list[str]) -> dict[str, Any]:
-            if qps_limiter is not None:
-                await qps_limiter.wait_for_slot()
             return await sender.send_hotels_offers(
                 query_params={
                     "hotelIds": ",".join(chunk),
@@ -423,10 +401,6 @@ async def process_incoming_message(
     budgets = structured_request.get("budgets", {})
     hotels_budget = budgets.get("hotels", {}) if isinstance(budgets, dict) else {}
     currency = str(hotels_budget.get("currency", "USD")).strip() or "USD"
-    qps_limiter: _QpsLimiter | None = None
-    if isinstance(cfg.amadeus_hotels_qps_limit, (int, float)) and cfg.amadeus_hotels_qps_limit > 0:
-        qps_limiter = _QpsLimiter(float(cfg.amadeus_hotels_qps_limit))
-
     stays_for_hotels = _build_stays_from_adjacent_flight_legs(
         source_flights,
         stays,
@@ -450,7 +424,7 @@ async def process_incoming_message(
         key = _stay_cache_key(req)
         if key not in cache:
             cache[key] = await _fetch_hotels_for_request(
-                sender, cfg, req, request_id, debug_publisher, qps_limiter=qps_limiter
+                sender, cfg, req, request_id, debug_publisher
             )
         hotels_out.append(
             {

@@ -2,6 +2,18 @@ import os
 from dataclasses import dataclass
 
 
+def _parse_amadeus_interval_between_queries() -> float | None:
+    """Minimum seconds between Amadeus HTTP calls in this service; unset => no limit."""
+    raw = os.getenv("AMADEUS_INTERVAL_BETWEEN_QUERIES", "").strip()
+    if not raw:
+        return None
+    try:
+        v = float(raw)
+        return v if v > 0 else None
+    except ValueError:
+        return None
+
+
 @dataclass(frozen=True)
 class Cfg:
     endpoint_port: int
@@ -16,7 +28,7 @@ class Cfg:
     rabbitmq_status_routing_key: str
     rabbitmq_queue_name: str
     amadeus_flights_offers_url: str
-    amadeus_flights_qps_limit: float | None
+    amadeus_interval_between_queries: float | None
     amadeus_429_max_attempts: int
     amadeus_token_url: str
     amadeus_client_id: str
@@ -55,9 +67,7 @@ class Cfg:
                 "AMADEUS_FLIGHTS_OFFERS_URL",
                 "https://test.api.amadeus.com/v2/shopping/flight-offers",
             ),
-            amadeus_flights_qps_limit=(
-                float(os.getenv("AMADEUS_FLIGHTS_QPS_LIMIT", "0")) or None
-            ),
+            amadeus_interval_between_queries=_parse_amadeus_interval_between_queries(),
             amadeus_429_max_attempts=int(os.getenv("AMADEUS_429_MAX_ATTEMPTS", "6")),
             amadeus_token_url=os.getenv(
                 "AMADEUS_TOKEN_URL",

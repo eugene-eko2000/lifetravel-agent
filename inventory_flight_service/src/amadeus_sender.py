@@ -3,13 +3,20 @@ from typing import Any
 
 import httpx
 
+from amadeus_interval import AmadeusQueryInterval
 from cfg import Cfg
 
 
 class AmadeusSender:
-    def __init__(self, cfg: Cfg | None = None) -> None:
+    def __init__(
+        self,
+        cfg: Cfg | None = None,
+        *,
+        query_interval: AmadeusQueryInterval | None = None,
+    ) -> None:
         self._cfg = cfg or Cfg.from_env()
         self._bearer_token: str | None = None
+        self._query_interval = query_interval
 
     async def _get_amadeus_bearer_token(self) -> str:
         if self._bearer_token:
@@ -26,6 +33,9 @@ class AmadeusSender:
             "client_secret": self._cfg.amadeus_client_secret,
         }
         headers = {"Content-Type": "application/x-www-form-urlencoded"}
+
+        if self._query_interval is not None:
+            await self._query_interval.wait_before_query()
 
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
@@ -61,6 +71,8 @@ class AmadeusSender:
             backoff_seconds = 1.0
             last_response: httpx.Response | None = None
             for attempt in range(1, max_attempts + 1):
+                if self._query_interval is not None:
+                    await self._query_interval.wait_before_query()
                 response = await client.request(
                     method=method,
                     url=url,
@@ -74,6 +86,8 @@ class AmadeusSender:
                     self._bearer_token = None
                     refreshed_token = await self._get_amadeus_bearer_token()
                     merged_headers["Authorization"] = f"Bearer {refreshed_token}"
+                    if self._query_interval is not None:
+                        await self._query_interval.wait_before_query()
                     response = await client.request(
                         method=method,
                         url=url,
