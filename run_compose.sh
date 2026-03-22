@@ -21,11 +21,27 @@ else
   echo "Warning: ${ENV_FILE} not found. Using current shell environment only."
 fi
 
+# Amadeus: full URLs for docker-compose (override any var in .env, or set AMADEUS_BASE_URL only).
+AMADEUS_BASE_URL="${AMADEUS_BASE_URL:-https://test.api.amadeus.com}"
+AMADEUS_BASE_URL="${AMADEUS_BASE_URL%/}"
+export AMADEUS_FLIGHTS_OFFERS_URL="${AMADEUS_FLIGHTS_OFFERS_URL:-${AMADEUS_BASE_URL}/v2/shopping/flight-offers}"
+export AMADEUS_TOKEN_URL="${AMADEUS_TOKEN_URL:-${AMADEUS_BASE_URL}/v1/security/oauth2/token}"
+export AMADEUS_HOTELS_LIST_URL="${AMADEUS_HOTELS_LIST_URL:-${AMADEUS_BASE_URL}/v1/reference-data/locations/hotels/by-city}"
+export AMADEUS_HOTELS_LIST_BY_GEOCODE_URL="${AMADEUS_HOTELS_LIST_BY_GEOCODE_URL:-${AMADEUS_BASE_URL}/v1/reference-data/locations/hotels/by-geocode}"
+export AMADEUS_HOTELS_OFFERS_URL="${AMADEUS_HOTELS_OFFERS_URL:-${AMADEUS_BASE_URL}/v3/shopping/hotel-offers}"
+
+# OpenAI API base (query_router, itinerary_verifier)
+export OPENAI_BASE_URL="${OPENAI_BASE_URL:-https://api.openai.com/v1}"
+
 # Usage:
 #   ./run_compose.sh                 -> up --build -d
 #   ./run_compose.sh --attach        -> up --build (foreground)
 #   ./run_compose.sh --rerun         -> up --build -d --force-recreate (recreate all containers)
 #   ./run_compose.sh --attach --rerun
+#
+# Amadeus/OpenAI service URLs are exported above; use this script before docker compose so
+# compose receives AMADEUS_*_URL, AMADEUS_TOKEN_URL, and OPENAI_BASE_URL. Override via .env
+# (e.g. AMADEUS_BASE_URL or individual AMADEUS_FLIGHTS_OFFERS_URL).
 ATTACH=false
 RERUN=false
 while [[ $# -gt 0 ]]; do

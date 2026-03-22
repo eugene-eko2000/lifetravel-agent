@@ -58,7 +58,7 @@ services:
       RABBITMQ_QUEUE_NAME: query_router_itinerary_user_request_queue
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_MODEL: gpt-5.2
-      OPENAI_BASE_URL: https://api.openai.com/v1
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL}
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -81,8 +81,8 @@ services:
       RABBITMQ_DEBUG_ROUTING_KEY: debug:message
       RABBITMQ_STATUS_ROUTING_KEY: status:message
       RABBITMQ_QUEUE_NAME: inventory_flight_service_structured_request_queue
-      AMADEUS_FLIGHTS_OFFERS_URL: https://test.api.amadeus.com/v2/shopping/flight-offers
-      AMADEUS_TOKEN_URL: https://test.api.amadeus.com/v1/security/oauth2/token
+      AMADEUS_FLIGHTS_OFFERS_URL: ${AMADEUS_FLIGHTS_OFFERS_URL}
+      AMADEUS_TOKEN_URL: ${AMADEUS_TOKEN_URL}
       AMADEUS_CLIENT_ID: ${AMADEUS_CLIENT_ID:-}
       AMADEUS_CLIENT_SECRET: ${AMADEUS_CLIENT_SECRET:-}
       AMADEUS_INTERVAL_BETWEEN_QUERIES: 1
@@ -109,10 +109,10 @@ services:
       RABBITMQ_DEBUG_ROUTING_KEY: debug:message
       RABBITMQ_STATUS_ROUTING_KEY: status:message
       RABBITMQ_QUEUE_NAME: inventory_hotel_service_verified_response_queue
-      AMADEUS_HOTELS_LIST_URL: https://test.api.amadeus.com/v1/reference-data/locations/hotels/by-city
-      AMADEUS_HOTELS_LIST_BY_GEOCODE_URL: https://test.api.amadeus.com/v1/reference-data/locations/hotels/by-geocode
-      AMADEUS_HOTELS_OFFERS_URL: https://test.api.amadeus.com/v3/shopping/hotel-offers
-      AMADEUS_TOKEN_URL: https://test.api.amadeus.com/v1/security/oauth2/token
+      AMADEUS_HOTELS_LIST_URL: ${AMADEUS_HOTELS_LIST_URL}
+      AMADEUS_HOTELS_LIST_BY_GEOCODE_URL: ${AMADEUS_HOTELS_LIST_BY_GEOCODE_URL}
+      AMADEUS_HOTELS_OFFERS_URL: ${AMADEUS_HOTELS_OFFERS_URL}
+      AMADEUS_TOKEN_URL: ${AMADEUS_TOKEN_URL}
       AMADEUS_INTERVAL_BETWEEN_QUERIES: 1
       AMADEUS_HOTELS_OFFERS_LIMIT: 10
       AMADEUS_MAX_HOTEL_OFFERS: 30
@@ -170,7 +170,7 @@ services:
       RABBITMQ_QUEUE_NAME: itinerary_verifier_provider_flight_response_queue
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_MODEL: gpt-5.2
-      OPENAI_BASE_URL: https://api.openai.com/v1
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL}
     depends_on:
       rabbitmq:
         condition: service_healthy
