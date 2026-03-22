@@ -127,6 +127,30 @@ services:
       inventory_flight_service:
         condition: service_started
 
+  # ── Itinerary Composer ──────────────────────────────────────────────────────
+  itinerary_composer:
+    build:
+      context: ./itinerary_composer
+    ports:
+      - "8085:8080"
+    environment:
+      PORT: 8080
+      AMQP_HOST: rabbitmq
+      AMQP_PORT: 5672
+      AMQP_USER: ${AMQP_USER:-guest}
+      AMQP_PASSWORD: ${AMQP_PASSWORD:-guest}
+      RABBITMQ_EXCHANGE: lifetravel_agent
+      RABBITMQ_SUBSCRIBE_ROUTING_KEY: itinerary:provider_response
+      RABBITMQ_PUBLISH_ROUTING_KEY: itinerary:composed
+      RABBITMQ_DEBUG_ROUTING_KEY: debug:message
+      RABBITMQ_STATUS_ROUTING_KEY: status:message
+      RABBITMQ_QUEUE_NAME: itinerary_composer_provider_response_queue
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      inventory_hotel_service:
+        condition: service_started
+
   # ── Ranking Service ──────────────────────────────────────────────────────────
   ranking_service:
     build:
