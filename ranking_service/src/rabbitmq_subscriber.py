@@ -7,8 +7,8 @@ import aio_pika
 from aio_pika import ExchangeType
 
 from cfg import Cfg
-from rabbitmq_publisher import publish_ranked_response, publish_status_message
-from ranker import rank_provider_response
+from rabbitmq_publisher import publish_ranked_itinerary, publish_status_message
+from ranker import rank_single_itinerary
 
 logger = logging.getLogger("ranking_service.rabbitmq_subscriber")
 
@@ -17,10 +17,10 @@ async def _process_message(incoming: aio_pika.abc.AbstractIncomingMessage, excha
     async with incoming.process():
         try:
             payload: dict[str, Any] = json.loads(incoming.body.decode("utf-8"))
-            provider_response = payload.get("provider_response")
-            if not isinstance(provider_response, dict):
+            itinerary = payload.get("itinerary")
+            if not isinstance(itinerary, dict):
                 logger.warning(
-                    "Skipping message without provider_response object: %s",
+                    "Skipping message without itinerary object: %s",
                     payload,
                 )
                 return
@@ -34,13 +34,15 @@ async def _process_message(incoming: aio_pika.abc.AbstractIncomingMessage, excha
                 },
             )
 
-            ranked_response = rank_provider_response(provider_response)
-            outgoing_payload = {
+            ranked_itinerary = rank_single_itinerary(itinerary)
+            outgoing_payload: dict[str, Any] = {
                 "id": payload.get("id"),
-                "ranked_response": ranked_response,
+                "itinerary_index": payload.get("itinerary_index"),
+                "itinerary_count": payload.get("itinerary_count"),
+                "ranked_itinerary": ranked_itinerary,
             }
 
-            await publish_ranked_response(
+            await publish_ranked_itinerary(
                 exchange=exchange,
                 routing_key=cfg.rabbitmq_publish_routing_key,
                 payload=outgoing_payload,

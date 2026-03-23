@@ -78,6 +78,8 @@ def _build_flight_requests(trip_request: dict[str, Any]) -> list[dict[str, Any]]
             raise ValueError(
                 f"Leg #{index} is missing required field depart_dates (non-empty array of date strings)"
             )
+        origin = str(leg.get("from", "")).strip().upper()
+        destination = str(leg.get("to", "")).strip().upper()
         for depart_date in depart_dates:
             requests.append(
                 {
@@ -85,6 +87,8 @@ def _build_flight_requests(trip_request: dict[str, Any]) -> list[dict[str, Any]]
                     "method": "POST",
                     "date": depart_date,
                     "leg_index": index,
+                    "from": origin,
+                    "to": destination,
                     "payload": _build_flight_request_for_leg(
                         leg, index, travelers, depart_date
                     ),

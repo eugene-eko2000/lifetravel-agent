@@ -30,29 +30,25 @@ async def _handle_message(
     )
 
     composed = await compose_itinerary(payload)
+    itineraries = composed.get("itineraries", [])
 
-    try:
-        await publish_debug_message(
+    logger.info(
+        "Publishing %d itineraries separately (id=%s)",
+        len(itineraries),
+        request_id,
+    )
+
+    for idx, itinerary in enumerate(itineraries):
+        await publish_composed_itinerary(
             exchange=exchange,
-            routing_key=cfg.rabbitmq_debug_routing_key,
+            routing_key=cfg.rabbitmq_publish_routing_key,
             payload={
                 "id": request_id,
-                "source": "itinerary_composer",
-                "label": "llm_composed_output",
-                "data": composed,
+                "itinerary_index": idx,
+                "itinerary_count": len(itineraries),
+                "itinerary": itinerary,
             },
         )
-    except Exception:
-        logger.warning("Failed to publish debug message", exc_info=True)
-
-    await publish_composed_itinerary(
-        exchange=exchange,
-        routing_key=cfg.rabbitmq_publish_routing_key,
-        payload={
-            "id": request_id,
-            "composed_itinerary": composed,
-        },
-    )
 
 
 async def run_subscriber() -> None:

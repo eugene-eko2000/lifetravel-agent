@@ -6,7 +6,7 @@ PROJECT_DIR = Path(__file__).resolve().parents[1]
 SRC_DIR = PROJECT_DIR / "src"
 sys.path.insert(0, str(SRC_DIR))
 
-from ranker import _normalize, rank_provider_response
+from ranker import _normalize, rank_provider_response, rank_single_itinerary
 
 
 INPUT_PROVIDER_RESPONSE = {
@@ -457,26 +457,81 @@ class RankerTest(unittest.TestCase):
         self.assertEqual(ranked["flights"], [])
         self.assertEqual(ranked["hotels"], {})
 
-    def test_rank_provider_response_handles_itineraries_shape(self) -> None:
-        provider_response = {
-            "itineraries": [
-                {
-                    "flight": INPUT_PROVIDER_RESPONSE["flights"][0]["data"][0],
-                    "hotels": INPUT_PROVIDER_RESPONSE["hotels"]["2026-04-19"],
-                },
-                {
-                    "flight": INPUT_PROVIDER_RESPONSE["flights"][1]["data"][1],
-                    "hotels": INPUT_PROVIDER_RESPONSE["hotels"]["2026-04-21"],
-                },
-            ]
+    def test_rank_single_itinerary_with_grouped_format(self) -> None:
+        flight_group_vie_del = {
+            "depart_date": "2026-04-19",
+            "arrive_date": "2026-04-19",
+            "from": "VIE",
+            "to": "DEL",
+            "options": INPUT_PROVIDER_RESPONSE["flights"][0]["data"]
+            + INPUT_PROVIDER_RESPONSE["flights"][1]["data"],
         }
-        ranked = rank_provider_response(provider_response)
-        self.assertIn("itineraries", ranked)
-        self.assertEqual(len(ranked["itineraries"]), 2)
-        first = ranked["itineraries"][0]
-        self.assertIn("flight", first)
-        self.assertIn("hotels", first)
-        self.assertIn("_ranking", first)
+        flight_group_del_sin = {
+            "depart_date": "2026-04-21",
+            "arrive_date": "2026-04-21",
+            "from": "DEL",
+            "to": "SIN",
+            "options": INPUT_PROVIDER_RESPONSE["flights"][0]["data"],
+        }
+        hotel_group_del = {
+            "city_code": "DEL",
+            "check_in": "2026-04-19",
+            "check_out": "2026-04-21",
+            "options": INPUT_PROVIDER_RESPONSE["hotels"]["2026-04-19"],
+        }
+        hotel_group_sin = {
+            "city_code": "SIN",
+            "check_in": "2026-04-21",
+            "check_out": "2026-04-23",
+            "options": INPUT_PROVIDER_RESPONSE["hotels"]["2026-04-21"],
+        }
+        itinerary = {
+            "flights": [flight_group_vie_del, flight_group_del_sin],
+            "hotels": [hotel_group_del, hotel_group_sin],
+        }
+
+        ranked = rank_single_itinerary(itinerary)
+        self.assertIn("flights", ranked)
+        self.assertIn("hotels", ranked)
+        self.assertEqual(len(ranked["flights"]), 2)
+        self.assertEqual(len(ranked["hotels"]), 2)
+
+        for fg in ranked["flights"]:
+            self.assertIn("options", fg)
+            self.assertIn("depart_date", fg)
+            self.assertIn("arrive_date", fg)
+            self.assertIn("from", fg)
+            self.assertIn("to", fg)
+            for opt in fg["options"]:
+                self.assertIn("_ranking", opt)
+
+        for hg in ranked["hotels"]:
+            self.assertIn("options", hg)
+            self.assertIn("city_code", hg)
+            self.assertIn("check_in", hg)
+            self.assertIn("check_out", hg)
+            for opt in hg["options"]:
+                self.assertIn("_ranking", opt)
+
+    def test_rank_single_itinerary_empty(self) -> None:
+        ranked = rank_single_itinerary({"flights": [], "hotels": []})
+        self.assertEqual(ranked["flights"], [])
+        self.assertEqual(ranked["hotels"], [])
+
+    def test_rank_single_itinerary_options_sorted_by_score(self) -> None:
+        flight_group = {
+            "depart_date": "2026-04-19",
+            "arrive_date": "2026-04-19",
+            "from": "VIE",
+            "to": "DEL",
+            "options": INPUT_PROVIDER_RESPONSE["flights"][0]["data"]
+            + INPUT_PROVIDER_RESPONSE["flights"][1]["data"],
+        }
+        itinerary = {"flights": [flight_group], "hotels": []}
+        ranked = rank_single_itinerary(itinerary)
+        options = ranked["flights"][0]["options"]
+        option_scores = [opt["_ranking"]["score"] for opt in options]
+        self.assertEqual(option_scores, sorted(option_scores, reverse=True))
 
 
 if __name__ == "__main__":

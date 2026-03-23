@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import math
+from collections import defaultdict
 from datetime import datetime
 from typing import Any
 
@@ -130,62 +131,36 @@ def _extract_stays(structured_request: dict[str, Any]) -> list[dict[str, Any]]:
     return [x for x in stays if isinstance(x, dict)]
 
 
-def _extract_arrival_dates(flight_options: list[dict[str, Any]]) -> list[str]:
-    out: set[str] = set()
-    for option in flight_options:
-        itineraries = option.get("itineraries")
-        if not isinstance(itineraries, list) or not itineraries:
-            continue
-        first_itinerary = itineraries[0]
-        if not isinstance(first_itinerary, dict):
-            continue
-        segments = first_itinerary.get("segments")
-        if not isinstance(segments, list) or not segments:
-            continue
-        arr_dt = _parse_iso_dt((segments[-1].get("arrival") or {}).get("at"))
-        if arr_dt is not None:
-            out.add(arr_dt.date().isoformat())
-    return sorted(out)
-
-
-def _extract_departure_dates(flight_options: list[dict[str, Any]]) -> list[str]:
-    out: set[str] = set()
-    for option in flight_options:
-        itineraries = option.get("itineraries")
-        if not isinstance(itineraries, list) or not itineraries:
-            continue
-        first_itinerary = itineraries[0]
-        if not isinstance(first_itinerary, dict):
-            continue
-        segments = first_itinerary.get("segments")
-        if not isinstance(segments, list) or not segments:
-            continue
-        dep_dt = _parse_iso_dt((segments[0].get("departure") or {}).get("at"))
-        if dep_dt is not None:
-            out.add(dep_dt.date().isoformat())
-    return sorted(out)
-
-
-def _build_stays_from_adjacent_flight_legs(
-    flights_by_leg: list[dict[str, Any]],
+def _build_stays_from_flight_groups(
+    flight_groups: list[dict[str, Any]],
     stays: list[dict[str, Any]],
     currency: str,
     travelers: int,
 ) -> list[dict[str, Any]]:
+    arrive_dates_by_dest: dict[str, set[str]] = defaultdict(set)
+    depart_dates_by_origin: dict[str, set[str]] = defaultdict(set)
+
+    for fg in flight_groups:
+        to_code = str(fg.get("to", "")).strip().upper()
+        from_code = str(fg.get("from", "")).strip().upper()
+        arrive_date = str(fg.get("arrive_date", "")).strip()
+        depart_date = str(fg.get("depart_date", "")).strip()
+        if to_code and arrive_date:
+            arrive_dates_by_dest[to_code].add(arrive_date)
+        if from_code and depart_date:
+            depart_dates_by_origin[from_code].add(depart_date)
+
     built: list[dict[str, Any]] = []
-    for idx, stay in enumerate(stays):
-        if idx + 1 >= len(flights_by_leg):
+    for stay in stays:
+        city_code = str(stay.get("city_code", "")).strip().upper()
+        if not city_code:
             continue
-        current_options_raw = flights_by_leg[idx].get("options")
-        next_options_raw = flights_by_leg[idx + 1].get("options")
-        if not isinstance(current_options_raw, list) or not isinstance(next_options_raw, list):
-            continue
-        current_options = [x for x in current_options_raw if isinstance(x, dict)]
-        next_options = [x for x in next_options_raw if isinstance(x, dict)]
-        arrival_dates = _extract_arrival_dates(current_options)
-        departure_dates = _extract_departure_dates(next_options)
+
+        arrival_dates = sorted(arrive_dates_by_dest.get(city_code, set()))
+        departure_dates = sorted(depart_dates_by_origin.get(city_code, set()))
         if not arrival_dates or not departure_dates:
             continue
+
         duration_days = int(stay.get("duration", 0) or 0)
         valid_pairs: list[tuple[str, str, int]] = []
         for check_in in arrival_dates:
@@ -205,8 +180,6 @@ def _build_stays_from_adjacent_flight_legs(
         selected_pairs = valid_pairs
         if duration_days > 0:
             exact_pairs = [x for x in valid_pairs if x[2] == duration_days]
-            # Prefer exact duration matches, but don't drop a stay entirely when
-            # no exact combination exists in available flight options.
             if exact_pairs:
                 selected_pairs = exact_pairs
 
@@ -218,7 +191,7 @@ def _build_stays_from_adjacent_flight_legs(
                     "min_rooms": int(stay.get("min_rooms", 1) or 1),
                     "travelers": travelers,
                     "currency": currency,
-                    "city_code": str(stay.get("city_code", "")).strip().upper(),
+                    "city_code": city_code,
                     "location_latlng": stay.get("location_latlng"),
                     "city": stay.get("city"),
                 }
@@ -401,14 +374,22 @@ async def process_incoming_message(
     budgets = structured_request.get("budgets", {})
     hotels_budget = budgets.get("hotels", {}) if isinstance(budgets, dict) else {}
     currency = str(hotels_budget.get("currency", "USD")).strip() or "USD"
-    stays_for_hotels = _build_stays_from_adjacent_flight_legs(
+    stays_for_hotels = _build_stays_from_flight_groups(
         source_flights,
         stays,
         currency,
         travelers,
     )
+    await emit_debug_message(
+        debug_publisher,
+        request_id,
+        "Prepared hotel list requests",
+        level="debug",
+        payload={"stays_for_hotels": stays_for_hotels},
+    )
     cache: dict[str, list[dict[str, Any]]] = {}
-    hotels_out: list[dict[str, Any]] = []
+    HotelGroupKey = tuple[str, str, str]
+    hotel_groups: dict[HotelGroupKey, list[dict[str, Any]]] = {}
     for stay in stays_for_hotels:
         try:
             req = _build_hotel_request(stay, cfg)
@@ -421,16 +402,27 @@ async def process_incoming_message(
                 payload={"stay": stay, "error": str(error)},
             )
             continue
-        key = _stay_cache_key(req)
-        if key not in cache:
-            cache[key] = await _fetch_hotels_for_request(
+        cache_key = _stay_cache_key(req)
+        if cache_key not in cache:
+            cache[cache_key] = await _fetch_hotels_for_request(
                 sender, cfg, req, request_id, debug_publisher
             )
+        city_code = str(stay.get("city_code", "")).strip().upper()
+        group_key: HotelGroupKey = (city_code, stay["check_in"], stay["check_out"])
+        if group_key not in hotel_groups:
+            hotel_groups[group_key] = []
+        hotel_groups[group_key].extend(cache.get(cache_key, []))
+
+    hotels_out: list[dict[str, Any]] = []
+    for group_key in sorted(hotel_groups.keys()):
+        city_code, check_in, check_out = group_key
+        opts = hotel_groups[group_key]
         hotels_out.append(
             {
-                "check_in": stay["check_in"],
-                "check_out": stay["check_out"],
-                "options": [dict(x) for x in cache.get(key, [])],
+                "city_code": city_code,
+                "check_in": check_in,
+                "check_out": check_out,
+                "options": [dict(x) for x in opts],
             }
         )
 

@@ -119,18 +119,20 @@ async def _handle_missing_info_message(payload: dict) -> None:
 
 async def _handle_ranked_message(payload: dict) -> None:
     request_id = payload.get("id")
-    ranked_response = payload.get("ranked_response")
+    ranked_itinerary = payload.get("ranked_itinerary")
     if not isinstance(request_id, str) or not request_id.strip():
         logger.warning("Ranked message without valid id: %s", payload)
         return
-    if not isinstance(ranked_response, dict):
-        logger.warning("Ranked message without ranked_response: %s", payload)
+    if not isinstance(ranked_itinerary, dict):
+        logger.warning("Ranked message without ranked_itinerary: %s", payload)
         return
 
     message = {
         "type": "ranked",
         "id": request_id,
-        "ranked_response": ranked_response,
+        "itinerary_index": payload.get("itinerary_index"),
+        "itinerary_count": payload.get("itinerary_count"),
+        "ranked_itinerary": ranked_itinerary,
     }
 
     delivered = await connection_manager.send_to_request(request_id, message)

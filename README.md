@@ -161,12 +161,15 @@ In RabbitMQ transport, this object is wrapped as:
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["date", "options"],
+        "required": ["depart_date", "arrive_date", "from", "to", "options"],
         "properties": {
-          "date": { "type": "string", "format": "date" },
+          "depart_date": { "type": "string", "format": "date", "description": "Departure date (YYYY-MM-DD) of the 1st segment." },
+          "arrive_date": { "type": "string", "format": "date", "description": "Arrival date (YYYY-MM-DD) of the last segment." },
+          "from": { "type": "string", "description": "IATA airport code of origin." },
+          "to": { "type": "string", "description": "IATA airport code of destination." },
           "options": {
             "type": "array",
-            "description": "Amadeus flight offers for this leg/date.",
+            "description": "Amadeus flight offers for this leg.",
             "items": { "type": "object" }
           }
         }
@@ -196,9 +199,12 @@ In RabbitMQ transport, this object is wrapped as:
       "description": "Source input from provider_flight_response.flights.",
       "items": {
         "type": "object",
-        "required": ["date", "options"],
+        "required": ["depart_date", "arrive_date", "from", "to", "options"],
         "properties": {
-          "date": { "type": "string", "format": "date" },
+          "depart_date": { "type": "string", "format": "date", "description": "Departure date (YYYY-MM-DD) of the 1st segment." },
+          "arrive_date": { "type": "string", "format": "date", "description": "Arrival date (YYYY-MM-DD) of the last segment." },
+          "from": { "type": "string", "description": "IATA airport code of origin." },
+          "to": { "type": "string", "description": "IATA airport code of destination." },
           "options": { "type": "array", "items": { "type": "object" } }
         }
       }
@@ -207,13 +213,14 @@ In RabbitMQ transport, this object is wrapped as:
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["check_in", "check_out", "options"],
+        "required": ["city_code", "check_in", "check_out", "options"],
         "properties": {
+          "city_code": { "type": "string", "description": "IATA city/metropolitan area code." },
           "check_in": { "type": "string", "format": "date" },
           "check_out": { "type": "string", "format": "date" },
           "options": {
             "type": "array",
-            "description": "Hotel offers for this check-in/check-out window.",
+            "description": "Hotel offers for this city/check-in/check-out combination.",
             "items": { "type": "object" }
           }
         }
@@ -224,7 +231,96 @@ In RabbitMQ transport, this object is wrapped as:
 }
 ```
 
-### 5) MissingInfoMessage
+### 5) ComposedItineraryMessage
+
+Published by `itinerary_composer` for **each** composed itinerary individually.
+Each message carries a single itinerary (not a list) together with its index and the
+total count so the frontend can track progress.
+
+In RabbitMQ transport:
+`{ "id": "...", "itinerary_index": 0, "itinerary_count": N, "itinerary": <Itinerary> }`.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ComposedItineraryMessage",
+  "type": "object",
+  "required": ["id", "itinerary_index", "itinerary_count", "itinerary"],
+  "properties": {
+    "id": { "type": "string", "description": "Request correlation id." },
+    "itinerary_index": { "type": "integer", "description": "Zero-based index of this itinerary." },
+    "itinerary_count": { "type": "integer", "description": "Total number of itineraries for this request." },
+    "itinerary": {
+      "type": "object",
+      "required": ["flights", "hotels"],
+      "properties": {
+        "flights": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["depart_date", "arrive_date", "from", "to", "options"],
+            "properties": {
+              "depart_date": { "type": "string", "format": "date" },
+              "arrive_date": { "type": "string", "format": "date" },
+              "from": { "type": "string" },
+              "to": { "type": "string" },
+              "options": { "type": "array", "items": { "type": "object" } }
+            }
+          }
+        },
+        "hotels": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["city_code", "check_in", "check_out", "options"],
+            "properties": {
+              "city_code": { "type": "string" },
+              "check_in": { "type": "string", "format": "date" },
+              "check_out": { "type": "string", "format": "date" },
+              "options": { "type": "array", "items": { "type": "object" } }
+            }
+          }
+        }
+      }
+    }
+  },
+  "additionalProperties": true
+}
+```
+
+### 6) RankedItineraryResponse
+
+Published by `ranking_service` for **each** itinerary individually.
+Flight and hotel options inside the itinerary are scored and sorted by score descending.
+
+In RabbitMQ transport:
+`{ "id": "...", "itinerary_index": 0, "itinerary_count": N, "ranked_itinerary": <RankedItinerary> }`.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RankedItineraryResponse",
+  "type": "object",
+  "required": ["id", "itinerary_index", "itinerary_count", "ranked_itinerary"],
+  "properties": {
+    "id": { "type": "string", "description": "Request correlation id." },
+    "itinerary_index": { "type": "integer", "description": "Zero-based index of this itinerary." },
+    "itinerary_count": { "type": "integer", "description": "Total number of itineraries for this request." },
+    "ranked_itinerary": {
+      "type": "object",
+      "required": ["flights", "hotels"],
+      "description": "Same shape as ComposedItineraryMessage.itinerary but each option has a _ranking annotation.",
+      "properties": {
+        "flights": { "type": "array", "items": { "type": "object" } },
+        "hotels": { "type": "array", "items": { "type": "object" } }
+      }
+    }
+  },
+  "additionalProperties": true
+}
+```
+
+### 7) MissingInfoMessage
 
 Message published by `query_router` when the LLM cannot build a complete itinerary request
 and consumed by `endpoint_api` subscriber/websocket bridge.
@@ -269,7 +365,7 @@ and consumed by `endpoint_api` subscriber/websocket bridge.
 }
 ```
 
-### 6) DebugMessage
+### 8) DebugMessage
 
 Message consumed by `endpoint_api` debug subscriber and forwarded to the websocket
 request owner (correlated by request id). Current publishers use:
@@ -317,7 +413,7 @@ request owner (correlated by request id). Current publishers use:
 }
 ```
 
-### 7) StatusMessage
+### 9) StatusMessage
 
 Message consumed by `endpoint_api` status subscriber and forwarded to the websocket
 request owner (correlated by request id). Published by pipeline stages to report
@@ -347,15 +443,16 @@ user-facing processing progress.
 
 `exchange name` is configurable via `RABBITMQ_EXCHANGE` (default: `lifetravel_agent`) in all services.
 
-**Pipeline order:** (1) `inventory_flight_service` fetches flights → `itinerary:provider_flight_response`; (2) `inventory_hotel_service` fetches hotels → `itinerary:provider_response`; (3) `ranking_service` ranks → `itinerary:ranked`.
+**Pipeline order:** (1) `inventory_flight_service` fetches flights → `itinerary:provider_flight_response`; (2) `inventory_hotel_service` fetches hotels → `itinerary:provider_response`; (3) `itinerary_composer` builds itinerary chains and publishes each as a separate message → `itinerary:composed`; (4) `ranking_service` ranks flights/hotels within each itinerary → `itinerary:ranked`.
 
 | exchange name | routing key | message name | publishers services list | subscribers services list |
 | --- | --- | --- | --- | --- |
 | `lifetravel_agent` | `itinerary:user_request` | `UserRequestMessage` | `endpoint_api` | `query_router` |
 | `lifetravel_agent` | `itinerary:structured_request` | `StructuredRequest` | `query_router` | `inventory_flight_service` |
 | `lifetravel_agent` | `itinerary:provider_flight_response` | `ItineraryFlightResponse` | `inventory_flight_service` | `inventory_hotel_service` |
-| `lifetravel_agent` | `itinerary:provider_response` | `ItineraryInventoryResponse` | `inventory_hotel_service` | `ranking_service` |
+| `lifetravel_agent` | `itinerary:provider_response` | `ItineraryInventoryResponse` | `inventory_hotel_service` | `itinerary_composer` |
+| `lifetravel_agent` | `itinerary:composed` | `ComposedItineraryMessage` | `itinerary_composer` | `ranking_service` |
 | `lifetravel_agent` | `itinerary:ranked` | `RankedItineraryResponse` | `ranking_service` | `endpoint_api` |
 | `lifetravel_agent` | `itinerary:missing_info` | `MissingInfoMessage` (`structured_request.type = "missing_info"`) | `query_router` | `endpoint_api` |
-| `lifetravel_agent` | `status:message` | `StatusMessage` | `query_router`, `inventory_flight_service`, `inventory_hotel_service`, `ranking_service` | `endpoint_api` |
-| `lifetravel_agent` | `debug:message` | `DebugMessage` | `inventory_flight_service`, `inventory_hotel_service`, `query_router`, `ranking_service` | `endpoint_api` |
+| `lifetravel_agent` | `status:message` | `StatusMessage` | `query_router`, `inventory_flight_service`, `inventory_hotel_service`, `itinerary_composer`, `ranking_service` | `endpoint_api` |
+| `lifetravel_agent` | `debug:message` | `DebugMessage` | `inventory_flight_service`, `inventory_hotel_service`, `query_router`, `itinerary_composer`, `ranking_service` | `endpoint_api` |

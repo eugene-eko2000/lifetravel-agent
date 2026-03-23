@@ -109,7 +109,7 @@ flight class, hotel rating, etc.
 The structured output should be a JSON object that matches the following schema:
 {VALID_STRUCTURED_REQUEST_SCHEMA}.
 
-For flights, the from and to fields should be the IATA code of the airport.
+For flights, the from and to fields should be the IATA code of the city metropolitan area.
 Each leg must include depart_dates: an array of one or more candidate departure dates (YYYY-MM-DD);
 inventory will search flights for each date and merge options.
 For hotels, the city_code field should be the IATA code of the city metropolitan area.

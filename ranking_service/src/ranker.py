@@ -449,6 +449,10 @@ def _rank_flights(
             "ineligibility_reason": item["ineligibility_reason"],
         }
         ranked.append(offer)
+    ranked.sort(
+        key=lambda x: _safe_float((x.get("_ranking") or {}).get("score"), 0.0),
+        reverse=True,
+    )
     return ranked
 
 
@@ -619,55 +623,31 @@ def _rank_hotels_for_date(
             "ineligibility_reason": item["ineligibility_reason"],
         }
         ranked.append(offer)
+    ranked.sort(
+        key=lambda x: _safe_float((x.get("_ranking") or {}).get("score"), 0.0),
+        reverse=True,
+    )
     return ranked
 
 
-def _rank_itineraries(
-    itineraries_input: list[dict[str, Any]],
-    flight_constraints: dict[str, Any],
-    hotel_constraints: dict[str, Any],
-) -> list[dict[str, Any]]:
-    ranked: list[dict[str, Any]] = []
-    for item in itineraries_input:
-        flight_raw = item.get("flight")
-        hotels_raw = item.get("hotels")
-        flight_offer = flight_raw if isinstance(flight_raw, dict) else {}
-        if isinstance(hotels_raw, dict):
-            ranked_hotels = {
-                str(k): _rank_hotels_for_date(
-                    [x for x in v if isinstance(x, dict)], hotel_constraints
-                )
-                for k, v in hotels_raw.items()
-                if isinstance(v, list)
-            }
-        else:
-            hotels = hotels_raw if isinstance(hotels_raw, list) else []
-            hotels = [x for x in hotels if isinstance(x, dict)]
-            ranked_hotels = _rank_hotels_for_date(hotels, hotel_constraints)
+def rank_single_itinerary(itinerary: dict[str, Any]) -> dict[str, Any]:
+    """Rank flight and hotel options inside a single itinerary."""
+    if not isinstance(itinerary, dict):
+        return {"flights": [], "hotels": []}
 
-        ranked_flight_list = _rank_flights([flight_offer], flight_constraints)
-        ranked_flight = ranked_flight_list[0] if ranked_flight_list else flight_offer
+    flight_constraints: dict[str, Any] = {}
+    hotel_constraints: dict[str, Any] = {}
 
-        flight_ranking = ranked_flight.get("_ranking") if isinstance(ranked_flight, dict) else {}
-        flight_score = _safe_float(
-            flight_ranking.get("score") if isinstance(flight_ranking, dict) else 0.0,
-            0.0,
-        )
-        flight_eligible = bool(
-            flight_ranking.get("eligible") if isinstance(flight_ranking, dict) else True
-        )
-        ranked.append(
-            {
-                "flight": ranked_flight,
-                "hotels": ranked_hotels,
-                "_ranking": {
-                    "flight_score": round(flight_score, 2),
-                    "flight_eligible": flight_eligible,
-                },
-            }
-        )
+    flight_groups = [fg for fg in itinerary.get("flights", []) if isinstance(fg, dict)]
+    hotel_groups = [hg for hg in itinerary.get("hotels", []) if isinstance(hg, dict)]
 
-    return ranked
+    ranked_flights = _rank_flight_groups(flight_groups, flight_constraints)
+    ranked_hotels = _rank_hotel_stays(hotel_groups, hotel_constraints)
+
+    return {
+        "flights": ranked_flights,
+        "hotels": ranked_hotels,
+    }
 
 
 def _rank_flight_groups(
@@ -676,17 +656,18 @@ def _rank_flight_groups(
 ) -> list[dict[str, Any]]:
     ranked_groups: list[dict[str, Any]] = []
     for item in flights_input:
-        date_value = str(item.get("date", ""))
         options_raw = item.get("options")
         if not isinstance(options_raw, list):
             continue
         options = [x for x in options_raw if isinstance(x, dict)]
-        ranked_groups.append(
-            {
-                "date": date_value,
-                "options": _rank_flights(options, flight_constraints),
-            }
-        )
+        group: dict[str, Any] = {
+            "depart_date": str(item.get("depart_date", "")),
+            "arrive_date": str(item.get("arrive_date", "")),
+            "from": str(item.get("from", "")),
+            "to": str(item.get("to", "")),
+            "options": _rank_flights(options, flight_constraints),
+        }
+        ranked_groups.append(group)
     return ranked_groups
 
 
@@ -696,25 +677,27 @@ def _rank_hotel_stays(
 ) -> list[dict[str, Any]]:
     ranked_stays: list[dict[str, Any]] = []
     for item in hotels_input:
+        city_code = str(item.get("city_code", ""))
         check_in = str(item.get("check_in", ""))
         check_out = str(item.get("check_out", ""))
         options_raw = item.get("options")
         if not isinstance(options_raw, list):
             continue
         options = [x for x in options_raw if isinstance(x, dict)]
-        ranked_stays.append(
-            {
-                "check_in": check_in,
-                "check_out": check_out,
-                "options": _rank_hotels_for_date(options, hotel_constraints),
-            }
-        )
+        stay: dict[str, Any] = {
+            "check_in": check_in,
+            "check_out": check_out,
+            "options": _rank_hotels_for_date(options, hotel_constraints),
+        }
+        if city_code:
+            stay["city_code"] = city_code
+        ranked_stays.append(stay)
     return ranked_stays
 
 
 def rank_provider_response(provider_response: dict[str, Any]) -> dict[str, Any]:
     """
-    Ranking pipeline: score and annotate only.
+    Legacy ranking entry point for flat provider_response payloads.
 
     This function is intentionally defensive with payload parsing because provider
     payloads can vary by endpoint and version.
@@ -731,23 +714,6 @@ def rank_provider_response(provider_response: dict[str, Any]) -> dict[str, Any]:
         flight_constraints = {}
     if not isinstance(hotel_constraints, dict):
         hotel_constraints = {}
-
-    itineraries_raw = provider_response.get("itineraries")
-    if isinstance(itineraries_raw, list):
-        itineraries_input = [x for x in itineraries_raw if isinstance(x, dict)]
-        ranked_itineraries = _rank_itineraries(
-            itineraries_input,
-            flight_constraints,
-            hotel_constraints,
-        )
-        result = dict(provider_response)
-        result["itineraries"] = ranked_itineraries
-        result["ranking_meta"] = {
-            "pipeline": ["score", "annotate_only"],
-            "itinerary_count_in": len(itineraries_input),
-            "itinerary_count_out": len(ranked_itineraries),
-        }
-        return result
 
     flights_raw = provider_response.get("flights")
     hotels_raw = provider_response.get("hotels")

@@ -37,6 +37,43 @@ async def _emit_debug_message(
     except Exception:
         logger.exception("Failed to publish debug message")
 
+def _option_depart_dt(option: dict[str, Any]) -> str:
+    """Departure datetime of the 1st segment of the first itinerary."""
+    itineraries = option.get("itineraries")
+    if not isinstance(itineraries, list) or not itineraries:
+        return ""
+    segments = itineraries[0].get("segments")
+    if not isinstance(segments, list) or not segments:
+        return ""
+    dep = segments[0].get("departure")
+    if isinstance(dep, dict):
+        at = dep.get("at")
+        if isinstance(at, str) and at.strip():
+            return at.strip()
+    return ""
+
+
+def _option_arrive_dt(option: dict[str, Any]) -> str:
+    """Arrival datetime of the last segment of the first itinerary."""
+    itineraries = option.get("itineraries")
+    if not isinstance(itineraries, list) or not itineraries:
+        return ""
+    segments = itineraries[0].get("segments")
+    if not isinstance(segments, list) or not segments:
+        return ""
+    arr = segments[-1].get("arrival")
+    if isinstance(arr, dict):
+        at = arr.get("at")
+        if isinstance(at, str) and at.strip():
+            return at.strip()
+    return ""
+
+
+def _date_part(dt_str: str) -> str:
+    """Extract the YYYY-MM-DD date portion from a datetime string."""
+    return dt_str[:10] if len(dt_str) >= 10 else dt_str
+
+
 def _extract_structured_request(payload: dict[str, Any]) -> dict[str, Any]:
     structured_request = payload.get("structured_request")
     if not isinstance(structured_request, dict):
@@ -108,8 +145,10 @@ async def process_incoming_message(
     ]
     processed_results = await asyncio.gather(*tasks, return_exceptions=True)
 
-    merged_options: dict[int, list[dict[str, Any]]] = defaultdict(list)
-    primary_date: dict[int, str] = {}
+    GroupKey = tuple[str, str, str, str]
+    groups: dict[GroupKey, list[dict[str, Any]]] = defaultdict(list)
+    group_depart_dt: dict[GroupKey, str] = {}
+    group_arrive_dt: dict[GroupKey, str] = {}
 
     for translated, result in zip(flight_requests, processed_results):
         if isinstance(result, Exception):
@@ -130,28 +169,35 @@ async def process_incoming_message(
             )
             continue
 
-        request_type = translated.get("type")
-
-        if request_type == "flight":
-            leg_index = int(translated.get("leg_index") or 0)
-            if leg_index < 1:
-                continue
-            options = result.get("data") if isinstance(result, dict) else []
-            if not isinstance(options, list):
-                options = []
-            d = str(translated.get("date", "")).strip()
-            if leg_index not in primary_date and d:
-                primary_date[leg_index] = d
-            merged_options[leg_index].extend(
-                [x for x in options if isinstance(x, dict)]
-            )
+        if translated.get("type") != "flight":
             continue
 
-    for li in sorted(merged_options.keys()):
+        origin = str(translated.get("from", ""))
+        destination = str(translated.get("to", ""))
+        options = result.get("data") if isinstance(result, dict) else []
+        if not isinstance(options, list):
+            options = []
+        for opt in options:
+            if not isinstance(opt, dict):
+                continue
+            dep_dt = _option_depart_dt(opt)
+            arr_dt = _option_arrive_dt(opt)
+            key: GroupKey = (origin, destination, _date_part(dep_dt), _date_part(arr_dt))
+            groups[key].append(opt)
+            if key not in group_depart_dt and dep_dt:
+                group_depart_dt[key] = _date_part(dep_dt)
+                group_arrive_dt[key] = _date_part(arr_dt)
+
+    for key in sorted(groups.keys(), key=lambda k: (k[2], k[3], k[0], k[1])):
+        origin, destination, _, _ = key
+        opts = groups[key]
         results["flights"].append(
             {
-                "date": primary_date.get(li, ""),
-                "options": merged_options[li],
+                "depart_date": group_depart_dt.get(key, ""),
+                "arrive_date": group_arrive_dt.get(key, ""),
+                "from": origin,
+                "to": destination,
+                "options": opts,
             }
         )
 

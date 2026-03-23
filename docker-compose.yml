@@ -1,7 +1,7 @@
 services:
   # ── RabbitMQ ─────────────────────────────────────────────────────────────────
   rabbitmq:
-    image: rabbitmq:4-management
+    image: rabbitmq:latest
     ports:
       - "5672:5672"
       - "15672:15672"
@@ -115,7 +115,7 @@ services:
       AMADEUS_TOKEN_URL: ${AMADEUS_TOKEN_URL}
       AMADEUS_INTERVAL_BETWEEN_QUERIES: 1
       AMADEUS_HOTELS_OFFERS_LIMIT: 10
-      AMADEUS_MAX_HOTEL_OFFERS: 30
+      AMADEUS_MAX_HOTEL_OFFERS: 10
       AMADEUS_HOTELS_CITYCODE_RADIUS_KM: 15
       AMADEUS_HOTELS_LATLNG_RADIUS_KM: 5
       AMADEUS_CLIENT_ID: ${AMADEUS_CLIENT_ID:-}
@@ -164,13 +164,12 @@ services:
       AMQP_USER: ${AMQP_USER:-guest}
       AMQP_PASSWORD: ${AMQP_PASSWORD:-guest}
       RABBITMQ_EXCHANGE: lifetravel_agent
-      RABBITMQ_SUBSCRIBE_ROUTING_KEY: itinerary:provider_response
+      RABBITMQ_SUBSCRIBE_ROUTING_KEY: itinerary:composed
       RABBITMQ_PUBLISH_ROUTING_KEY: itinerary:ranked
       RABBITMQ_STATUS_ROUTING_KEY: status:message
-      RABBITMQ_QUEUE_NAME: ranking_service_provider_response_queue
+      RABBITMQ_QUEUE_NAME: ranking_service_composed_queue
     depends_on:
       rabbitmq:
         condition: service_healthy
-      inventory_hotel_service:
+      itinerary_composer:
         condition: service_started
-
