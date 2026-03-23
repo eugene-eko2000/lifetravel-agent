@@ -40,7 +40,7 @@ class _ProgressTracker:
                 )
             else:
                 await self._status_publisher(
-                    f"Fetching hotel options: {done} Amadeus requests processed."
+                    f"Fetching hotel options: {done} requests processed."
                 )
         except Exception:
             logger.warning("Failed to publish hotel progress status", exc_info=True)
