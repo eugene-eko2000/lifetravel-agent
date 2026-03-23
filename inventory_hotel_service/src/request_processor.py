@@ -17,7 +17,11 @@ StatusPublisher = Callable[[str], Awaitable[None]]
 class _ProgressTracker:
     """Asyncio-safe counter that publishes a status message after each increment."""
 
-    def __init__(self, total: int, status_publisher: StatusPublisher | None) -> None:
+    def __init__(
+        self,
+        total: int | None,
+        status_publisher: StatusPublisher | None,
+    ) -> None:
         self._total = total
         self._done = 0
         self._lock = asyncio.Lock()
@@ -30,9 +34,14 @@ class _ProgressTracker:
         if self._status_publisher is None:
             return
         try:
-            await self._status_publisher(
-                f"Fetching hotel options: {done}/{self._total} requests processed."
-            )
+            if self._total is not None:
+                await self._status_publisher(
+                    f"Fetching hotel options: {done}/{self._total} requests processed."
+                )
+            else:
+                await self._status_publisher(
+                    f"Fetching hotel options: {done} Amadeus requests processed."
+                )
         except Exception:
             logger.warning("Failed to publish hotel progress status", exc_info=True)
 
@@ -295,17 +304,21 @@ async def _fetch_hotels_for_request(
     req: dict[str, Any],
     request_id: str | None,
     debug_publisher: DebugPublisher | None,
+    progress_tracker: _ProgressTracker | None = None,
 ) -> list[dict[str, Any]]:
     stay = req.get("stay", {})
     mode = req.get("hotels_list_mode", "city")
+    on_response = progress_tracker.report if progress_tracker is not None else None
     try:
         if mode == "geocode":
             hotels_list_response = await sender.send_hotels_list_by_geocode(
                 query_params=req.get("query_params", {}),
+                on_response=on_response,
             )
         else:
             hotels_list_response = await sender.send_hotels_list(
                 query_params=req.get("query_params", {}),
+                on_response=on_response,
             )
     except Exception as error:
         await emit_debug_message(
@@ -338,25 +351,24 @@ async def _fetch_hotels_for_request(
             continue
         hotel_id_chunks.append(hotel_ids_chunk)
 
-    offers_tasks = []
-    for hotel_ids_chunk in hotel_id_chunks:
-        async def _send_offers_for_chunk(chunk: list[str]) -> dict[str, Any]:
-            return await sender.send_hotels_offers(
-                query_params={
-                    "hotelIds": ",".join(chunk),
-                    "adults": adults,
-                    "checkInDate": check_in,
-                    "checkOutDate": check_out,
-                    "roomQuantity": room_quantity,
-                    "currency": currency,
-                    "includeClosed": True,
-                },
-                debug_publisher=debug_publisher,
-                request_id=request_id,
-                debug_extra={"request": req},
-            )
+    async def _send_offers_for_chunk(chunk: list[str]) -> dict[str, Any]:
+        return await sender.send_hotels_offers(
+            query_params={
+                "hotelIds": ",".join(chunk),
+                "adults": adults,
+                "checkInDate": check_in,
+                "checkOutDate": check_out,
+                "roomQuantity": room_quantity,
+                "currency": currency,
+                "includeClosed": True,
+            },
+            debug_publisher=debug_publisher,
+            request_id=request_id,
+            debug_extra={"request": req},
+            on_response=on_response,
+        )
 
-        offers_tasks.append(_send_offers_for_chunk(hotel_ids_chunk))
+    offers_tasks = [_send_offers_for_chunk(chunk) for chunk in hotel_id_chunks]
 
     all_offers: list[dict[str, Any]] = []
     if offers_tasks:
@@ -415,7 +427,7 @@ async def process_incoming_message(
     cache: dict[str, list[dict[str, Any]]] = {}
     HotelGroupKey = tuple[str, str, str]
     hotel_groups: dict[HotelGroupKey, list[dict[str, Any]]] = {}
-    tracker = _ProgressTracker(len(stays_for_hotels), status_publisher)
+    progress_tracker = _ProgressTracker(None, status_publisher)
     for stay in stays_for_hotels:
         try:
             req = _build_hotel_request(stay, cfg)
@@ -427,19 +439,22 @@ async def process_incoming_message(
                 level="error",
                 payload={"stay": stay, "error": str(error)},
             )
-            await tracker.report()
             continue
         cache_key = _stay_cache_key(req)
         if cache_key not in cache:
             cache[cache_key] = await _fetch_hotels_for_request(
-                sender, cfg, req, request_id, debug_publisher
+                sender,
+                cfg,
+                req,
+                request_id,
+                debug_publisher,
+                progress_tracker=progress_tracker,
             )
         city_code = str(stay.get("city_code", "")).strip().upper()
         group_key: HotelGroupKey = (city_code, stay["check_in"], stay["check_out"])
         if group_key not in hotel_groups:
             hotel_groups[group_key] = []
         hotel_groups[group_key].extend(cache.get(cache_key, []))
-        await tracker.report()
 
     hotels_out: list[dict[str, Any]] = []
     for group_key in sorted(hotel_groups.keys()):

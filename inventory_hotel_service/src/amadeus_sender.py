@@ -1,11 +1,13 @@
 import asyncio
-from typing import Any
+from typing import Any, Awaitable, Callable
 
 import httpx
 
 from amadeus_interval import AmadeusQueryInterval
 from cfg import Cfg
 from debug_messages import DebugPublisher, emit_debug_message
+
+OnHotelResponse = Callable[[], Awaitable[None]]
 
 
 class AmadeusSender:
@@ -114,25 +116,37 @@ class AmadeusSender:
         self,
         query_params: dict[str, Any],
         headers: dict[str, str] | None = None,
+        *,
+        on_response: OnHotelResponse | None = None,
     ) -> dict[str, Any]:
-        return await self._authorized_request(
-            "GET",
-            self._cfg.amadeus_hotels_list_url,
-            params=query_params,
-            headers=headers,
-        )
+        try:
+            return await self._authorized_request(
+                "GET",
+                self._cfg.amadeus_hotels_list_url,
+                params=query_params,
+                headers=headers,
+            )
+        finally:
+            if on_response is not None:
+                await on_response()
 
     async def send_hotels_list_by_geocode(
         self,
         query_params: dict[str, Any],
         headers: dict[str, str] | None = None,
+        *,
+        on_response: OnHotelResponse | None = None,
     ) -> dict[str, Any]:
-        return await self._authorized_request(
-            "GET",
-            self._cfg.amadeus_hotels_list_by_geocode_url,
-            params=query_params,
-            headers=headers,
-        )
+        try:
+            return await self._authorized_request(
+                "GET",
+                self._cfg.amadeus_hotels_list_by_geocode_url,
+                params=query_params,
+                headers=headers,
+            )
+        finally:
+            if on_response is not None:
+                await on_response()
 
     async def send_hotels_offers(
         self,
@@ -142,25 +156,30 @@ class AmadeusSender:
         debug_publisher: DebugPublisher | None = None,
         request_id: str | None = None,
         debug_extra: dict[str, Any] | None = None,
+        on_response: OnHotelResponse | None = None,
     ) -> dict[str, Any]:
         try:
-            return await self._authorized_request(
-                "GET",
-                self._cfg.amadeus_hotels_offers_url,
-                params=query_params,
-                headers=headers,
-            )
-        except Exception as error:
-            # Published after internal 429 retries (and other failures) in _authorized_request.
-            payload: dict[str, Any] = {}
-            if debug_extra:
-                payload.update(debug_extra)
-            payload["error"] = str(error)
-            await emit_debug_message(
-                debug_publisher,
-                request_id,
-                "Failed to fetch hotels offers chunk",
-                level="error",
-                payload=payload,
-            )
-            raise
+            try:
+                return await self._authorized_request(
+                    "GET",
+                    self._cfg.amadeus_hotels_offers_url,
+                    params=query_params,
+                    headers=headers,
+                )
+            except Exception as error:
+                # Published after internal 429 retries (and other failures) in _authorized_request.
+                payload: dict[str, Any] = {}
+                if debug_extra:
+                    payload.update(debug_extra)
+                payload["error"] = str(error)
+                await emit_debug_message(
+                    debug_publisher,
+                    request_id,
+                    "Failed to fetch hotels offers chunk",
+                    level="error",
+                    payload=payload,
+                )
+                raise
+        finally:
+            if on_response is not None:
+                await on_response()
