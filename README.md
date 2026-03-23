@@ -54,7 +54,7 @@ chosen to align with those durations between adjacent legs.
     "prompt_id": { "type": "string" },
     "type": {
       "type": "string",
-      "const": ["valid_request"]
+      "const": "valid_request"
     },
     "output": {
       "type": "object",
@@ -146,7 +146,7 @@ chosen to align with those durations between adjacent legs.
 ### 3) Flight Provider Response Message
 
 Output produced by `inventory_flight_service.request_processor.process_incoming_message(...)`.
-Flights are grouped by requested departure date (one group per trip leg).
+Flights are grouped by `(depart_date, arrive_date, from, to)` — one group per unique combination.
 In RabbitMQ transport, this object is wrapped as:
 `{ "id": "...", "structured_request": {...}, "provider_flight_response": <ItineraryFlightResponse> }`.
 
@@ -455,4 +455,4 @@ user-facing processing progress.
 | `lifetravel_agent` | `itinerary:ranked` | `RankedItineraryResponse` | `ranking_service` | `endpoint_api` |
 | `lifetravel_agent` | `itinerary:missing_info` | `MissingInfoMessage` (`structured_request.type = "missing_info"`) | `query_router` | `endpoint_api` |
 | `lifetravel_agent` | `status:message` | `StatusMessage` | `query_router`, `inventory_flight_service`, `inventory_hotel_service`, `itinerary_composer`, `ranking_service` | `endpoint_api` |
-| `lifetravel_agent` | `debug:message` | `DebugMessage` | `inventory_flight_service`, `inventory_hotel_service`, `query_router`, `itinerary_composer`, `ranking_service` | `endpoint_api` |
+| `lifetravel_agent` | `debug:message` | `DebugMessage` | `inventory_flight_service`, `inventory_hotel_service`, `query_router`, `itinerary_composer` | `endpoint_api` |
