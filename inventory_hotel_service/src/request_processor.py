@@ -4,13 +4,37 @@ import logging
 import math
 from collections import defaultdict
 from datetime import datetime
-from typing import Any
+from typing import Any, Awaitable, Callable
 
 from amadeus_sender import AmadeusSender
 from cfg import Cfg
 from debug_messages import DebugPublisher, emit_debug_message
 
 logger = logging.getLogger("inventory_hotel_service.request_processor")
+StatusPublisher = Callable[[str], Awaitable[None]]
+
+
+class _ProgressTracker:
+    """Asyncio-safe counter that publishes a status message after each increment."""
+
+    def __init__(self, total: int, status_publisher: StatusPublisher | None) -> None:
+        self._total = total
+        self._done = 0
+        self._lock = asyncio.Lock()
+        self._status_publisher = status_publisher
+
+    async def report(self) -> None:
+        async with self._lock:
+            self._done += 1
+            done = self._done
+        if self._status_publisher is None:
+            return
+        try:
+            await self._status_publisher(
+                f"Fetching hotel options: {done}/{self._total} requests processed."
+            )
+        except Exception:
+            logger.warning("Failed to publish hotel progress status", exc_info=True)
 
 
 def _parse_iso_dt(value: Any) -> datetime | None:
@@ -363,6 +387,7 @@ async def process_incoming_message(
     incoming_body: bytes,
     request_id: str | None = None,
     debug_publisher: DebugPublisher | None = None,
+    status_publisher: StatusPublisher | None = None,
 ) -> dict[str, Any]:
     payload = json.loads(incoming_body.decode("utf-8"))
     structured_request = _extract_structured_request(payload)
@@ -390,6 +415,7 @@ async def process_incoming_message(
     cache: dict[str, list[dict[str, Any]]] = {}
     HotelGroupKey = tuple[str, str, str]
     hotel_groups: dict[HotelGroupKey, list[dict[str, Any]]] = {}
+    tracker = _ProgressTracker(len(stays_for_hotels), status_publisher)
     for stay in stays_for_hotels:
         try:
             req = _build_hotel_request(stay, cfg)
@@ -401,6 +427,7 @@ async def process_incoming_message(
                 level="error",
                 payload={"stay": stay, "error": str(error)},
             )
+            await tracker.report()
             continue
         cache_key = _stay_cache_key(req)
         if cache_key not in cache:
@@ -412,6 +439,7 @@ async def process_incoming_message(
         if group_key not in hotel_groups:
             hotel_groups[group_key] = []
         hotel_groups[group_key].extend(cache.get(cache_key, []))
+        await tracker.report()
 
     hotels_out: list[dict[str, Any]] = []
     for group_key in sorted(hotel_groups.keys()):

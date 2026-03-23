@@ -70,14 +70,12 @@ async def run_inventory_subscriber() -> None:
                                 payload=payload,
                             )
 
-                        await publish_status_message(
-                            exchange=exchange,
-                            routing_key=cfg.rabbitmq_status_routing_key,
-                            payload={
-                                "id": request_id,
-                                "message": "Fetching flight options...",
-                            },
-                        )
+                        async def _status_publisher(message: str) -> None:
+                            await publish_status_message(
+                                exchange=exchange,
+                                routing_key=cfg.rabbitmq_status_routing_key,
+                                payload={"id": request_id, "message": message},
+                            )
 
                         results = await process_incoming_message(
                             sender,
@@ -85,6 +83,7 @@ async def run_inventory_subscriber() -> None:
                             incoming.body,
                             request_id=request_id,
                             debug_publisher=_debug_publisher,
+                            status_publisher=_status_publisher,
                         )
 
                         outgoing_payload = {

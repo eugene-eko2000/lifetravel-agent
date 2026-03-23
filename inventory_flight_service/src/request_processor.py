@@ -10,6 +10,30 @@ from request_translator import translate_trip_request_to_amadeus_requests
 
 logger = logging.getLogger("inventory_flight_service.request_processor")
 DebugPublisher = Callable[[dict[str, Any]], Awaitable[None]]
+StatusPublisher = Callable[[str], Awaitable[None]]
+
+
+class _ProgressTracker:
+    """Asyncio-safe counter that publishes a status message after each increment."""
+
+    def __init__(self, total: int, status_publisher: StatusPublisher | None) -> None:
+        self._total = total
+        self._done = 0
+        self._lock = asyncio.Lock()
+        self._status_publisher = status_publisher
+
+    async def report(self) -> None:
+        async with self._lock:
+            self._done += 1
+            done = self._done
+        if self._status_publisher is None:
+            return
+        try:
+            await self._status_publisher(
+                f"Fetching flight options: {done}/{self._total} requests processed."
+            )
+        except Exception:
+            logger.warning("Failed to publish flight progress status", exc_info=True)
 
 
 async def _emit_debug_message(
@@ -125,6 +149,7 @@ async def process_incoming_message(
     incoming_body: bytes,
     request_id: str | None = None,
     debug_publisher: DebugPublisher | None = None,
+    status_publisher: StatusPublisher | None = None,
 ) -> dict[str, Any]:
     payload = json.loads(incoming_body.decode("utf-8"))
     structured_request = _extract_structured_request(payload)
@@ -133,16 +158,21 @@ async def process_incoming_message(
         "flights": [],
     }
     flight_requests = [x for x in translated_requests if x.get("type") == "flight"]
-    tasks = [
-        _process_translated_request(
-            sender,
-            cfg,
-            translated,
-            request_id=request_id,
-            debug_publisher=debug_publisher,
-        )
-        for translated in flight_requests
-    ]
+    tracker = _ProgressTracker(len(flight_requests), status_publisher)
+
+    async def _tracked(translated: dict[str, Any]) -> Any:
+        try:
+            return await _process_translated_request(
+                sender,
+                cfg,
+                translated,
+                request_id=request_id,
+                debug_publisher=debug_publisher,
+            )
+        finally:
+            await tracker.report()
+
+    tasks = [_tracked(t) for t in flight_requests]
     processed_results = await asyncio.gather(*tasks, return_exceptions=True)
 
     GroupKey = tuple[str, str, str, str]
