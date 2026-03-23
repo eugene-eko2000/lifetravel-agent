@@ -37,6 +37,8 @@ def _enumerate_chains(
     flight_groups: list[dict[str, Any]],
     hotels_by_city_checkin: dict[tuple[str, str], list[dict[str, Any]]],
     flights_by_origin_date: dict[tuple[str, str], list[dict[str, Any]]],
+    start_origin: str,
+    end_destination: str,
 ) -> list[dict[str, Any]]:
     itineraries: list[dict[str, Any]] = []
 
@@ -53,8 +55,14 @@ def _enumerate_chains(
         to_code = last_fg.get("to", "")
         arrive_date = _date_part(last_fg.get("arrive_date", ""))
 
+        if to_code == end_destination:
+            itineraries.append({
+                "flights": list(chain_flights),
+                "hotels": list(chain_hotels),
+            })
+            return
+
         matching_hotels = hotels_by_city_checkin.get((to_code, arrive_date), [])
-        extended = False
 
         for hg in matching_hotels:
             if len(itineraries) >= _MAX_ITINERARIES:
@@ -67,13 +75,10 @@ def _enumerate_chains(
             check_out = hg.get("check_out", "")
             next_flights = flights_by_origin_date.get((city_code, check_out), [])
 
-            has_next_flight = False
             for nfg in next_flights:
                 nfg_id = id(nfg)
                 if nfg_id in used_fg:
                     continue
-                has_next_flight = True
-                extended = True
                 chain_flights.append(nfg)
                 chain_hotels.append(hg)
                 used_fg.add(nfg_id)
@@ -84,23 +89,30 @@ def _enumerate_chains(
                 used_fg.discard(nfg_id)
                 used_hg.discard(hg_id)
 
-            if not has_next_flight:
-                extended = True
-                itineraries.append({
-                    "flights": list(chain_flights),
-                    "hotels": list(chain_hotels) + [hg],
-                })
-
-        if not extended:
-            itineraries.append({
-                "flights": list(chain_flights),
-                "hotels": list(chain_hotels),
-            })
-
     for fg in flight_groups:
-        _dfs([fg], [], {id(fg)}, set())
+        if fg.get("from", "") == start_origin:
+            _dfs([fg], [], {id(fg)}, set())
 
     return itineraries
+
+
+def _extract_trip_endpoints(payload: dict[str, Any]) -> tuple[str, str]:
+    """Return (start_origin, end_destination) from the structured request legs."""
+    sr = payload.get("structured_request")
+    if not isinstance(sr, dict):
+        return "", ""
+    output = sr.get("output", sr)
+    if not isinstance(output, dict):
+        return "", ""
+    trip = output.get("trip")
+    if not isinstance(trip, dict):
+        return "", ""
+    legs = trip.get("legs")
+    if not isinstance(legs, list) or not legs:
+        return "", ""
+    first_leg = legs[0] if isinstance(legs[0], dict) else {}
+    last_leg = legs[-1] if isinstance(legs[-1], dict) else {}
+    return str(first_leg.get("from", "")), str(last_leg.get("to", ""))
 
 
 async def compose_itinerary(payload: dict[str, Any]) -> dict[str, Any]:
@@ -117,14 +129,31 @@ async def compose_itinerary(payload: dict[str, Any]) -> dict[str, Any]:
         logger.info("No flight groups to compose (id=%s)", payload.get("id"))
         return {"itineraries": []}
 
+    start_origin, end_destination = _extract_trip_endpoints(payload)
+    if not start_origin or not end_destination:
+        logger.warning(
+            "Cannot determine trip start/end from structured_request (id=%s), "
+            "start=%r end=%r",
+            payload.get("id"),
+            start_origin,
+            end_destination,
+        )
+        return {"itineraries": []}
+
     hotels_by_city_checkin, flights_by_origin_date = _build_indexes(flight_groups, hotel_groups)
-    itineraries = _enumerate_chains(flight_groups, hotels_by_city_checkin, flights_by_origin_date)
+    itineraries = _enumerate_chains(
+        flight_groups, hotels_by_city_checkin, flights_by_origin_date,
+        start_origin, end_destination,
+    )
 
     logger.info(
-        "Composed %d itineraries from %d flight groups and %d hotel groups (id=%s)",
+        "Composed %d itineraries from %d flight groups and %d hotel groups "
+        "(start=%s, end=%s, id=%s)",
         len(itineraries),
         len(flight_groups),
         len(hotel_groups),
+        start_origin,
+        end_destination,
         payload.get("id"),
     )
     return {"itineraries": itineraries}
