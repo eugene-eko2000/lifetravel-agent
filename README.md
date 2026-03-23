@@ -252,7 +252,7 @@ In RabbitMQ transport:
     "itinerary_count": { "type": "integer", "description": "Total number of itineraries for this request." },
     "itinerary": {
       "type": "object",
-      "required": ["flights", "hotels"],
+      "required": ["flights", "hotels", "summary"],
       "properties": {
         "flights": {
           "type": "array",
@@ -279,6 +279,18 @@ In RabbitMQ transport:
               "check_out": { "type": "string", "format": "date" },
               "options": { "type": "array", "items": { "type": "object" } }
             }
+          }
+        },
+        "summary": {
+          "type": "object",
+          "required": ["total_duration_days", "total_flights_cost", "flights_currency", "total_hotels_cost", "hotels_currency"],
+          "description": "Cost and duration summary computed from cheapest options per group.",
+          "properties": {
+            "total_duration_days": { "type": "integer", "description": "Days between first departure and last arrival." },
+            "total_flights_cost": { "type": "number", "description": "Sum of cheapest flight option price per flight group." },
+            "flights_currency": { "type": "string", "description": "Currency from user request budgets.flights.currency." },
+            "total_hotels_cost": { "type": "number", "description": "Sum of cheapest hotel option price per hotel group." },
+            "hotels_currency": { "type": "string", "description": "Currency from user request budgets.hotels.currency." }
           }
         }
       }
@@ -308,11 +320,15 @@ In RabbitMQ transport:
     "itinerary_count": { "type": "integer", "description": "Total number of itineraries for this request." },
     "ranked_itinerary": {
       "type": "object",
-      "required": ["flights", "hotels"],
+      "required": ["flights", "hotels", "summary"],
       "description": "Same shape as ComposedItineraryMessage.itinerary but each option has a _ranking annotation.",
       "properties": {
         "flights": { "type": "array", "items": { "type": "object" } },
-        "hotels": { "type": "array", "items": { "type": "object" } }
+        "hotels": { "type": "array", "items": { "type": "object" } },
+        "summary": {
+          "type": "object",
+          "description": "Passed through from composed itinerary; see ComposedItineraryMessage.itinerary.summary."
+        }
       }
     }
   },

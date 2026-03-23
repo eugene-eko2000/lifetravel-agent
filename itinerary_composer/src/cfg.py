@@ -15,6 +15,7 @@ class Cfg:
     rabbitmq_debug_routing_key: str
     rabbitmq_status_routing_key: str
     rabbitmq_queue_name: str
+    exchange_rate_api_url: str
 
     @classmethod
     def from_env(cls) -> "Cfg":
@@ -44,6 +45,10 @@ class Cfg:
             rabbitmq_queue_name=os.getenv(
                 "RABBITMQ_QUEUE_NAME",
                 "itinerary_composer_provider_response_queue",
+            ),
+            exchange_rate_api_url=os.getenv(
+                "EXCHANGE_RATE_API_URL",
+                "https://api.frankfurter.app/latest",
             ),
         )
 

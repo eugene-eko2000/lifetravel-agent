@@ -644,10 +644,13 @@ def rank_single_itinerary(itinerary: dict[str, Any]) -> dict[str, Any]:
     ranked_flights = _rank_flight_groups(flight_groups, flight_constraints)
     ranked_hotels = _rank_hotel_stays(hotel_groups, hotel_constraints)
 
-    return {
+    result = {
         "flights": ranked_flights,
         "hotels": ranked_hotels,
     }
+    if "summary" in itinerary:
+        result["summary"] = itinerary["summary"]
+    return result
 
 
 def _rank_flight_groups(

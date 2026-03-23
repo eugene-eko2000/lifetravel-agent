@@ -1,13 +1,213 @@
 import logging
 from collections import defaultdict
+from datetime import date
 from typing import Any
 
+import aiohttp
+
 logger = logging.getLogger("itinerary_composer.composer")
+
+_RATE_CACHE: dict[str, dict[str, float]] = {}
 
 
 def _date_part(dt_str: str) -> str:
     """Extract YYYY-MM-DD from a datetime or date string."""
     return dt_str[:10] if len(dt_str) >= 10 else dt_str
+
+
+def _safe_float(value: Any, default: float = 0.0) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+# ---------------------------------------------------------------------------
+# Exchange-rate helpers (frankfurter.app – free, no API key, ECB data)
+# ---------------------------------------------------------------------------
+
+async def _fetch_rates(base: str, api_url: str) -> dict[str, float]:
+    """Return {TARGET: rate, …} for *base*.  Results are cached in-process."""
+    base = base.upper()
+    if base in _RATE_CACHE:
+        return _RATE_CACHE[base]
+    full_url = f"{api_url}?from={base}"
+    logger.info("Fetching exchange rates: %s", full_url)
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                api_url,
+                params={"from": base},
+                timeout=aiohttp.ClientTimeout(total=10),
+            ) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    rates = {k.upper(): float(v) for k, v in data.get("rates", {}).items()}
+                    rates[base] = 1.0
+                    _RATE_CACHE[base] = rates
+                    return rates
+                logger.warning("frankfurter.app returned %s for base=%s", resp.status, base)
+    except Exception:
+        logger.warning("Failed to fetch exchange rates for base=%s", base, exc_info=True)
+    return {base: 1.0}
+
+
+async def _prefetch_rates(currencies: set[str], api_url: str) -> dict[str, dict[str, float]]:
+    result: dict[str, dict[str, float]] = {}
+    for curr in currencies:
+        result[curr.upper()] = await _fetch_rates(curr, api_url)
+    return result
+
+
+def _convert(
+    amount: float,
+    from_curr: str,
+    to_curr: str,
+    rates_by_base: dict[str, dict[str, float]],
+) -> float:
+    from_curr = from_curr.upper()
+    to_curr = to_curr.upper()
+    if from_curr == to_curr:
+        return amount
+    rate = rates_by_base.get(from_curr, {}).get(to_curr, 1.0)
+    return amount * rate
+
+
+def _collect_option_currencies(provider_response: dict[str, Any]) -> set[str]:
+    currencies: set[str] = set()
+    for fg in provider_response.get("flights", []):
+        if not isinstance(fg, dict):
+            continue
+        for opt in fg.get("options", []):
+            if not isinstance(opt, dict):
+                continue
+            c = (opt.get("price") or {}).get("currency", "")
+            if c:
+                currencies.add(c.upper())
+    for hg in provider_response.get("hotels", []):
+        if not isinstance(hg, dict):
+            continue
+        for opt in hg.get("options", []):
+            if not isinstance(opt, dict):
+                continue
+            offers = opt.get("offers")
+            if isinstance(offers, list) and offers and isinstance(offers[0], dict):
+                c = (offers[0].get("price") or {}).get("currency", "")
+                if c:
+                    currencies.add(c.upper())
+    return currencies
+
+
+# ---------------------------------------------------------------------------
+# Min-price helpers (currency-aware)
+# ---------------------------------------------------------------------------
+
+def _min_flight_price(
+    options: list[dict[str, Any]],
+    target_currency: str,
+    rates: dict[str, dict[str, float]],
+) -> float:
+    best = float("inf")
+    target = target_currency.upper()
+    for opt in options:
+        price = opt.get("price")
+        if not isinstance(price, dict):
+            continue
+        val = _safe_float(price.get("grandTotal", price.get("total")), float("inf"))
+        if val == float("inf"):
+            continue
+        src = str(price.get("currency", "")).upper()
+        if src and src != target:
+            val = _convert(val, src, target, rates)
+        if val < best:
+            best = val
+    return best if best != float("inf") else 0.0
+
+
+def _min_hotel_price(
+    options: list[dict[str, Any]],
+    target_currency: str,
+    rates: dict[str, dict[str, float]],
+) -> float:
+    best = float("inf")
+    target = target_currency.upper()
+    for opt in options:
+        offers = opt.get("offers")
+        if not isinstance(offers, list) or not offers:
+            continue
+        first = offers[0] if isinstance(offers[0], dict) else {}
+        price = first.get("price")
+        if not isinstance(price, dict):
+            continue
+        val = _safe_float(price.get("total"), float("inf"))
+        if val == float("inf"):
+            continue
+        src = str(price.get("currency", "")).upper()
+        if src and src != target:
+            val = _convert(val, src, target, rates)
+        if val < best:
+            best = val
+    return best if best != float("inf") else 0.0
+
+
+# ---------------------------------------------------------------------------
+# Budget currency extraction & summary
+# ---------------------------------------------------------------------------
+
+def _extract_currencies(payload: dict[str, Any]) -> tuple[str, str]:
+    sr = payload.get("structured_request")
+    if not isinstance(sr, dict):
+        return "USD", "USD"
+    output = sr.get("output", sr)
+    if not isinstance(output, dict):
+        return "USD", "USD"
+    budgets = output.get("budgets")
+    if not isinstance(budgets, dict):
+        return "USD", "USD"
+    fb = budgets.get("flights") if isinstance(budgets.get("flights"), dict) else {}
+    hb = budgets.get("hotels") if isinstance(budgets.get("hotels"), dict) else {}
+    fc = str(fb.get("currency", "USD")).strip() or "USD"
+    hc = str(hb.get("currency", "USD")).strip() or "USD"
+    return fc, hc
+
+
+def _compute_summary(
+    itinerary: dict[str, Any],
+    flights_currency: str,
+    hotels_currency: str,
+    rates: dict[str, dict[str, float]],
+) -> dict[str, Any]:
+    flights = itinerary.get("flights", [])
+    hotels = itinerary.get("hotels", [])
+
+    total_days = 0
+    if flights:
+        try:
+            d1 = date.fromisoformat(flights[0].get("depart_date", ""))
+            d2 = date.fromisoformat(flights[-1].get("arrive_date", ""))
+            total_days = (d2 - d1).days
+        except (ValueError, TypeError):
+            pass
+
+    total_flights_cost = 0.0
+    for fg in flights:
+        opts = fg.get("options")
+        if isinstance(opts, list):
+            total_flights_cost += _min_flight_price(opts, flights_currency, rates)
+
+    total_hotels_cost = 0.0
+    for hg in hotels:
+        opts = hg.get("options")
+        if isinstance(opts, list):
+            total_hotels_cost += _min_hotel_price(opts, hotels_currency, rates)
+
+    return {
+        "total_duration_days": total_days,
+        "total_flights_cost": round(total_flights_cost, 2),
+        "flights_currency": flights_currency,
+        "total_hotels_cost": round(total_hotels_cost, 2),
+        "hotels_currency": hotels_currency,
+    }
 
 
 def _build_indexes(
@@ -115,7 +315,7 @@ def _extract_trip_endpoints(payload: dict[str, Any]) -> tuple[str, str]:
     return str(first_leg.get("from", "")), str(last_leg.get("to", ""))
 
 
-async def compose_itinerary(payload: dict[str, Any]) -> dict[str, Any]:
+async def compose_itinerary(payload: dict[str, Any], *, exchange_rate_api_url: str) -> dict[str, Any]:
     """Build all valid flight -> hotel -> flight -> ... chains from the inventory response."""
     provider_response = payload.get("provider_response")
     if not isinstance(provider_response, dict):
@@ -145,6 +345,12 @@ async def compose_itinerary(payload: dict[str, Any]) -> dict[str, Any]:
         flight_groups, hotels_by_city_checkin, flights_by_origin_date,
         start_origin, end_destination,
     )
+
+    flights_currency, hotels_currency = _extract_currencies(payload)
+    source_currencies = _collect_option_currencies(provider_response)
+    rates = await _prefetch_rates(source_currencies, exchange_rate_api_url)
+    for it in itineraries:
+        it["summary"] = _compute_summary(it, flights_currency, hotels_currency, rates)
 
     logger.info(
         "Composed %d itineraries from %d flight groups and %d hotel groups "
