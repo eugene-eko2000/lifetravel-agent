@@ -301,7 +301,42 @@ In RabbitMQ transport:
 }
 ```
 
-### 6) RankedItineraryResponse
+### 6) EmptyItineraryMessage
+
+Published by `itinerary_composer` when composition yields **no** itineraries (instead of publishing `itinerary:composed`). Consumed by `endpoint_api` and forwarded to the websocket as `type: "no_itineraries"`.
+
+Shape mirrors `query_router` LLM objects (`request_id`, `type`) with the user-facing text under `payload` (like `output` for valid requests).
+
+In RabbitMQ transport (routing key `itinerary:empty`):
+
+`{ "id": "...", "request_id": "...", "type": "no_itineraries", "payload": { "message": "No itinerary found for your request, please refine your request." } }`
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "EmptyItineraryMessage",
+  "type": "object",
+  "required": ["id", "request_id", "type", "payload"],
+  "properties": {
+    "id": { "type": "string", "description": "Pipeline correlation id (same as incoming provider message id)." },
+    "request_id": { "type": "string", "description": "Echo of structured_request.request_id when present." },
+    "type": { "type": "string", "const": "no_itineraries" },
+    "payload": {
+      "type": "object",
+      "required": ["message"],
+      "properties": {
+        "message": {
+          "type": "string",
+          "description": "User-facing explanation that no itinerary could be built."
+        }
+      }
+    }
+  },
+  "additionalProperties": true
+}
+```
+
+### 7) RankedItineraryResponse
 
 Published by `ranking_service` for **each** itinerary individually.
 Flight and hotel options inside the itinerary are scored and sorted by score descending.
@@ -338,7 +373,7 @@ In RabbitMQ transport:
 }
 ```
 
-### 7) MissingInfoMessage
+### 8) MissingInfoMessage
 
 Message published by `query_router` when the LLM cannot build a complete itinerary request
 and consumed by `endpoint_api` subscriber/websocket bridge.
@@ -383,7 +418,7 @@ and consumed by `endpoint_api` subscriber/websocket bridge.
 }
 ```
 
-### 8) DebugMessage
+### 9) DebugMessage
 
 Message consumed by `endpoint_api` debug subscriber and forwarded to the websocket
 request owner (correlated by request id). Current publishers use:
@@ -431,7 +466,7 @@ request owner (correlated by request id). Current publishers use:
 }
 ```
 
-### 9) StatusMessage
+### 10) StatusMessage
 
 Message consumed by `endpoint_api` status subscriber and forwarded to the websocket
 request owner (correlated by request id). Published by pipeline stages to report
@@ -461,7 +496,7 @@ user-facing processing progress.
 
 `exchange name` is configurable via `RABBITMQ_EXCHANGE` (default: `lifetravel_agent`) in all services.
 
-**Pipeline order:** (1) `inventory_flight_service` fetches flights → `itinerary:provider_flight_response`; (2) `inventory_hotel_service` fetches hotels → `itinerary:provider_response`; (3) `itinerary_composer` builds itinerary chains and publishes each as a separate message → `itinerary:composed`; (4) `ranking_service` ranks flights/hotels within each itinerary → `itinerary:ranked`.
+**Pipeline order:** (1) `inventory_flight_service` fetches flights → `itinerary:provider_flight_response`; (2) `inventory_hotel_service` fetches hotels → `itinerary:provider_response`; (3) `itinerary_composer` builds itinerary chains: if none are found it publishes `itinerary:empty`; otherwise it publishes each itinerary separately → `itinerary:composed`; (4) `ranking_service` ranks flights/hotels within each itinerary → `itinerary:ranked`.
 
 **Itinerary composer FX:** Set `EXCHANGE_RATE_APP_ID` in `.env` (passed through `docker-compose.yml` to `itinerary_composer`). It uses [Open Exchange Rates](https://openexchangerates.org/) `latest.json` with **base USD**; other currencies are converted via cross-rates (`amount_to = amount_from × (rate_to / rate_from)` where `rate_X` is units of X per 1 USD). If unset, summary totals are not converted when currencies differ.
 
@@ -472,6 +507,7 @@ user-facing processing progress.
 | `lifetravel_agent` | `itinerary:provider_flight_response` | `ItineraryFlightResponse` | `inventory_flight_service` | `inventory_hotel_service` |
 | `lifetravel_agent` | `itinerary:provider_response` | `ItineraryInventoryResponse` | `inventory_hotel_service` | `itinerary_composer` |
 | `lifetravel_agent` | `itinerary:composed` | `ComposedItineraryMessage` | `itinerary_composer` | `ranking_service` |
+| `lifetravel_agent` | `itinerary:empty` | `EmptyItineraryMessage` | `itinerary_composer` | `endpoint_api` |
 | `lifetravel_agent` | `itinerary:ranked` | `RankedItineraryResponse` | `ranking_service` | `endpoint_api` |
 | `lifetravel_agent` | `itinerary:missing_info` | `MissingInfoMessage` (`structured_request.type = "missing_info"`) | `query_router` | `endpoint_api` |
 | `lifetravel_agent` | `status:message` | `StatusMessage` | `query_router`, `inventory_flight_service`, `inventory_hotel_service`, `itinerary_composer`, `ranking_service` | `endpoint_api` |

@@ -29,6 +29,8 @@ services:
       RABBITMQ_MISSING_INFO_QUEUE: endpoint_api_missing_info_queue
       RABBITMQ_RANKED_ROUTING_KEY: itinerary:ranked
       RABBITMQ_RANKED_QUEUE: endpoint_api_ranked_queue
+      RABBITMQ_EMPTY_ITINERARY_ROUTING_KEY: itinerary:empty
+      RABBITMQ_EMPTY_ITINERARY_QUEUE: endpoint_api_empty_itinerary_queue
       RABBITMQ_DEBUG_ROUTING_KEY: debug:message
       RABBITMQ_DEBUG_QUEUE: endpoint_api_debug_queue
       RABBITMQ_STATUS_ROUTING_KEY: status:message
@@ -145,6 +147,7 @@ services:
       RABBITMQ_DEBUG_ROUTING_KEY: debug:message
       RABBITMQ_STATUS_ROUTING_KEY: status:message
       RABBITMQ_QUEUE_NAME: itinerary_composer_provider_response_queue
+      RABBITMQ_EMPTY_ITINERARY_ROUTING_KEY: itinerary:empty
       EXCHANGE_RATE_APP_ID: ${EXCHANGE_RATE_APP_ID:-}
     depends_on:
       rabbitmq:

@@ -15,6 +15,8 @@ class Cfg:
     rabbitmq_missing_info_queue: str
     rabbitmq_ranked_routing_key: str
     rabbitmq_ranked_queue: str
+    rabbitmq_empty_itinerary_routing_key: str
+    rabbitmq_empty_itinerary_queue: str
     rabbitmq_debug_routing_key: str
     rabbitmq_debug_queue: str
     rabbitmq_status_routing_key: str
@@ -48,6 +50,14 @@ class Cfg:
             rabbitmq_ranked_queue=os.getenv(
                 "RABBITMQ_RANKED_QUEUE",
                 "endpoint_api_ranked_queue",
+            ),
+            rabbitmq_empty_itinerary_routing_key=os.getenv(
+                "RABBITMQ_EMPTY_ITINERARY_ROUTING_KEY",
+                "itinerary:empty",
+            ),
+            rabbitmq_empty_itinerary_queue=os.getenv(
+                "RABBITMQ_EMPTY_ITINERARY_QUEUE",
+                "endpoint_api_empty_itinerary_queue",
             ),
             rabbitmq_debug_routing_key=os.getenv(
                 "RABBITMQ_DEBUG_ROUTING_KEY",

@@ -84,6 +84,43 @@ async def run_ranked_subscriber(
                         logger.exception("Failed handling ranked message")
 
 
+async def run_empty_itinerary_subscriber(
+    on_message: Callable[[dict[str, Any]], Awaitable[None]],
+) -> None:
+    cfg = Cfg.from_env()
+    logger.info(
+        "Starting empty-itinerary subscriber exchange=%s routing_key=%s queue=%s",
+        cfg.rabbitmq_exchange,
+        cfg.rabbitmq_empty_itinerary_routing_key,
+        cfg.rabbitmq_empty_itinerary_queue,
+    )
+
+    connection = await aio_pika.connect_robust(cfg.amqp_url)
+    async with connection:
+        channel = await connection.channel()
+        exchange = await channel.declare_exchange(
+            cfg.rabbitmq_exchange,
+            ExchangeType.DIRECT,
+            durable=True,
+        )
+        queue = await channel.declare_queue(cfg.rabbitmq_empty_itinerary_queue, durable=True)
+        await queue.bind(exchange, routing_key=cfg.rabbitmq_empty_itinerary_routing_key)
+
+        async with queue.iterator() as queue_iter:
+            async for incoming in queue_iter:
+                async with incoming.process():
+                    try:
+                        payload: dict[str, Any] = json.loads(incoming.body.decode("utf-8"))
+                    except Exception:
+                        logger.exception("Invalid JSON in empty-itinerary message")
+                        continue
+
+                    try:
+                        await on_message(payload)
+                    except Exception:
+                        logger.exception("Failed handling empty-itinerary message")
+
+
 async def run_debug_subscriber(
     on_message: Callable[[dict[str, Any]], Awaitable[None]],
 ) -> None:

@@ -13,6 +13,7 @@ from cfg import Cfg
 from rabbitmq_publisher import send_itinerary
 from rabbitmq_subscriber import (
     run_debug_subscriber,
+    run_empty_itinerary_subscriber,
     run_missing_info_subscriber,
     run_ranked_subscriber,
     run_status_subscriber,
@@ -117,6 +118,36 @@ async def _handle_missing_info_message(payload: dict) -> None:
         logger.warning("No active websocket mapping for missing_info id=%s", request_id)
 
 
+async def _handle_empty_itinerary_message(payload: dict) -> None:
+    request_id = payload.get("id")
+    if not isinstance(request_id, str) or not request_id.strip():
+        request_id = payload.get("request_id")
+    if not isinstance(request_id, str) or not request_id.strip():
+        logger.warning("Empty-itinerary message without valid id: %s", payload)
+        return
+
+    inner = payload.get("payload")
+    message_text = None
+    if isinstance(inner, dict):
+        message_text = inner.get("message")
+    if not isinstance(message_text, str) or not message_text.strip():
+        logger.warning("Empty-itinerary message without payload.message: %s", payload)
+        return
+
+    message = {
+        "type": "no_itineraries",
+        "id": request_id,
+        "request_id": payload.get("request_id"),
+        "payload": inner if isinstance(inner, dict) else {"message": message_text},
+    }
+
+    delivered = await connection_manager.send_to_request(request_id, message)
+    if delivered:
+        logger.info("Delivered empty-itinerary message to websocket for id=%s", request_id)
+    else:
+        logger.warning("No active websocket mapping for empty-itinerary id=%s", request_id)
+
+
 async def _handle_ranked_message(payload: dict) -> None:
     request_id = payload.get("id")
     ranked_itinerary = payload.get("ranked_itinerary")
@@ -195,6 +226,9 @@ async def on_startup() -> None:
     app.state.ranked_task = asyncio.create_task(
         run_ranked_subscriber(_handle_ranked_message)
     )
+    app.state.empty_itinerary_task = asyncio.create_task(
+        run_empty_itinerary_subscriber(_handle_empty_itinerary_message)
+    )
     app.state.debug_task = asyncio.create_task(
         run_debug_subscriber(_handle_debug_message)
     )
@@ -207,11 +241,13 @@ async def on_startup() -> None:
 async def on_shutdown() -> None:
     missing_info_task = getattr(app.state, "missing_info_task", None)
     ranked_task = getattr(app.state, "ranked_task", None)
+    empty_itinerary_task = getattr(app.state, "empty_itinerary_task", None)
     debug_task = getattr(app.state, "debug_task", None)
     status_task = getattr(app.state, "status_task", None)
     for name, task in (
         ("missing-info", missing_info_task),
         ("ranked", ranked_task),
+        ("empty-itinerary", empty_itinerary_task),
         ("debug", debug_task),
         ("status", status_task),
     ):

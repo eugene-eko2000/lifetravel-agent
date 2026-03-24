@@ -16,6 +16,7 @@ class Cfg:
     rabbitmq_debug_routing_key: str
     rabbitmq_status_routing_key: str
     rabbitmq_queue_name: str
+    rabbitmq_empty_itinerary_routing_key: str
     exchange_rate_app_id: str
 
     @classmethod
@@ -46,6 +47,10 @@ class Cfg:
             rabbitmq_queue_name=os.getenv(
                 "RABBITMQ_QUEUE_NAME",
                 "itinerary_composer_provider_response_queue",
+            ),
+            rabbitmq_empty_itinerary_routing_key=os.getenv(
+                "RABBITMQ_EMPTY_ITINERARY_ROUTING_KEY",
+                "itinerary:empty",
             ),
             exchange_rate_app_id=os.getenv("EXCHANGE_RATE_APP_ID", "").strip(),
         )

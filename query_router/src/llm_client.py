@@ -131,6 +131,8 @@ check-in = arrival date of leg N, check-out = departure date of leg N+1.
 For each stay, include duration as the number of nights/days in that location.
 Choose flight departure dates so the time between adjacent flight legs matches each stay duration.
 
+If the user specifies explicitly that hotels aren't needed, stays array should remain empty.
+
 If the user specifies a certain location, not only a city, please find a lat / lng
 for this location and put it into the location_latlng field. Leave the location_latlng empty
 if the user specifies only the city name or code.
