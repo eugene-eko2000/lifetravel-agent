@@ -1,5 +1,6 @@
 import os
 from dataclasses import dataclass
+from urllib.parse import urlencode
 
 
 @dataclass(frozen=True)
@@ -15,7 +16,7 @@ class Cfg:
     rabbitmq_debug_routing_key: str
     rabbitmq_status_routing_key: str
     rabbitmq_queue_name: str
-    exchange_rate_api_url: str
+    exchange_rate_app_id: str
 
     @classmethod
     def from_env(cls) -> "Cfg":
@@ -46,10 +47,17 @@ class Cfg:
                 "RABBITMQ_QUEUE_NAME",
                 "itinerary_composer_provider_response_queue",
             ),
-            exchange_rate_api_url=os.getenv(
-                "EXCHANGE_RATE_API_URL",
-                "https://api.frankfurter.app/latest",
-            ),
+            exchange_rate_app_id=os.getenv("EXCHANGE_RATE_APP_ID", "").strip(),
+        )
+
+    @property
+    def exchange_rate_latest_url(self) -> str:
+        """Open Exchange Rates latest.json; base is always USD for this API."""
+        if not self.exchange_rate_app_id:
+            return ""
+        return (
+            "https://openexchangerates.org/api/latest.json?"
+            + urlencode({"app_id": self.exchange_rate_app_id})
         )
 
     @property

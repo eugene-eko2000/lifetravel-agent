@@ -461,6 +461,8 @@ user-facing processing progress.
 
 **Pipeline order:** (1) `inventory_flight_service` fetches flights → `itinerary:provider_flight_response`; (2) `inventory_hotel_service` fetches hotels → `itinerary:provider_response`; (3) `itinerary_composer` builds itinerary chains and publishes each as a separate message → `itinerary:composed`; (4) `ranking_service` ranks flights/hotels within each itinerary → `itinerary:ranked`.
 
+**Itinerary composer FX:** Set `EXCHANGE_RATE_APP_ID` in `.env` (passed through `docker-compose.yml` to `itinerary_composer`). It uses [Open Exchange Rates](https://openexchangerates.org/) `latest.json` with **base USD**; other currencies are converted via cross-rates (`amount_to = amount_from × (rate_to / rate_from)` where `rate_X` is units of X per 1 USD). If unset, summary totals are not converted when currencies differ.
+
 | exchange name | routing key | message name | publishers services list | subscribers services list |
 | --- | --- | --- | --- | --- |
 | `lifetravel_agent` | `itinerary:user_request` | `UserRequestMessage` | `endpoint_api` | `query_router` |

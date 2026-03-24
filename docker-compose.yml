@@ -145,6 +145,7 @@ services:
       RABBITMQ_DEBUG_ROUTING_KEY: debug:message
       RABBITMQ_STATUS_ROUTING_KEY: status:message
       RABBITMQ_QUEUE_NAME: itinerary_composer_provider_response_queue
+      EXCHANGE_RATE_APP_ID: ${EXCHANGE_RATE_APP_ID:-}
     depends_on:
       rabbitmq:
         condition: service_healthy

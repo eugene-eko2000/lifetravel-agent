@@ -29,7 +29,10 @@ async def _handle_message(
         payload={"id": request_id, "message": "Composing itinerary..."},
     )
 
-    composed = await compose_itinerary(payload, exchange_rate_api_url=cfg.exchange_rate_api_url)
+    composed = await compose_itinerary(
+        payload,
+        exchange_rate_latest_url=cfg.exchange_rate_latest_url,
+    )
     itineraries = composed.get("itineraries", [])
 
     logger.info(

@@ -7,7 +7,8 @@ import aiohttp
 
 logger = logging.getLogger("itinerary_composer.composer")
 
-_RATE_CACHE: dict[str, dict[str, float]] = {}
+# Open Exchange Rates: one table per process, all rates vs USD (base USD).
+_USD_RATES_CACHE: dict[str, float] | None = None
 
 
 def _date_part(dt_str: str) -> str:
@@ -23,79 +24,98 @@ def _safe_float(value: Any, default: float = 0.0) -> float:
 
 
 # ---------------------------------------------------------------------------
-# Exchange-rate helpers (frankfurter.app – free, no API key, ECB data)
+# Exchange-rate helpers (Open Exchange Rates, base USD — cross-rates via USD)
 # ---------------------------------------------------------------------------
 
-async def _fetch_rates(base: str, api_url: str) -> dict[str, float]:
-    """Return {TARGET: rate, …} for *base*.  Results are cached in-process."""
-    base = base.upper()
-    if base in _RATE_CACHE:
-        return _RATE_CACHE[base]
-    full_url = f"{api_url}?from={base}"
-    logger.info("Fetching exchange rates: %s", full_url)
+def _mask_app_id_in_url(url: str) -> str:
+    """Avoid logging secrets."""
+    if "app_id=" not in url:
+        return url
+    prefix, _, rest = url.partition("app_id=")
+    amp = rest.find("&")
+    if amp >= 0:
+        return f"{prefix}app_id=***&{rest[amp + 1:]}"
+    return f"{prefix}app_id=***"
+
+
+async def _fetch_usd_rates(latest_url: str) -> dict[str, float]:
+    """
+    Return map currency_code -> units of that currency per 1 USD (Open Exchange Rates).
+    Cached once per process. See https://openexchangerates.org/
+    """
+    global _USD_RATES_CACHE
+    if _USD_RATES_CACHE is not None:
+        return _USD_RATES_CACHE
+    if not latest_url.strip():
+        logger.warning(
+            "EXCHANGE_RATE_APP_ID not set; itinerary cost summary uses no FX conversion "
+            "(amounts left numerically unchanged when currencies differ)."
+        )
+        _USD_RATES_CACHE = {"USD": 1.0}
+        return _USD_RATES_CACHE
+
+    logger.info("Fetching exchange rates (base=USD): %s", _mask_app_id_in_url(latest_url))
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(
-                api_url,
-                params={"from": base},
-                timeout=aiohttp.ClientTimeout(total=10),
+                latest_url,
+                timeout=aiohttp.ClientTimeout(total=15),
             ) as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    rates = {k.upper(): float(v) for k, v in data.get("rates", {}).items()}
-                    rates[base] = 1.0
-                    _RATE_CACHE[base] = rates
-                    return rates
-                logger.warning("frankfurter.app returned %s for base=%s", resp.status, base)
+                if resp.status != 200:
+                    logger.warning(
+                        "Open Exchange Rates returned HTTP %s",
+                        resp.status,
+                    )
+                    _USD_RATES_CACHE = {"USD": 1.0}
+                    return _USD_RATES_CACHE
+                data = await resp.json()
     except Exception:
-        logger.warning("Failed to fetch exchange rates for base=%s", base, exc_info=True)
-    return {base: 1.0}
+        logger.warning("Failed to fetch Open Exchange Rates", exc_info=True)
+        _USD_RATES_CACHE = {"USD": 1.0}
+        return _USD_RATES_CACHE
+
+    base = str(data.get("base", "USD")).upper()
+    if base != "USD":
+        logger.warning(
+            "Open Exchange Rates response base is %r (expected USD); cross-rate math may be wrong",
+            base,
+        )
+    raw_rates = data.get("rates")
+    if not isinstance(raw_rates, dict):
+        logger.warning("Open Exchange Rates response missing rates object")
+        _USD_RATES_CACHE = {"USD": 1.0}
+        return _USD_RATES_CACHE
+
+    rates: dict[str, float] = {}
+    for k, v in raw_rates.items():
+        try:
+            rates[str(k).upper()] = float(v)
+        except (TypeError, ValueError):
+            continue
+    rates.setdefault("USD", 1.0)
+    _USD_RATES_CACHE = rates
+    return _USD_RATES_CACHE
 
 
-async def _prefetch_rates(currencies: set[str], api_url: str) -> dict[str, dict[str, float]]:
-    result: dict[str, dict[str, float]] = {}
-    for curr in currencies:
-        result[curr.upper()] = await _fetch_rates(curr, api_url)
-    return result
-
-
-def _convert(
+def _convert_via_usd(
     amount: float,
     from_curr: str,
     to_curr: str,
-    rates_by_base: dict[str, dict[str, float]],
+    usd_rates: dict[str, float],
 ) -> float:
+    """
+    Convert amount using Open Exchange Rates convention: rate[X] = X per 1 USD.
+    Cross-rate: amount_to = amount_from * (rate_to / rate_from).
+    """
     from_curr = from_curr.upper()
     to_curr = to_curr.upper()
     if from_curr == to_curr:
         return amount
-    rate = rates_by_base.get(from_curr, {}).get(to_curr, 1.0)
-    return amount * rate
-
-
-def _collect_option_currencies(provider_response: dict[str, Any]) -> set[str]:
-    currencies: set[str] = set()
-    for fg in provider_response.get("flights", []):
-        if not isinstance(fg, dict):
-            continue
-        for opt in fg.get("options", []):
-            if not isinstance(opt, dict):
-                continue
-            c = (opt.get("price") or {}).get("currency", "")
-            if c:
-                currencies.add(c.upper())
-    for hg in provider_response.get("hotels", []):
-        if not isinstance(hg, dict):
-            continue
-        for opt in hg.get("options", []):
-            if not isinstance(opt, dict):
-                continue
-            offers = opt.get("offers")
-            if isinstance(offers, list) and offers and isinstance(offers[0], dict):
-                c = (offers[0].get("price") or {}).get("currency", "")
-                if c:
-                    currencies.add(c.upper())
-    return currencies
+    rate_from = usd_rates.get(from_curr)
+    rate_to = usd_rates.get(to_curr)
+    if rate_from is None or rate_from == 0.0 or rate_to is None:
+        return amount
+    return amount * (rate_to / rate_from)
 
 
 # ---------------------------------------------------------------------------
@@ -105,7 +125,7 @@ def _collect_option_currencies(provider_response: dict[str, Any]) -> set[str]:
 def _min_flight_price(
     options: list[dict[str, Any]],
     target_currency: str,
-    rates: dict[str, dict[str, float]],
+    usd_rates: dict[str, float],
 ) -> float:
     best = float("inf")
     target = target_currency.upper()
@@ -118,7 +138,7 @@ def _min_flight_price(
             continue
         src = str(price.get("currency", "")).upper()
         if src and src != target:
-            val = _convert(val, src, target, rates)
+            val = _convert_via_usd(val, src, target, usd_rates)
         if val < best:
             best = val
     return best if best != float("inf") else 0.0
@@ -127,7 +147,7 @@ def _min_flight_price(
 def _min_hotel_price(
     options: list[dict[str, Any]],
     target_currency: str,
-    rates: dict[str, dict[str, float]],
+    usd_rates: dict[str, float],
 ) -> float:
     best = float("inf")
     target = target_currency.upper()
@@ -144,7 +164,7 @@ def _min_hotel_price(
             continue
         src = str(price.get("currency", "")).upper()
         if src and src != target:
-            val = _convert(val, src, target, rates)
+            val = _convert_via_usd(val, src, target, usd_rates)
         if val < best:
             best = val
     return best if best != float("inf") else 0.0
@@ -175,7 +195,7 @@ def _compute_summary(
     itinerary: dict[str, Any],
     flights_currency: str,
     hotels_currency: str,
-    rates: dict[str, dict[str, float]],
+    usd_rates: dict[str, float],
 ) -> dict[str, Any]:
     flights = itinerary.get("flights", [])
     hotels = itinerary.get("hotels", [])
@@ -193,13 +213,13 @@ def _compute_summary(
     for fg in flights:
         opts = fg.get("options")
         if isinstance(opts, list):
-            total_flights_cost += _min_flight_price(opts, flights_currency, rates)
+            total_flights_cost += _min_flight_price(opts, flights_currency, usd_rates)
 
     total_hotels_cost = 0.0
     for hg in hotels:
         opts = hg.get("options")
         if isinstance(opts, list):
-            total_hotels_cost += _min_hotel_price(opts, hotels_currency, rates)
+            total_hotels_cost += _min_hotel_price(opts, hotels_currency, usd_rates)
 
     return {
         "total_duration_days": total_days,
@@ -315,7 +335,11 @@ def _extract_trip_endpoints(payload: dict[str, Any]) -> tuple[str, str]:
     return str(first_leg.get("from", "")), str(last_leg.get("to", ""))
 
 
-async def compose_itinerary(payload: dict[str, Any], *, exchange_rate_api_url: str) -> dict[str, Any]:
+async def compose_itinerary(
+    payload: dict[str, Any],
+    *,
+    exchange_rate_latest_url: str,
+) -> dict[str, Any]:
     """Build all valid flight -> hotel -> flight -> ... chains from the inventory response."""
     provider_response = payload.get("provider_response")
     if not isinstance(provider_response, dict):
@@ -347,10 +371,9 @@ async def compose_itinerary(payload: dict[str, Any], *, exchange_rate_api_url: s
     )
 
     flights_currency, hotels_currency = _extract_currencies(payload)
-    source_currencies = _collect_option_currencies(provider_response)
-    rates = await _prefetch_rates(source_currencies, exchange_rate_api_url)
+    usd_rates = await _fetch_usd_rates(exchange_rate_latest_url)
     for it in itineraries:
-        it["summary"] = _compute_summary(it, flights_currency, hotels_currency, rates)
+        it["summary"] = _compute_summary(it, flights_currency, hotels_currency, usd_rates)
 
     logger.info(
         "Composed %d itineraries from %d flight groups and %d hotel groups "
