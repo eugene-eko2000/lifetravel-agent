@@ -1,4 +1,6 @@
+import copy
 import logging
+import uuid
 from collections import defaultdict
 from datetime import date
 from typing import Any
@@ -276,9 +278,12 @@ def _enumerate_chains(
         arrive_date = _date_part(last_fg.get("arrive_date", ""))
 
         if to_code == end_destination:
+            # Deep copy so each itinerary is independent (no shared nested dicts) and
+            # assign a fresh id at creation time (one UUID per appended itinerary).
             itineraries.append({
-                "flights": list(chain_flights),
-                "hotels": list(chain_hotels),
+                "itinerary_id": str(uuid.uuid4()),
+                "flights": copy.deepcopy(chain_flights),
+                "hotels": copy.deepcopy(chain_hotels),
             })
             return
 

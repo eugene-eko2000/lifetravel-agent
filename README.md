@@ -252,8 +252,9 @@ In RabbitMQ transport:
     "itinerary_count": { "type": "integer", "description": "Total number of itineraries for this request." },
     "itinerary": {
       "type": "object",
-      "required": ["flights", "hotels", "summary"],
+      "required": ["itinerary_id", "flights", "hotels", "summary"],
       "properties": {
+        "itinerary_id": { "type": "string", "format": "uuid", "description": "Unique id for this composed itinerary instance." },
         "flights": {
           "type": "array",
           "items": {
@@ -320,9 +321,10 @@ In RabbitMQ transport:
     "itinerary_count": { "type": "integer", "description": "Total number of itineraries for this request." },
     "ranked_itinerary": {
       "type": "object",
-      "required": ["flights", "hotels", "summary"],
+      "required": ["itinerary_id", "flights", "hotels", "summary"],
       "description": "Same shape as ComposedItineraryMessage.itinerary but each option has a _ranking annotation.",
       "properties": {
+        "itinerary_id": { "type": "string", "format": "uuid", "description": "Passed through from composed itinerary." },
         "flights": { "type": "array", "items": { "type": "object" } },
         "hotels": { "type": "array", "items": { "type": "object" } },
         "summary": {
