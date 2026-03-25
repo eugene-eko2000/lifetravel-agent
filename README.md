@@ -237,6 +237,8 @@ Published by `itinerary_composer` for **each** composed itinerary individually.
 Each message carries a single itinerary (not a list) together with its index and the
 total count so the frontend can track progress.
 
+**Composition rules:** If `provider_response.hotels` is **empty**, itineraries use **flights only**: consecutive flights `A` then `B` are allowed when `A.to == B.from` and `A.arrive_date <= B.depart_date` (date-only), from trip start airport to trip end airport. If `hotels` is **non-empty**, composition is **hybrid** per intermediate stop: where there is hotel inventory for **(arrival city, arrival date)**, the chain uses **flight → hotel → flight** (next flight departs on hotel check-out from that city). Where there is **no** hotel for that stop, the chain continues with **flight → flight** using the same date/location edge rule as flight-only. Each itinerary is capped at 500 variants.
+
 In RabbitMQ transport:
 `{ "id": "...", "itinerary_index": 0, "itinerary_count": N, "itinerary": <Itinerary> }`.
 

@@ -255,13 +255,83 @@ def _build_indexes(
 _MAX_ITINERARIES = 500
 
 
-def _enumerate_chains(
+def _flight_edge_ok(last_fg: dict[str, Any], next_fg: dict[str, Any]) -> bool:
+    """
+    Valid direct flight connection: A.to == B.from and
+    A.arrive_date <= B.depart_date (date-only).
+    """
+    if str(last_fg.get("to", "")) != str(next_fg.get("from", "")):
+        return False
+    arr_s = _date_part(last_fg.get("arrive_date", ""))
+    dep_s = _date_part(next_fg.get("depart_date", ""))
+    if not arr_s or not dep_s:
+        return False
+    try:
+        arr_d = date.fromisoformat(arr_s)
+        dep_d = date.fromisoformat(dep_s)
+    except (ValueError, TypeError):
+        return False
+    return arr_d <= dep_d
+
+
+def _enumerate_flight_only_chains(
+    flight_groups: list[dict[str, Any]],
+    start_origin: str,
+    end_destination: str,
+) -> list[dict[str, Any]]:
+    """
+    When there is no hotel inventory: connect flights where A.to == B.from and
+    A.arrive_date <= B.depart_date (dates only). Hotels list is always empty.
+    """
+    itineraries: list[dict[str, Any]] = []
+
+    def _dfs(chain_flights: list[dict[str, Any]], used_fg: set[int]) -> None:
+        if len(itineraries) >= _MAX_ITINERARIES:
+            return
+
+        last_fg = chain_flights[-1]
+        to_code = str(last_fg.get("to", ""))
+        if to_code == end_destination:
+            itineraries.append({
+                "itinerary_id": str(uuid.uuid4()),
+                "flights": copy.deepcopy(chain_flights),
+                "hotels": [],
+            })
+            return
+
+        for nfg in flight_groups:
+            nfg_id = id(nfg)
+            if nfg_id in used_fg:
+                continue
+            if not _flight_edge_ok(last_fg, nfg):
+                continue
+            chain_flights.append(nfg)
+            used_fg.add(nfg_id)
+            _dfs(chain_flights, used_fg)
+            chain_flights.pop()
+            used_fg.discard(nfg_id)
+
+    for fg in flight_groups:
+        if str(fg.get("from", "")) == start_origin:
+            _dfs([fg], {id(fg)})
+
+    return itineraries
+
+
+def _enumerate_hybrid_chains(
     flight_groups: list[dict[str, Any]],
     hotels_by_city_checkin: dict[tuple[str, str], list[dict[str, Any]]],
     flights_by_origin_date: dict[tuple[str, str], list[dict[str, Any]]],
     start_origin: str,
     end_destination: str,
 ) -> list[dict[str, Any]]:
+    """
+    When some stops have hotel inventory and some do not:
+    - If (arrival city, arrival date) has hotel groups: extend with flight → hotel → flight
+      (next flight departs on hotel check-out).
+    - If there are no hotels for that stop: extend with the next flight only when
+      _flight_edge_ok (same rules as flight-only mode).
+    """
     itineraries: list[dict[str, Any]] = []
 
     def _dfs(
@@ -274,12 +344,10 @@ def _enumerate_chains(
             return
 
         last_fg = chain_flights[-1]
-        to_code = last_fg.get("to", "")
+        to_code = str(last_fg.get("to", ""))
         arrive_date = _date_part(last_fg.get("arrive_date", ""))
 
         if to_code == end_destination:
-            # Deep copy so each itinerary is independent (no shared nested dicts) and
-            # assign a fresh id at creation time (one UUID per appended itinerary).
             itineraries.append({
                 "itinerary_id": str(uuid.uuid4()),
                 "flights": copy.deepcopy(chain_flights),
@@ -289,33 +357,48 @@ def _enumerate_chains(
 
         matching_hotels = hotels_by_city_checkin.get((to_code, arrive_date), [])
 
-        for hg in matching_hotels:
-            if len(itineraries) >= _MAX_ITINERARIES:
-                return
-            hg_id = id(hg)
-            if hg_id in used_hg:
-                continue
+        if matching_hotels:
+            for hg in matching_hotels:
+                if len(itineraries) >= _MAX_ITINERARIES:
+                    return
+                hg_id = id(hg)
+                if hg_id in used_hg:
+                    continue
 
-            city_code = hg.get("city_code", "")
-            check_out = hg.get("check_out", "")
-            next_flights = flights_by_origin_date.get((city_code, check_out), [])
+                city_code = hg.get("city_code", "")
+                check_out = hg.get("check_out", "")
+                next_flights = flights_by_origin_date.get((city_code, check_out), [])
 
-            for nfg in next_flights:
+                for nfg in next_flights:
+                    nfg_id = id(nfg)
+                    if nfg_id in used_fg:
+                        continue
+                    chain_flights.append(nfg)
+                    chain_hotels.append(hg)
+                    used_fg.add(nfg_id)
+                    used_hg.add(hg_id)
+                    _dfs(chain_flights, chain_hotels, used_fg, used_hg)
+                    chain_flights.pop()
+                    chain_hotels.pop()
+                    used_fg.discard(nfg_id)
+                    used_hg.discard(hg_id)
+        else:
+            for nfg in flight_groups:
+                if len(itineraries) >= _MAX_ITINERARIES:
+                    return
                 nfg_id = id(nfg)
                 if nfg_id in used_fg:
                     continue
+                if not _flight_edge_ok(last_fg, nfg):
+                    continue
                 chain_flights.append(nfg)
-                chain_hotels.append(hg)
                 used_fg.add(nfg_id)
-                used_hg.add(hg_id)
                 _dfs(chain_flights, chain_hotels, used_fg, used_hg)
                 chain_flights.pop()
-                chain_hotels.pop()
                 used_fg.discard(nfg_id)
-                used_hg.discard(hg_id)
 
     for fg in flight_groups:
-        if fg.get("from", "") == start_origin:
+        if str(fg.get("from", "")) == start_origin:
             _dfs([fg], [], {id(fg)}, set())
 
     return itineraries
@@ -345,7 +428,11 @@ async def compose_itinerary(
     *,
     exchange_rate_latest_url: str,
 ) -> dict[str, Any]:
-    """Build all valid flight -> hotel -> flight -> ... chains from the inventory response."""
+    """
+    Build itineraries from the inventory response: flight-only when there are no hotels;
+    otherwise hybrid (hotel stay at stops where (city, arrival date) has inventory, else
+    direct flight connections between flights).
+    """
     provider_response = payload.get("provider_response")
     if not isinstance(provider_response, dict):
         logger.warning("No provider_response in payload (id=%s)", payload.get("id"))
@@ -369,11 +456,20 @@ async def compose_itinerary(
         )
         return {"itineraries": []}
 
-    hotels_by_city_checkin, flights_by_origin_date = _build_indexes(flight_groups, hotel_groups)
-    itineraries = _enumerate_chains(
-        flight_groups, hotels_by_city_checkin, flights_by_origin_date,
-        start_origin, end_destination,
-    )
+    if not hotel_groups:
+        itineraries = _enumerate_flight_only_chains(
+            flight_groups, start_origin, end_destination,
+        )
+        mode = "flight_only"
+    else:
+        hotels_by_city_checkin, flights_by_origin_date = _build_indexes(
+            flight_groups, hotel_groups,
+        )
+        itineraries = _enumerate_hybrid_chains(
+            flight_groups, hotels_by_city_checkin, flights_by_origin_date,
+            start_origin, end_destination,
+        )
+        mode = "hybrid"
 
     flights_currency, hotels_currency = _extract_currencies(payload)
     usd_rates = await _fetch_usd_rates(exchange_rate_latest_url)
@@ -381,9 +477,10 @@ async def compose_itinerary(
         it["summary"] = _compute_summary(it, flights_currency, hotels_currency, usd_rates)
 
     logger.info(
-        "Composed %d itineraries from %d flight groups and %d hotel groups "
+        "Composed %d itineraries (mode=%s) from %d flight groups and %d hotel groups "
         "(start=%s, end=%s, id=%s)",
         len(itineraries),
+        mode,
         len(flight_groups),
         len(hotel_groups),
         start_origin,
