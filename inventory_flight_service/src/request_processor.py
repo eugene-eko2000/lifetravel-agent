@@ -1,4 +1,5 @@
 import asyncio
+import copy
 import json
 import logging
 from collections import defaultdict
@@ -98,6 +99,126 @@ def _date_part(dt_str: str) -> str:
     return dt_str[:10] if len(dt_str) >= 10 else dt_str
 
 
+def _halve_numeric_price_strings(price_dict: dict[str, Any]) -> None:
+    """Halve common Amadeus price fields in-place (round-trip → per-leg share)."""
+    for k in ("grandTotal", "total", "base"):
+        v = price_dict.get(k)
+        if isinstance(v, str) and v.strip():
+            try:
+                x = float(v)
+                price_dict[k] = f"{x / 2.0:.2f}"
+            except ValueError:
+                pass
+        elif isinstance(v, (int, float)):
+            price_dict[k] = round(float(v) / 2.0, 2)
+
+
+def _halve_prices_in_offer(option: dict[str, Any]) -> None:
+    p = option.get("price")
+    if isinstance(p, dict):
+        _halve_numeric_price_strings(p)
+    tps = option.get("travelerPricings")
+    if isinstance(tps, list):
+        for tp in tps:
+            if isinstance(tp, dict) and isinstance(tp.get("price"), dict):
+                _halve_numeric_price_strings(tp["price"])
+
+
+def _segment_dep_iata(seg: dict[str, Any]) -> str:
+    dep = seg.get("departure")
+    if isinstance(dep, dict):
+        code = dep.get("iataCode")
+        if isinstance(code, str) and code.strip():
+            return code.strip().upper()
+    return ""
+
+
+def _split_segments_for_roundtrip(
+    segments: list[dict[str, Any]],
+    *,
+    return_from: str,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]] | None:
+    """Split at first segment departing from return_from (second leg origin)."""
+    rf = return_from.strip().upper()
+    if not rf:
+        return None
+    j = None
+    for idx, seg in enumerate(segments):
+        if isinstance(seg, dict) and _segment_dep_iata(seg) == rf:
+            j = idx
+            break
+    if j is None or j == 0:
+        return None
+    return segments[:j], segments[j:]
+
+
+def _split_roundtrip_offer_to_legs(
+    option: dict[str, Any],
+    *,
+    return_from: str,
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    """
+    Split an Amadeus round-trip offer into outbound-only and return-only options.
+    Prefers two itineraries; falls back to splitting segments in a single itinerary.
+    Prices are halved per leg so downstream totals do not double-count RT fare.
+    """
+    itins = option.get("itineraries")
+    if not isinstance(itins, list) or not itins:
+        return None, None
+
+    if len(itins) >= 2:
+        out_itin = itins[0]
+        ret_itin = itins[1]
+        if not isinstance(out_itin, dict) or not isinstance(ret_itin, dict):
+            return None, None
+        out_opt = copy.deepcopy(option)
+        out_opt["itineraries"] = [copy.deepcopy(out_itin)]
+        ret_opt = copy.deepcopy(option)
+        ret_opt["itineraries"] = [copy.deepcopy(ret_itin)]
+        _halve_prices_in_offer(out_opt)
+        _halve_prices_in_offer(ret_opt)
+        return out_opt, ret_opt
+
+    first = itins[0]
+    if not isinstance(first, dict):
+        return None, None
+    segs = first.get("segments")
+    if not isinstance(segs, list) or len(segs) < 2:
+        return None, None
+    split = _split_segments_for_roundtrip(segs, return_from=return_from)
+    if split is None:
+        return None, None
+    out_segs, ret_segs = split
+    out_itin = copy.deepcopy(first)
+    out_itin["segments"] = list(out_segs)
+    ret_itin = copy.deepcopy(first)
+    ret_itin["segments"] = list(ret_segs)
+    out_opt = copy.deepcopy(option)
+    out_opt["itineraries"] = [out_itin]
+    ret_opt = copy.deepcopy(option)
+    ret_opt["itineraries"] = [ret_itin]
+    _halve_prices_in_offer(out_opt)
+    _halve_prices_in_offer(ret_opt)
+    return out_opt, ret_opt
+
+
+def _append_option_to_groups(
+    groups: dict[tuple[str, str, str, str], list[dict[str, Any]]],
+    group_depart_dt: dict[tuple[str, str, str, str], str],
+    group_arrive_dt: dict[tuple[str, str, str, str], str],
+    origin: str,
+    destination: str,
+    opt: dict[str, Any],
+) -> None:
+    dep_dt = _option_depart_dt(opt)
+    arr_dt = _option_arrive_dt(opt)
+    key = (origin, destination, _date_part(dep_dt), _date_part(arr_dt))
+    groups[key].append(opt)
+    if key not in group_depart_dt and dep_dt:
+        group_depart_dt[key] = _date_part(dep_dt)
+        group_arrive_dt[key] = _date_part(arr_dt)
+
+
 def _extract_structured_request(payload: dict[str, Any]) -> dict[str, Any]:
     structured_request = payload.get("structured_request")
     if not isinstance(structured_request, dict):
@@ -120,7 +241,7 @@ async def _process_translated_request(
     request_type = translated.get("type")
     _ = cfg
 
-    if request_type == "flight":
+    if request_type in ("flight", "flight_roundtrip"):
         try:
             return await sender.send_flights_offers(
                 payload=translated.get("payload", {}),
@@ -157,7 +278,9 @@ async def process_incoming_message(
     results: dict[str, Any] = {
         "flights": [],
     }
-    flight_requests = [x for x in translated_requests if x.get("type") == "flight"]
+    flight_requests = [
+        x for x in translated_requests if x.get("type") in ("flight", "flight_roundtrip")
+    ]
     tracker = _ProgressTracker(len(flight_requests), status_publisher)
 
     async def _tracked(translated: dict[str, Any]) -> Any:
@@ -199,14 +322,51 @@ async def process_incoming_message(
             )
             continue
 
-        if translated.get("type") != "flight":
+        if translated.get("type") not in ("flight", "flight_roundtrip"):
+            continue
+
+        options = result.get("data") if isinstance(result, dict) else []
+        if not isinstance(options, list):
+            options = []
+
+        if translated.get("type") == "flight_roundtrip":
+            origin_o = str(translated.get("from", ""))
+            dest_o = str(translated.get("to", ""))
+            origin_r = str(translated.get("return_from", ""))
+            dest_r = str(translated.get("return_to", ""))
+            for opt in options:
+                if not isinstance(opt, dict):
+                    continue
+                out_opt, ret_opt = _split_roundtrip_offer_to_legs(
+                    opt,
+                    return_from=origin_r,
+                )
+                if out_opt is None or ret_opt is None:
+                    logger.warning(
+                        "Could not split round-trip offer into legs; skipping (offer id=%s)",
+                        opt.get("id"),
+                    )
+                    continue
+                _append_option_to_groups(
+                    groups,
+                    group_depart_dt,
+                    group_arrive_dt,
+                    origin_o,
+                    dest_o,
+                    out_opt,
+                )
+                _append_option_to_groups(
+                    groups,
+                    group_depart_dt,
+                    group_arrive_dt,
+                    origin_r,
+                    dest_r,
+                    ret_opt,
+                )
             continue
 
         origin = str(translated.get("from", ""))
         destination = str(translated.get("to", ""))
-        options = result.get("data") if isinstance(result, dict) else []
-        if not isinstance(options, list):
-            options = []
         for opt in options:
             if not isinstance(opt, dict):
                 continue

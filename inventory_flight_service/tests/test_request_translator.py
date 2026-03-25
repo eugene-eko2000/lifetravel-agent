@@ -108,5 +108,52 @@ class RequestTranslatorTest(unittest.TestCase):
         self.assertEqual(flight_payload["searchCriteria"]["maxFlightOffers"], 10)
 
 
+class RoundTripTranslatorTest(unittest.TestCase):
+    def test_consecutive_reverse_legs_use_single_roundtrip_request(self) -> None:
+        cfg = Cfg.from_env()
+        trip = {
+            "trip": {
+                "travelers": 1,
+                "legs": [
+                    {"from": "ZRH", "to": "LAX", "depart_dates": ["2026-06-01"]},
+                    {"from": "LAX", "to": "ZRH", "depart_dates": ["2026-06-10"]},
+                ],
+            },
+        }
+        translated = translate_trip_request_to_amadeus_requests(trip, cfg)
+        self.assertEqual(len(translated), 1)
+        item = translated[0]
+        self.assertEqual(item["type"], "flight_roundtrip")
+        self.assertEqual(item["leg_index_out"], 1)
+        self.assertEqual(item["leg_index_return"], 2)
+        self.assertEqual(item["outbound_date"], "2026-06-01")
+        self.assertEqual(item["return_date"], "2026-06-10")
+        ods = item["payload"]["originDestinations"]
+        self.assertEqual(len(ods), 2)
+        self.assertEqual(ods[0]["id"], "1")
+        self.assertEqual(ods[0]["originLocationCode"], "ZRH")
+        self.assertEqual(ods[0]["destinationLocationCode"], "LAX")
+        self.assertEqual(ods[0]["departureDateTimeRange"]["date"], "2026-06-01")
+        self.assertEqual(ods[1]["id"], "2")
+        self.assertEqual(ods[1]["originLocationCode"], "LAX")
+        self.assertEqual(ods[1]["destinationLocationCode"], "ZRH")
+        self.assertEqual(ods[1]["departureDateTimeRange"]["date"], "2026-06-10")
+
+    def test_roundtrip_date_cartesian_emits_multiple_requests(self) -> None:
+        cfg = Cfg.from_env()
+        trip = {
+            "trip": {
+                "travelers": 1,
+                "legs": [
+                    {"from": "A", "to": "B", "depart_dates": ["2026-01-01", "2026-01-02"]},
+                    {"from": "B", "to": "A", "depart_dates": ["2026-01-10"]},
+                ],
+            },
+        }
+        translated = translate_trip_request_to_amadeus_requests(trip, cfg)
+        self.assertEqual(len(translated), 2)
+        self.assertTrue(all(t["type"] == "flight_roundtrip" for t in translated))
+
+
 if __name__ == "__main__":
     unittest.main()
