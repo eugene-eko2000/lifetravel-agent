@@ -114,6 +114,12 @@ Each leg must include depart_dates: an array of one or more candidate departure 
 inventory will search flights for each date and merge options.
 For hotels, the city_code field should be the IATA code of the city metropolitan area.
 
+The user can specify departure dates range in a free form. In this case consider multiple departure
+dates within a given range.
+Example: from 01.05.2026 th 03.05.2026 means 3 departure dates: 01.05.2026, 02.05.2026, 03.05.2026.
+Or if the user says "01.05.2026 with possible range three days" means 6 departure dates: 28.04.2026,
+29.04.2026, 30.04.2026, 01.05.2026, 02.05.2026, 03.05.2026, 04.05.2026.
+
 The flight legs requests should consider different arrival dates variants for each leg.
 Each following leg should have multiple departure dates options. The 1st leg is to have
 one departure date equal to the trip start date. the second one should have two departure dates,
