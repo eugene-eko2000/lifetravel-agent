@@ -122,11 +122,13 @@ For hotels, the city_code field should be the IATA code of the city metropolitan
 If the user prefers specific airlines, set trip.airline_preferences to an array of IATA airline codes
 (two letters, e.g. LH, BA, QR). Omit airline_preferences or use an empty array when not specified.
 
-The user can specify departure dates range in a free form. In this case consider multiple departure
+The user can specify beginning and end dates range in a free form. In this case consider multiple departure
 dates within a given range.
-Example: from 01.05.2026 th 03.05.2026 means 3 departure dates: 01.05.2026, 02.05.2026, 03.05.2026.
-Or if the user says "01.05.2026 with possible range three days" means 6 departure dates: 28.04.2026,
-29.04.2026, 30.04.2026, 01.05.2026, 02.05.2026, 03.05.2026, 04.05.2026.
+Example: from 01.05.2026 to 03.05.2026 means 3 beginning dates: 01.05.2026, 02.05.2026, 03.05.2026.
+Or if the user says "01.05.2026 with possible range three days" means 6 beginning dates: 28.04.2026,
+29.04.2026, 30.04.2026, 01.05.2026, 02.05.2026, 03.05.2026, 04.05.2026. Consider all possible free forms
+of specifying a relaxed range of beginning and end dates, like "from 01.05.2026 to 03.05.2026" or
+"from 01.05.2026 to 03.05.2026".
 
 The flight legs requests should consider different arrival dates variants for each leg.
 Each following leg should have multiple departure dates options. The 1st leg is to have
