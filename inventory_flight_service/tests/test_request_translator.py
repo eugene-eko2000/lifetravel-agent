@@ -155,5 +155,46 @@ class RoundTripTranslatorTest(unittest.TestCase):
         self.assertTrue(all(t["type"] == "flight_roundtrip" for t in translated))
 
 
+class AirlinePreferencesTranslatorTest(unittest.TestCase):
+    def test_included_carrier_codes_on_one_way_requests(self) -> None:
+        cfg = Cfg.from_env()
+        trip = {
+            "trip": {
+                "travelers": 1,
+                "airline_preferences": ["lh", "LX", "LH"],
+                "legs": [
+                    {"from": "ZRH", "to": "LHR", "depart_dates": ["2026-06-01"]},
+                ],
+            },
+        }
+        translated = translate_trip_request_to_amadeus_requests(trip, cfg)
+        self.assertEqual(len(translated), 1)
+        sc = translated[0]["payload"]["searchCriteria"]
+        self.assertEqual(sc["maxFlightOffers"], 10)
+        self.assertIn("flightFilters", sc)
+        cr = sc["flightFilters"]["carrierRestrictions"]
+        self.assertEqual(cr["includedCarrierCodes"], ["LH", "LX"])
+
+    def test_roundtrip_includes_carrier_restrictions(self) -> None:
+        cfg = Cfg.from_env()
+        trip = {
+            "trip": {
+                "travelers": 1,
+                "airline_preferences": ["QR"],
+                "legs": [
+                    {"from": "ZRH", "to": "DOH", "depart_dates": ["2026-06-01"]},
+                    {"from": "DOH", "to": "ZRH", "depart_dates": ["2026-06-10"]},
+                ],
+            },
+        }
+        translated = translate_trip_request_to_amadeus_requests(trip, cfg)
+        self.assertEqual(len(translated), 1)
+        sc = translated[0]["payload"]["searchCriteria"]
+        self.assertEqual(
+            sc["flightFilters"]["carrierRestrictions"]["includedCarrierCodes"],
+            ["QR"],
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

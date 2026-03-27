@@ -176,27 +176,144 @@ def _min_hotel_price(
 # Budget currency extraction & summary
 # ---------------------------------------------------------------------------
 
-def _extract_currencies(payload: dict[str, Any]) -> tuple[str, str]:
+def _extract_itinerary_currency(payload: dict[str, Any]) -> str:
+    """
+    Single display currency for the trip: budgets.itinerary.currency if set, else
+    flights budget currency, else hotels budget currency, else USD.
+    """
     sr = payload.get("structured_request")
     if not isinstance(sr, dict):
-        return "USD", "USD"
+        return "USD"
     output = sr.get("output", sr)
     if not isinstance(output, dict):
-        return "USD", "USD"
+        return "USD"
     budgets = output.get("budgets")
     if not isinstance(budgets, dict):
-        return "USD", "USD"
+        return "USD"
+    itin_b = budgets.get("itinerary")
+    if isinstance(itin_b, dict):
+        c = str(itin_b.get("currency", "")).strip()
+        if c:
+            return c.upper()
     fb = budgets.get("flights") if isinstance(budgets.get("flights"), dict) else {}
+    fc = str(fb.get("currency", "")).strip()
+    if fc:
+        return fc.upper()
     hb = budgets.get("hotels") if isinstance(budgets.get("hotels"), dict) else {}
-    fc = str(fb.get("currency", "USD")).strip() or "USD"
-    hc = str(hb.get("currency", "USD")).strip() or "USD"
-    return fc, hc
+    hc = str(hb.get("currency", "")).strip()
+    if hc:
+        return hc.upper()
+    return "USD"
+
+
+# Keys whose values are monetary amounts in the dict's `currency` (when present).
+_AMOUNT_FIELD_NAMES = frozenset({
+    "grandTotal",
+    "total",
+    "base",
+    "amount",
+    "price_per_night",
+})
+
+
+def _is_convertible_amount(val: Any) -> bool:
+    if isinstance(val, bool):
+        return False
+    if isinstance(val, (int, float)):
+        return True
+    if isinstance(val, str) and val.strip():
+        try:
+            float(val)
+            return True
+        except (TypeError, ValueError):
+            return False
+    return False
+
+
+def _set_itinerary_currency_field(
+    parent: dict[str, Any],
+    field: str,
+    raw_value: Any,
+    source_currency: str,
+    itinerary_currency: str,
+    usd_rates: dict[str, float],
+) -> None:
+    if not source_currency:
+        return
+    parsed = _safe_float(raw_value, float("nan"))
+    if parsed != parsed:  # NaN
+        return
+    converted = _convert_via_usd(
+        parsed,
+        source_currency,
+        itinerary_currency,
+        usd_rates,
+    )
+    out_key = f"{field}_itinerary_currency"
+    if isinstance(raw_value, str):
+        parent[out_key] = f"{converted:.2f}"
+    else:
+        parent[out_key] = round(converted, 2)
+
+
+def _annotate_price_tree(
+    obj: Any,
+    itinerary_currency: str,
+    usd_rates: dict[str, float],
+    inherited_currency: str | None,
+) -> None:
+    """
+    In-place: for each monetary field in flight/hotel payloads, add
+    <field>_itinerary_currency using Open Exchange Rates cross-via-USD conversion.
+    """
+    if isinstance(obj, dict):
+        curr = inherited_currency
+        if isinstance(obj.get("currency"), str) and obj["currency"].strip():
+            curr = str(obj["currency"]).strip().upper()
+
+        for key in list(obj.keys()):
+            if key.endswith("_itinerary_currency"):
+                continue
+            val = obj[key]
+            if key == "currency":
+                continue
+            if isinstance(val, (dict, list)):
+                _annotate_price_tree(val, itinerary_currency, usd_rates, curr)
+                continue
+            if (
+                curr
+                and key in _AMOUNT_FIELD_NAMES
+                and _is_convertible_amount(val)
+            ):
+                _set_itinerary_currency_field(
+                    obj,
+                    key,
+                    val,
+                    curr,
+                    itinerary_currency,
+                    usd_rates,
+                )
+    elif isinstance(obj, list):
+        for item in obj:
+            _annotate_price_tree(item, itinerary_currency, usd_rates, inherited_currency)
+
+
+def _annotate_itinerary_flight_hotel_prices(
+    itinerary: dict[str, Any],
+    itinerary_currency: str,
+    usd_rates: dict[str, float],
+) -> None:
+    flights = itinerary.get("flights")
+    if isinstance(flights, list):
+        _annotate_price_tree(flights, itinerary_currency, usd_rates, None)
+    hotels = itinerary.get("hotels")
+    if isinstance(hotels, list):
+        _annotate_price_tree(hotels, itinerary_currency, usd_rates, None)
 
 
 def _compute_summary(
     itinerary: dict[str, Any],
-    flights_currency: str,
-    hotels_currency: str,
+    itinerary_currency: str,
     usd_rates: dict[str, float],
 ) -> dict[str, Any]:
     flights = itinerary.get("flights", [])
@@ -211,24 +328,24 @@ def _compute_summary(
         except (ValueError, TypeError):
             pass
 
+    ic = itinerary_currency.upper()
     total_flights_cost = 0.0
     for fg in flights:
         opts = fg.get("options")
         if isinstance(opts, list):
-            total_flights_cost += _min_flight_price(opts, flights_currency, usd_rates)
+            total_flights_cost += _min_flight_price(opts, ic, usd_rates)
 
     total_hotels_cost = 0.0
     for hg in hotels:
         opts = hg.get("options")
         if isinstance(opts, list):
-            total_hotels_cost += _min_hotel_price(opts, hotels_currency, usd_rates)
+            total_hotels_cost += _min_hotel_price(opts, ic, usd_rates)
 
     return {
         "total_duration_days": total_days,
         "total_flights_cost": round(total_flights_cost, 2),
-        "flights_currency": flights_currency,
+        "itinerary_currency": ic,
         "total_hotels_cost": round(total_hotels_cost, 2),
-        "hotels_currency": hotels_currency,
     }
 
 
@@ -471,10 +588,12 @@ async def compose_itinerary(
         )
         mode = "hybrid"
 
-    flights_currency, hotels_currency = _extract_currencies(payload)
+    itinerary_currency = _extract_itinerary_currency(payload)
     usd_rates = await _fetch_usd_rates(exchange_rate_latest_url)
     for it in itineraries:
-        it["summary"] = _compute_summary(it, flights_currency, hotels_currency, usd_rates)
+        it["summary"] = _compute_summary(it, itinerary_currency, usd_rates)
+        it["itinerary_currency"] = itinerary_currency.upper()
+        _annotate_itinerary_flight_hotel_prices(it, itinerary_currency, usd_rates)
 
     logger.info(
         "Composed %d itineraries (mode=%s) from %d flight groups and %d hotel groups "

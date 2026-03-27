@@ -66,6 +66,11 @@ chosen to align with those durations between adjacent legs.
           "properties": {
             "timezone": { "type": "string" },
             "travelers": { "type": "integer" },
+            "airline_preferences": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Optional IATA airline codes; flight inventory passes them to Amadeus as included carriers when non-empty."
+            },
             "legs": {
               "type": "array",
               "items": {
@@ -286,14 +291,13 @@ In RabbitMQ transport:
         },
         "summary": {
           "type": "object",
-          "required": ["total_duration_days", "total_flights_cost", "flights_currency", "total_hotels_cost", "hotels_currency"],
-          "description": "Cost and duration summary computed from cheapest options per group.",
+          "required": ["total_duration_days", "total_flights_cost", "itinerary_currency", "total_hotels_cost"],
+          "description": "Cost and duration summary computed from cheapest options per group; amounts are in itinerary_currency.",
           "properties": {
             "total_duration_days": { "type": "integer", "description": "Days between first departure and last arrival." },
-            "total_flights_cost": { "type": "number", "description": "Sum of cheapest flight option price per flight group." },
-            "flights_currency": { "type": "string", "description": "Currency from user request budgets.flights.currency." },
-            "total_hotels_cost": { "type": "number", "description": "Sum of cheapest hotel option price per hotel group." },
-            "hotels_currency": { "type": "string", "description": "Currency from user request budgets.hotels.currency." }
+            "total_flights_cost": { "type": "number", "description": "Sum of cheapest flight option price per flight group, converted to itinerary_currency." },
+            "itinerary_currency": { "type": "string", "description": "Single trip currency from structured_request budgets (itinerary, then flights, then hotels, else USD)." },
+            "total_hotels_cost": { "type": "number", "description": "Sum of cheapest hotel option price per hotel group, converted to itinerary_currency." }
           }
         }
       }

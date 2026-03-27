@@ -53,6 +53,11 @@ VALID_STRUCTURED_REQUEST_SCHEMA = {
               "min_rooms": {"type": "integer"}
             }
           }
+        },
+        "airline_preferences": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 2, "maxLength": 3},
+          "description": "Optional IATA airline codes (e.g. LH, LX); flight inventory restricts Amadeus offers to these carriers when non-empty."
         }
       }
     },
@@ -113,6 +118,9 @@ For flights, the from and to fields should be the IATA code of the city metropol
 Each leg must include depart_dates: an array of one or more candidate departure dates (YYYY-MM-DD);
 inventory will search flights for each date and merge options.
 For hotels, the city_code field should be the IATA code of the city metropolitan area.
+
+If the user prefers specific airlines, set trip.airline_preferences to an array of IATA airline codes
+(two letters, e.g. LH, BA, QR). Omit airline_preferences or use an empty array when not specified.
 
 The user can specify departure dates range in a free form. In this case consider multiple departure
 dates within a given range.

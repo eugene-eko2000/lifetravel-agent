@@ -3,6 +3,37 @@ from typing import Any
 from cfg import Cfg
 
 
+def _normalize_airline_preferences(trip: dict[str, Any]) -> list[str]:
+    """
+    IATA airline codes for Amadeus carrierRestrictions.includedCarrierCodes (max 99).
+    """
+    raw = trip.get("airline_preferences")
+    if not isinstance(raw, list):
+        return []
+    out: list[str] = []
+    seen: set[str] = set()
+    for x in raw:
+        code = str(x).strip().upper()
+        if len(code) < 2 or len(code) > 3:
+            continue
+        if code not in seen:
+            seen.add(code)
+            out.append(code)
+    return out[:99]
+
+
+def _build_search_criteria(airline_codes: list[str]) -> dict[str, Any]:
+    """Amadeus Flight Offers Search searchCriteria; optional carrier whitelist."""
+    criteria: dict[str, Any] = {"maxFlightOffers": 10}
+    if airline_codes:
+        criteria["flightFilters"] = {
+            "carrierRestrictions": {
+                "includedCarrierCodes": airline_codes,
+            }
+        }
+    return criteria
+
+
 def _build_travelers(trip_request: dict[str, Any]) -> list[dict[str, Any]]:
     trip = trip_request.get("trip", {})
     travelers_count = int(trip.get("travelers", 1) or 1)
@@ -51,6 +82,7 @@ def _build_roundtrip_flight_request_for_leg_pair(
     travelers: list[dict[str, Any]],
     outbound_date: str,
     return_date: str,
+    search_criteria: dict[str, Any],
 ) -> dict[str, Any]:
     """Single Amadeus shopping request with outbound + return originDestinations."""
     o_a = str(leg_out.get("from", "")).strip().upper()
@@ -86,9 +118,7 @@ def _build_roundtrip_flight_request_for_leg_pair(
         ],
         "travelers": travelers,
         "sources": ["GDS"],
-        "searchCriteria": {
-            "maxFlightOffers": 10,
-        },
+        "searchCriteria": search_criteria,
     }
 
 
@@ -97,6 +127,7 @@ def _build_flight_request_for_leg(
     leg_index: int,
     travelers: list[dict[str, Any]],
     depart_date: str,
+    search_criteria: dict[str, Any],
 ) -> dict[str, Any]:
     origin = str(leg.get("from", "")).strip().upper()
     destination = str(leg.get("to", "")).strip().upper()
@@ -119,16 +150,18 @@ def _build_flight_request_for_leg(
         ],
         "travelers": travelers,
         "sources": ["GDS"],
-        "searchCriteria": {
-            "maxFlightOffers": 10,
-        },
+        "searchCriteria": search_criteria,
     }
 
 
 def _build_flight_requests(trip_request: dict[str, Any]) -> list[dict[str, Any]]:
     trip = trip_request.get("trip", {})
+    if not isinstance(trip, dict):
+        trip = {}
     legs = trip.get("legs", [])
     travelers = _build_travelers(trip_request)
+    airline_prefs = _normalize_airline_preferences(trip)
+    search_criteria = _build_search_criteria(airline_prefs)
 
     requests: list[dict[str, Any]] = []
     i = 0
@@ -181,6 +214,7 @@ def _build_flight_requests(trip_request: dict[str, Any]) -> list[dict[str, Any]]
                                 travelers,
                                 outbound_date,
                                 return_date,
+                                search_criteria,
                             ),
                         }
                     )
@@ -205,7 +239,7 @@ def _build_flight_requests(trip_request: dict[str, Any]) -> list[dict[str, Any]]
                     "from": origin,
                     "to": destination,
                     "payload": _build_flight_request_for_leg(
-                        leg, index, travelers, depart_date
+                        leg, index, travelers, depart_date, search_criteria
                     ),
                 }
             )
@@ -224,6 +258,9 @@ def translate_trip_request_to_amadeus_requests(
     (two originDestinations) per (outbound depart date × return depart date).
 
     Other legs: one Amadeus call per (leg, depart_date) as before.
+
+    When trip.airline_preferences is a non-empty array of IATA airline codes,
+    each request includes searchCriteria.flightFilters.carrierRestrictions.includedCarrierCodes.
     """
     _ = cfg
     return _build_flight_requests(trip_request)
