@@ -63,6 +63,9 @@ class CurrencyAnnotationTest(unittest.TestCase):
         summary = _compute_summary(itin, "CHF", usd_rates)
         self.assertEqual(summary["itinerary_currency"], "CHF")
         self.assertEqual(summary["total_flights_cost"], 100.0)
+        self.assertEqual(summary["itinerary_start_date"], "2026-01-01")
+        self.assertEqual(summary["itinerary_end_date"], "2026-01-02")
+        self.assertEqual(summary["total_duration_days"], 1)
 
 
 if __name__ == "__main__":

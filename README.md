@@ -291,10 +291,12 @@ In RabbitMQ transport:
         },
         "summary": {
           "type": "object",
-          "required": ["total_duration_days", "total_flights_cost", "itinerary_currency", "total_hotels_cost"],
+          "required": ["itinerary_start_date", "itinerary_end_date", "total_duration_days", "total_flights_cost", "itinerary_currency", "total_hotels_cost"],
           "description": "Cost and duration summary computed from cheapest options per group; amounts are in itinerary_currency.",
           "properties": {
-            "total_duration_days": { "type": "integer", "description": "Days between first departure and last arrival." },
+            "itinerary_start_date": { "type": "string", "format": "date", "description": "Date of first flight departure (YYYY-MM-DD); empty when there are no flights." },
+            "itinerary_end_date": { "type": "string", "format": "date", "description": "Date of last flight arrival (YYYY-MM-DD); empty when there are no flights." },
+            "total_duration_days": { "type": "integer", "description": "Calendar days between itinerary_start_date and itinerary_end_date (last minus first)." },
             "total_flights_cost": { "type": "number", "description": "Sum of cheapest flight option price per flight group, converted to itinerary_currency." },
             "itinerary_currency": { "type": "string", "description": "Single trip currency from structured_request budgets (itinerary, then flights, then hotels, else USD)." },
             "total_hotels_cost": { "type": "number", "description": "Sum of cheapest hotel option price per hotel group, converted to itinerary_currency." }

@@ -319,14 +319,23 @@ def _compute_summary(
     flights = itinerary.get("flights", [])
     hotels = itinerary.get("hotels", [])
 
+    itinerary_start_date = ""
+    itinerary_end_date = ""
     total_days = 0
     if flights:
-        try:
-            d1 = date.fromisoformat(flights[0].get("depart_date", ""))
-            d2 = date.fromisoformat(flights[-1].get("arrive_date", ""))
-            total_days = (d2 - d1).days
-        except (ValueError, TypeError):
-            pass
+        dep0 = flights[0].get("depart_date", "")
+        arr_last = flights[-1].get("arrive_date", "")
+        if dep0:
+            itinerary_start_date = _date_part(str(dep0))
+        if arr_last:
+            itinerary_end_date = _date_part(str(arr_last))
+        if itinerary_start_date and itinerary_end_date:
+            try:
+                d1 = date.fromisoformat(itinerary_start_date)
+                d2 = date.fromisoformat(itinerary_end_date)
+                total_days = (d2 - d1).days
+            except (ValueError, TypeError):
+                total_days = 0
 
     ic = itinerary_currency.upper()
     total_flights_cost = 0.0
@@ -342,6 +351,8 @@ def _compute_summary(
             total_hotels_cost += _min_hotel_price(opts, ic, usd_rates)
 
     return {
+        "itinerary_start_date": itinerary_start_date,
+        "itinerary_end_date": itinerary_end_date,
         "total_duration_days": total_days,
         "total_flights_cost": round(total_flights_cost, 2),
         "itinerary_currency": ic,
