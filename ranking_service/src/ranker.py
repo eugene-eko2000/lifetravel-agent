@@ -147,11 +147,45 @@ def _flight_total_stops(offer: dict[str, Any]) -> int:
     return stops
 
 
+def _numeric_price_from_dict(
+    price: dict[str, Any],
+    *,
+    itinerary_first: tuple[str, ...],
+    legacy: tuple[str, ...],
+) -> float:
+    """
+    Prefer itinerary-composer converted amounts (*_itinerary_currency), then legacy fields.
+    """
+    for key in itinerary_first:
+        if key not in price:
+            continue
+        v = price.get(key)
+        if v is None:
+            continue
+        if isinstance(v, str) and not v.strip():
+            continue
+        parsed = _safe_float(v, float("nan"))
+        if parsed == parsed:
+            return parsed
+    for key in legacy:
+        v = price.get(key)
+        if v is None:
+            continue
+        parsed = _safe_float(v, float("nan"))
+        if parsed == parsed:
+            return parsed
+    return float("inf")
+
+
 def _flight_price(offer: dict[str, Any]) -> float:
     price = offer.get("price")
     if not isinstance(price, dict):
         return float("inf")
-    return _safe_float(price.get("grandTotal", price.get("total")), float("inf"))
+    return _numeric_price_from_dict(
+        price,
+        itinerary_first=("grandTotal_itinerary_currency", "total_itinerary_currency"),
+        legacy=("grandTotal", "total"),
+    )
 
 
 def _first_departure_and_last_arrival(offer: dict[str, Any]) -> tuple[datetime | None, datetime | None]:
@@ -304,6 +338,8 @@ def _flight_flex_norm(offer: dict[str, Any]) -> float:
 def _rank_flights(
     flight_results: list[Any],
     constraints: dict[str, Any],
+    *,
+    currency_label: str = "",
 ) -> list[dict[str, Any]]:
     offers = _extract_flight_offers(flight_results)
     if not offers:
@@ -440,7 +476,7 @@ def _rank_flights(
     ranked: list[dict[str, Any]] = []
     for item in scored:
         offer = dict(item["offer"])
-        offer["_ranking"] = {
+        ranking: dict[str, Any] = {
             "score": round(item["score"], 2),
             "stops": item["stops"],
             "price": item["price"],
@@ -448,6 +484,9 @@ def _rank_flights(
             "eligible": item["eligible"],
             "ineligibility_reason": item["ineligibility_reason"],
         }
+        if currency_label:
+            ranking["currency"] = currency_label
+        offer["_ranking"] = ranking
         ranked.append(offer)
     ranked.sort(
         key=lambda x: _safe_float((x.get("_ranking") or {}).get("score"), 0.0),
@@ -464,7 +503,11 @@ def _hotel_total_price(offer: dict[str, Any]) -> float:
     price = first.get("price") if isinstance(first, dict) else {}
     if not isinstance(price, dict):
         return float("inf")
-    return _safe_float(price.get("total"), float("inf"))
+    return _numeric_price_from_dict(
+        price,
+        itinerary_first=("total_itinerary_currency",),
+        legacy=("total",),
+    )
 
 
 def _hotel_nights(offer: dict[str, Any]) -> int:
@@ -537,6 +580,8 @@ def _hotel_amenities_match(offer: dict[str, Any], must_have: list[str]) -> float
 def _rank_hotels_for_date(
     offers: list[dict[str, Any]],
     constraints: dict[str, Any],
+    *,
+    currency_label: str = "",
 ) -> list[dict[str, Any]]:
     if not offers:
         return []
@@ -616,12 +661,15 @@ def _rank_hotels_for_date(
     ranked: list[dict[str, Any]] = []
     for item in scored:
         offer = dict(item["offer"])
-        offer["_ranking"] = {
+        ranking: dict[str, Any] = {
             "score": round(item["score"], 2),
             "price_per_night": round(item["ppn"], 2),
             "eligible": item["eligible"],
             "ineligibility_reason": item["ineligibility_reason"],
         }
+        if currency_label:
+            ranking["currency"] = currency_label
+        offer["_ranking"] = ranking
         ranked.append(offer)
     ranked.sort(
         key=lambda x: _safe_float((x.get("_ranking") or {}).get("score"), 0.0),
@@ -638,11 +686,22 @@ def rank_single_itinerary(itinerary: dict[str, Any]) -> dict[str, Any]:
     flight_constraints: dict[str, Any] = {}
     hotel_constraints: dict[str, Any] = {}
 
+    currency_label = ""
+    summary = itinerary.get("summary")
+    if isinstance(summary, dict):
+        currency_label = str(summary.get("itinerary_currency", "") or "").strip()
+    if not currency_label:
+        currency_label = str(itinerary.get("itinerary_currency", "") or "").strip()
+
     flight_groups = [fg for fg in itinerary.get("flights", []) if isinstance(fg, dict)]
     hotel_groups = [hg for hg in itinerary.get("hotels", []) if isinstance(hg, dict)]
 
-    ranked_flights = _rank_flight_groups(flight_groups, flight_constraints)
-    ranked_hotels = _rank_hotel_stays(hotel_groups, hotel_constraints)
+    ranked_flights = _rank_flight_groups(
+        flight_groups, flight_constraints, currency_label=currency_label
+    )
+    ranked_hotels = _rank_hotel_stays(
+        hotel_groups, hotel_constraints, currency_label=currency_label
+    )
 
     result = {
         "flights": ranked_flights,
@@ -658,6 +717,8 @@ def rank_single_itinerary(itinerary: dict[str, Any]) -> dict[str, Any]:
 def _rank_flight_groups(
     flights_input: list[dict[str, Any]],
     flight_constraints: dict[str, Any],
+    *,
+    currency_label: str = "",
 ) -> list[dict[str, Any]]:
     ranked_groups: list[dict[str, Any]] = []
     for item in flights_input:
@@ -670,7 +731,9 @@ def _rank_flight_groups(
             "arrive_date": str(item.get("arrive_date", "")),
             "from": str(item.get("from", "")),
             "to": str(item.get("to", "")),
-            "options": _rank_flights(options, flight_constraints),
+            "options": _rank_flights(
+                options, flight_constraints, currency_label=currency_label
+            ),
         }
         ranked_groups.append(group)
     return ranked_groups
@@ -679,6 +742,8 @@ def _rank_flight_groups(
 def _rank_hotel_stays(
     hotels_input: list[dict[str, Any]],
     hotel_constraints: dict[str, Any],
+    *,
+    currency_label: str = "",
 ) -> list[dict[str, Any]]:
     ranked_stays: list[dict[str, Any]] = []
     for item in hotels_input:
@@ -692,7 +757,9 @@ def _rank_hotel_stays(
         stay: dict[str, Any] = {
             "check_in": check_in,
             "check_out": check_out,
-            "options": _rank_hotels_for_date(options, hotel_constraints),
+            "options": _rank_hotels_for_date(
+                options, hotel_constraints, currency_label=currency_label
+            ),
         }
         if city_code:
             stay["city_code"] = city_code
@@ -734,7 +801,7 @@ def rank_provider_response(provider_response: dict[str, Any]) -> dict[str, Any]:
         ranked_flights = _rank_flights(flights_input, flight_constraints)
 
     if isinstance(hotels_raw, list):
-        ranked_hotels: Any = _rank_hotel_stays(
+        ranked_hotels = _rank_hotel_stays(
             [x for x in hotels_raw if isinstance(x, dict)],
             hotel_constraints,
         )

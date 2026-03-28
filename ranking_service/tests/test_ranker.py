@@ -6,7 +6,7 @@ PROJECT_DIR = Path(__file__).resolve().parents[1]
 SRC_DIR = PROJECT_DIR / "src"
 sys.path.insert(0, str(SRC_DIR))
 
-from ranker import _normalize, rank_provider_response, rank_single_itinerary
+from ranker import _flight_price, _normalize, rank_provider_response, rank_single_itinerary
 
 
 INPUT_PROVIDER_RESPONSE = {
@@ -517,6 +517,78 @@ class RankerTest(unittest.TestCase):
         ranked = rank_single_itinerary({"flights": [], "hotels": []})
         self.assertEqual(ranked["flights"], [])
         self.assertEqual(ranked["hotels"], [])
+
+    def test_flight_price_prefers_itinerary_currency_fields(self) -> None:
+        offer = {
+            "price": {
+                "grandTotal": "1000.00",
+                "grandTotal_itinerary_currency": "250.00",
+            },
+            "itineraries": [{"duration": "PT4H", "segments": []}],
+        }
+        self.assertEqual(_flight_price(offer), 250.0)
+
+    def test_rank_single_itinerary_uses_itinerary_currency_for_scoring(self) -> None:
+        """When *_itinerary_currency is present, ranking score uses those amounts."""
+        cheap_in_ic = {
+            "id": "cheap-ic",
+            "type": "flight-offer",
+            "price": {
+                "grandTotal": "999.00",
+                "grandTotal_itinerary_currency": "100.00",
+            },
+            "itineraries": [
+                {
+                    "duration": "PT4H",
+                    "segments": [
+                        {
+                            "carrierCode": "XX",
+                            "departure": {"at": "2026-04-19T09:00:00"},
+                            "arrival": {"at": "2026-04-19T13:00:00"},
+                        }
+                    ],
+                }
+            ],
+        }
+        expensive_in_ic = {
+            "id": "expensive-ic",
+            "type": "flight-offer",
+            "price": {
+                "grandTotal": "100.00",
+                "grandTotal_itinerary_currency": "500.00",
+            },
+            "itineraries": [
+                {
+                    "duration": "PT4H",
+                    "segments": [
+                        {
+                            "carrierCode": "YY",
+                            "departure": {"at": "2026-04-19T09:00:00"},
+                            "arrival": {"at": "2026-04-19T13:00:00"},
+                        }
+                    ],
+                }
+            ],
+        }
+        itinerary = {
+            "itinerary_currency": "CHF",
+            "summary": {"itinerary_currency": "CHF"},
+            "flights": [
+                {
+                    "depart_date": "2026-04-19",
+                    "arrive_date": "2026-04-19",
+                    "from": "VIE",
+                    "to": "DEL",
+                    "options": [expensive_in_ic, cheap_in_ic],
+                }
+            ],
+            "hotels": [],
+        }
+        ranked = rank_single_itinerary(itinerary)
+        opts = ranked["flights"][0]["options"]
+        self.assertEqual(opts[0]["id"], "cheap-ic")
+        self.assertEqual(opts[0]["_ranking"]["price"], 100.0)
+        self.assertEqual(opts[0]["_ranking"]["currency"], "CHF")
 
     def test_rank_single_itinerary_options_sorted_by_score(self) -> None:
         flight_group = {
