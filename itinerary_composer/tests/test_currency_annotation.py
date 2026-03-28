@@ -37,10 +37,9 @@ class CurrencyAnnotationTest(unittest.TestCase):
         self.assertIn("base_itinerary_currency", p)
         self.assertEqual(p["fees"][0]["amount_itinerary_currency"], "11.00")
 
-    def test_compute_summary_uses_single_itinerary_currency(self) -> None:
+    def test_compute_summary_dates_and_currency(self) -> None:
         from composer import _compute_summary  # noqa: E402
 
-        usd_rates = {"USD": 1.0, "EUR": 1.0, "CHF": 2.0}
         itin = {
             "flights": [
                 {
@@ -60,9 +59,8 @@ class CurrencyAnnotationTest(unittest.TestCase):
             ],
             "hotels": [],
         }
-        summary = _compute_summary(itin, "CHF", usd_rates)
+        summary = _compute_summary(itin, "CHF")
         self.assertEqual(summary["itinerary_currency"], "CHF")
-        self.assertEqual(summary["total_flights_cost"], 100.0)
         self.assertEqual(summary["itinerary_start_date"], "2026-01-01")
         self.assertEqual(summary["itinerary_end_date"], "2026-01-02")
         self.assertEqual(summary["total_duration_days"], 1)

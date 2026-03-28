@@ -314,10 +314,8 @@ def _annotate_itinerary_flight_hotel_prices(
 def _compute_summary(
     itinerary: dict[str, Any],
     itinerary_currency: str,
-    usd_rates: dict[str, float],
 ) -> dict[str, Any]:
     flights = itinerary.get("flights", [])
-    hotels = itinerary.get("hotels", [])
 
     itinerary_start_date = ""
     itinerary_end_date = ""
@@ -338,25 +336,12 @@ def _compute_summary(
                 total_days = 0
 
     ic = itinerary_currency.upper()
-    total_flights_cost = 0.0
-    for fg in flights:
-        opts = fg.get("options")
-        if isinstance(opts, list):
-            total_flights_cost += _min_flight_price(opts, ic, usd_rates)
-
-    total_hotels_cost = 0.0
-    for hg in hotels:
-        opts = hg.get("options")
-        if isinstance(opts, list):
-            total_hotels_cost += _min_hotel_price(opts, ic, usd_rates)
 
     return {
         "itinerary_start_date": itinerary_start_date,
         "itinerary_end_date": itinerary_end_date,
         "total_duration_days": total_days,
-        "total_flights_cost": round(total_flights_cost, 2),
         "itinerary_currency": ic,
-        "total_hotels_cost": round(total_hotels_cost, 2),
     }
 
 
@@ -602,7 +587,7 @@ async def compose_itinerary(
     itinerary_currency = _extract_itinerary_currency(payload)
     usd_rates = await _fetch_usd_rates(exchange_rate_latest_url)
     for it in itineraries:
-        it["summary"] = _compute_summary(it, itinerary_currency, usd_rates)
+        it["summary"] = _compute_summary(it, itinerary_currency)
         it["itinerary_currency"] = itinerary_currency.upper()
         _annotate_itinerary_flight_hotel_prices(it, itinerary_currency, usd_rates)
 

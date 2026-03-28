@@ -10144,9 +10144,7 @@
         "itinerary_start_date": "2026-05-01",
         "itinerary_end_date": "2026-05-23",
         "total_duration_days": 22,
-        "total_flights_cost": 2507.32,
-        "itinerary_currency": "CHF",
-        "total_hotels_cost": 1551.95
+        "itinerary_currency": "CHF"
       },
       "itinerary_id": "388f81b5-7d5f-424d-90ab-cb5233a0032a"
     }

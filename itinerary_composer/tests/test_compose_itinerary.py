@@ -136,8 +136,6 @@ class ComposeItineraryTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(it["flights"][1]["to"], "CCC")
         self.assertEqual(it["hotels"], [])
         self.assertEqual(it["summary"]["itinerary_currency"], "USD")
-        self.assertEqual(it["summary"]["total_flights_cost"], 350.0)
-        self.assertEqual(it["summary"]["total_hotels_cost"], 0.0)
 
     async def test_hybrid_flight_hotel_flight_single_stay(self) -> None:
         """Hotel at (city, arrival date): flight → hotel → next flight."""
@@ -178,8 +176,6 @@ class ComposeItineraryTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(it["flights"]), 2)
         self.assertEqual(len(it["hotels"]), 1)
         self.assertEqual(it["hotels"][0]["city_code"], "BBB")
-        self.assertEqual(it["summary"]["total_flights_cost"], 220.0)
-        self.assertEqual(it["summary"]["total_hotels_cost"], 90.0)
 
     async def test_hybrid_gap_without_hotel_uses_flight_edge(self) -> None:
         """
