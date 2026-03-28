@@ -22,3 +22,8 @@ python test_llm_client.py \
     then to Rio de Janeiro with 3 days staying,
     then back to Zurich.
     The total flight budget is 3000 CHF, the hotel budget is 300 CHF per day per person."
+
+python test_llm_client.py \
+    "Organize a trip from Zurich to Edinburgh starting on 1.05.2026, staying 3 days in Edinburgh,
+    then fly to Istanbul, staying 5 days there, then fly to Boston for 7 days. I'd like to stay
+    close to Boston airport. Then back to Zurich."
