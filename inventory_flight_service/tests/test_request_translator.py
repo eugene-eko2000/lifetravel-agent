@@ -105,7 +105,7 @@ class RequestTranslatorTest(unittest.TestCase):
         self.assertEqual(len(flight_payload["travelers"]), 1)
         self.assertEqual(flight_payload["travelers"][0]["travelerType"], "ADULT")
         self.assertEqual(flight_payload["sources"], ["GDS"])
-        self.assertEqual(flight_payload["searchCriteria"]["maxFlightOffers"], 10)
+        self.assertEqual(flight_payload["searchCriteria"]["maxFlightOffers"], 250)
 
 
 class RoundTripTranslatorTest(unittest.TestCase):
@@ -170,7 +170,7 @@ class AirlinePreferencesTranslatorTest(unittest.TestCase):
         translated = translate_trip_request_to_amadeus_requests(trip, cfg)
         self.assertEqual(len(translated), 1)
         sc = translated[0]["payload"]["searchCriteria"]
-        self.assertEqual(sc["maxFlightOffers"], 10)
+        self.assertEqual(sc["maxFlightOffers"], 250)
         self.assertIn("flightFilters", sc)
         cr = sc["flightFilters"]["carrierRestrictions"]
         self.assertEqual(cr["includedCarrierCodes"], ["LH", "LX"])
