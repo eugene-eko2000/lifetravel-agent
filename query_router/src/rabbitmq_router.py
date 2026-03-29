@@ -77,10 +77,11 @@ async def _handle_message(
         logger.exception("LLM processing failed")
         return
 
-    outgoing_payload = {
+    outgoing_payload: dict[str, Any] = {
         "id": request_id,
         "content": content,
         "structured_request": llm_response,
+        "prompt_id": llm_response.get("prompt_id"),
     }
 
     llm_response_type = llm_response.get("type")

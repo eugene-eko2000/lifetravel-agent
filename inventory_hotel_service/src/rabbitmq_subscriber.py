@@ -89,6 +89,7 @@ async def run_inventory_hotel_subscriber() -> None:
                             payload={
                                 "id": request_id,
                                 "structured_request": incoming_payload.get("structured_request"),
+                                "prompt_id": incoming_payload.get("prompt_id"),
                                 "provider_response": results,
                             },
                         )

@@ -41,6 +41,9 @@ async def _process_message(incoming: aio_pika.abc.AbstractIncomingMessage, excha
                 "itinerary_count": payload.get("itinerary_count"),
                 "ranked_itinerary": ranked_itinerary,
             }
+            rpid = ranked_itinerary.get("prompt_id")
+            if isinstance(rpid, str) and rpid.strip():
+                outgoing_payload["prompt_id"] = rpid.strip()
 
             await publish_ranked_itinerary(
                 exchange=exchange,

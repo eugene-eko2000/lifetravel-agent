@@ -28,10 +28,17 @@ def _build_no_itineraries_payload(
     """Shape aligned with query_router llm_client (request_id, type, payload)."""
     sr = incoming.get("structured_request")
     structured_request_id: str | None = None
+    prompt_id: str | None = None
     if isinstance(sr, dict):
         rid = sr.get("request_id")
         if isinstance(rid, str) and rid.strip():
             structured_request_id = rid.strip()
+        pid = sr.get("prompt_id")
+        if isinstance(pid, str) and pid.strip():
+            prompt_id = pid.strip()
+    top_pid = incoming.get("prompt_id")
+    if isinstance(top_pid, str) and top_pid.strip():
+        prompt_id = top_pid.strip()
 
     correlation_id = (
         outer_request_id.strip()
@@ -45,7 +52,7 @@ def _build_no_itineraries_payload(
 
     llm_request_id = structured_request_id if structured_request_id is not None else correlation_id
 
-    return {
+    out: dict[str, Any] = {
         "id": correlation_id,
         "request_id": llm_request_id,
         "type": "no_itineraries",
@@ -53,6 +60,9 @@ def _build_no_itineraries_payload(
             "message": _EMPTY_ITINERARY_MESSAGE,
         },
     }
+    if prompt_id:
+        out["prompt_id"] = prompt_id
+    return out
 
 
 async def _handle_message(
@@ -92,15 +102,19 @@ async def _handle_message(
     )
 
     for idx, itinerary in enumerate(itineraries):
+        composed_payload: dict[str, Any] = {
+            "id": request_id,
+            "itinerary_index": idx,
+            "itinerary_count": len(itineraries),
+            "itinerary": itinerary,
+        }
+        pid = itinerary.get("prompt_id")
+        if isinstance(pid, str) and pid.strip():
+            composed_payload["prompt_id"] = pid.strip()
         await publish_composed_itinerary(
             exchange=exchange,
             routing_key=cfg.rabbitmq_publish_routing_key,
-            payload={
-                "id": request_id,
-                "itinerary_index": idx,
-                "itinerary_count": len(itineraries),
-                "itinerary": itinerary,
-            },
+            payload=composed_payload,
         )
 
 

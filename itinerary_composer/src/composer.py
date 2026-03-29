@@ -124,6 +124,19 @@ def _convert_via_usd(
 # Budget currency extraction & summary
 # ---------------------------------------------------------------------------
 
+def _extract_prompt_id(payload: dict[str, Any]) -> str:
+    """OpenAI Responses `id` from the structuring LLM turn; echoed on each composed itinerary."""
+    top = payload.get("prompt_id")
+    if isinstance(top, str) and top.strip():
+        return top.strip()
+    sr = payload.get("structured_request")
+    if isinstance(sr, dict):
+        pid = sr.get("prompt_id")
+        if isinstance(pid, str) and pid.strip():
+            return pid.strip()
+    return ""
+
+
 def _extract_itinerary_currency(payload: dict[str, Any]) -> str:
     """
     Single display currency for the trip: budgets.itinerary.currency if set, else
@@ -533,10 +546,13 @@ async def compose_itinerary(
         mode = "hybrid"
 
     itinerary_currency = _extract_itinerary_currency(payload)
+    prompt_id = _extract_prompt_id(payload)
     usd_rates = await _fetch_usd_rates(exchange_rate_latest_url)
     for it in itineraries:
         it["summary"] = _compute_summary(it, itinerary_currency)
         it["itinerary_currency"] = itinerary_currency.upper()
+        if prompt_id:
+            it["prompt_id"] = prompt_id
         _annotate_itinerary_flight_hotel_prices(it, itinerary_currency, usd_rates)
 
     logger.info(

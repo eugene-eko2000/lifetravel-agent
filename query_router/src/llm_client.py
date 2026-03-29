@@ -186,7 +186,7 @@ def _extract_output_text(response_json: dict[str, Any]) -> str:
 
 async def request_structured_itinerary(
     request_id: str,
-    prompt_id: str,
+    prompt_id: str | None,
     content: str,
 ) -> dict[str, Any]:
     """
@@ -203,10 +203,9 @@ async def request_structured_itinerary(
         raise ValueError("OPENAI_API_KEY is not set")
 
     client = AsyncOpenAI(api_key=cfg.openai_api_key, base_url=cfg.openai_base_url)
-    response = await client.responses.create(
-        previous_response_id=prompt_id,
-        model=cfg.openai_model,
-        input=[
+    create_kwargs: dict[str, Any] = {
+        "model": cfg.openai_model,
+        "input": [
             {
                 "role": "system",
                 "content": [{"type": "input_text", "text": SYSTEM_PROMPT}],
@@ -216,9 +215,11 @@ async def request_structured_itinerary(
                 "content": [{"type": "input_text", "text": content}],
             },
         ],
-        # Ask the model for structured JSON output.
-        text={"format": {"type": "json_object"}},
-    )
+        "text": {"format": {"type": "json_object"}},
+    }
+    if isinstance(prompt_id, str) and prompt_id.strip():
+        create_kwargs["previous_response_id"] = prompt_id.strip()
+    response = await client.responses.create(**create_kwargs)
 
     response_json: dict[str, Any] = response.model_dump()
     prompt_id = str(response_json.get("id", ""))

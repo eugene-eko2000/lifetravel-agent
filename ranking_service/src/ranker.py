@@ -742,6 +742,8 @@ def rank_single_itinerary(itinerary: dict[str, Any]) -> dict[str, Any]:
         result["summary"] = itinerary["summary"]
     if "itinerary_id" in itinerary:
         result["itinerary_id"] = itinerary["itinerary_id"]
+    if "prompt_id" in itinerary:
+        result["prompt_id"] = itinerary["prompt_id"]
     return result
 
 

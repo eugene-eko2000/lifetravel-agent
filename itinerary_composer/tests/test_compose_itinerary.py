@@ -76,25 +76,32 @@ def _structured_payload(
     flights: list[dict[str, Any]],
     hotels: list[dict[str, Any]],
     request_id: str = "compose-test-1",
+    llm_prompt_id: str | None = None,
 ) -> dict[str, Any]:
-    return {
-        "id": request_id,
-        "structured_request": {
-            "output": {
-                "trip": {
-                    "timezone": "UTC",
-                    "travelers": 1,
-                    "legs": legs,
-                },
-                "budgets": {
-                    "flights": {"amount": 5000, "currency": "USD", "scope": "total_trip"},
-                    "hotels": {"amount": 500, "currency": "USD", "scope": "per_night"},
-                },
-                "confidence": 0.9,
+    sr: dict[str, Any] = {
+        "output": {
+            "trip": {
+                "timezone": "UTC",
+                "travelers": 1,
+                "legs": legs,
             },
+            "budgets": {
+                "flights": {"amount": 5000, "currency": "USD", "scope": "total_trip"},
+                "hotels": {"amount": 500, "currency": "USD", "scope": "per_night"},
+            },
+            "confidence": 0.9,
         },
+    }
+    if llm_prompt_id:
+        sr["prompt_id"] = llm_prompt_id
+    out: dict[str, Any] = {
+        "id": request_id,
+        "structured_request": sr,
         "provider_response": {"flights": flights, "hotels": hotels},
     }
+    if llm_prompt_id:
+        out["prompt_id"] = llm_prompt_id
+    return out
 
 
 class ComposeItineraryTest(unittest.IsolatedAsyncioTestCase):
@@ -266,6 +273,33 @@ class ComposeItineraryTest(unittest.IsolatedAsyncioTestCase):
         }
         out = await compose_itinerary(payload, exchange_rate_latest_url="")
         self.assertEqual(out["itineraries"], [])
+
+    async def test_prompt_id_echoed_on_each_itinerary(self) -> None:
+        payload = _structured_payload(
+            legs=[
+                {"from": "AAA", "to": "BBB", "depart_dates": ["2026-06-01"]},
+                {"from": "BBB", "to": "CCC", "depart_dates": ["2026-06-02"]},
+            ],
+            flights=[
+                _flight_group(
+                    from_="AAA",
+                    to="BBB",
+                    depart_date="2026-06-01",
+                    arrive_date="2026-06-01",
+                ),
+                _flight_group(
+                    from_="BBB",
+                    to="CCC",
+                    depart_date="2026-06-02",
+                    arrive_date="2026-06-02",
+                ),
+            ],
+            hotels=[],
+            llm_prompt_id="resp-openai-xyz",
+        )
+        out = await compose_itinerary(payload, exchange_rate_latest_url="")
+        for it in out["itineraries"]:
+            self.assertEqual(it.get("prompt_id"), "resp-openai-xyz")
 
     async def test_no_provider_response(self) -> None:
         out = await compose_itinerary({"id": "x"}, exchange_rate_latest_url="")

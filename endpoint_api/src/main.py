@@ -105,11 +105,18 @@ async def _handle_missing_info_message(payload: dict) -> None:
         logger.warning("Missing-info message without structured_request: %s", payload)
         return
 
-    message = {
+    message: dict = {
         "type": "missing_info",
         "id": request_id,
         "structured_request": structured_request,
     }
+    mid = payload.get("prompt_id")
+    if isinstance(mid, str) and mid.strip():
+        message["prompt_id"] = mid.strip()
+    elif isinstance(structured_request, dict):
+        spid = structured_request.get("prompt_id")
+        if isinstance(spid, str) and spid.strip():
+            message["prompt_id"] = spid.strip()
 
     delivered = await connection_manager.send_to_request(request_id, message)
     if delivered:
@@ -140,6 +147,9 @@ async def _handle_empty_itinerary_message(payload: dict) -> None:
         "request_id": payload.get("request_id"),
         "payload": inner if isinstance(inner, dict) else {"message": message_text},
     }
+    ep = payload.get("prompt_id")
+    if isinstance(ep, str) and ep.strip():
+        message["prompt_id"] = ep.strip()
 
     delivered = await connection_manager.send_to_request(request_id, message)
     if delivered:
@@ -165,6 +175,11 @@ async def _handle_ranked_message(payload: dict) -> None:
         "itinerary_count": payload.get("itinerary_count"),
         "ranked_itinerary": ranked_itinerary,
     }
+    top_pid = payload.get("prompt_id")
+    if isinstance(top_pid, str) and top_pid.strip():
+        message["prompt_id"] = top_pid.strip()
+    elif isinstance(ranked_itinerary.get("prompt_id"), str) and ranked_itinerary["prompt_id"].strip():
+        message["prompt_id"] = ranked_itinerary["prompt_id"].strip()
 
     delivered = await connection_manager.send_to_request(request_id, message)
     if delivered:

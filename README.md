@@ -36,7 +36,9 @@ Message consumed by `query_router` from RabbitMQ.
 ### 2) Structured Request Produced by LLM
 
 Object returned by `query_router.llm_client.request_structured_itinerary(...)`
-and published as `payload.structured_request`.
+and published as `payload.structured_request`. The same `prompt_id` (OpenAI Responses
+`id` for the structuring turn) is also duplicated at `payload.prompt_id` on messages
+from `query_router` through inventory services for convenience.
 `trip.stays` no longer carries `check_in` / `check_out`; hotel stay dates are derived
 from adjacent flight legs (`arrival` of leg N to `departure` of leg N+1) in
 `inventory_hotel_service`.
@@ -153,7 +155,8 @@ chosen to align with those durations between adjacent legs.
 Output produced by `inventory_flight_service.request_processor.process_incoming_message(...)`.
 Flights are grouped by `(depart_date, arrive_date, from, to)` — one group per unique combination.
 In RabbitMQ transport, this object is wrapped as:
-`{ "id": "...", "structured_request": {...}, "provider_flight_response": <ItineraryFlightResponse> }`.
+`{ "id": "...", "structured_request": {...}, "prompt_id": "...", "provider_flight_response": <ItineraryFlightResponse> }`
+(`prompt_id` optional; echoed from `structured_request.prompt_id` / query_router).
 
 ```json
 {
@@ -190,7 +193,8 @@ In RabbitMQ transport, this object is wrapped as:
 Output produced by `inventory_hotel_service.request_processor.process_incoming_message(...)`.
 It preserves incoming grouped flights and adds hotel options grouped by stay window.
 In RabbitMQ transport, this object is wrapped as:
-`{ "id": "...", "structured_request": {...}, "provider_response": <ItineraryInventoryResponse> }`.
+`{ "id": "...", "structured_request": {...}, "prompt_id": "...", "provider_response": <ItineraryInventoryResponse> }`
+(`prompt_id` optional).
 
 ```json
 {
@@ -245,7 +249,8 @@ total count so the frontend can track progress.
 **Composition rules:** If `provider_response.hotels` is **empty**, itineraries use **flights only**: consecutive flights `A` then `B` are allowed when `A.to == B.from` and `A.arrive_date <= B.depart_date` (date-only), from trip start airport to trip end airport. If `hotels` is **non-empty**, composition is **hybrid** per intermediate stop: where there is hotel inventory for **(arrival city, arrival date)**, the chain uses **flight → hotel → flight** (next flight departs on hotel check-out from that city). Where there is **no** hotel for that stop, the chain continues with **flight → flight** using the same date/location edge rule as flight-only. Each itinerary is capped at 500 variants.
 
 In RabbitMQ transport:
-`{ "id": "...", "itinerary_index": 0, "itinerary_count": N, "itinerary": <Itinerary> }`.
+`{ "id": "...", "itinerary_index": 0, "itinerary_count": N, "itinerary": <Itinerary>, "prompt_id": "..." }`
+(`prompt_id` optional; duplicate of `itinerary.prompt_id` when present).
 
 ```json
 {
@@ -255,6 +260,7 @@ In RabbitMQ transport:
   "required": ["id", "itinerary_index", "itinerary_count", "itinerary"],
   "properties": {
     "id": { "type": "string", "description": "Request correlation id." },
+    "prompt_id": { "type": "string", "description": "Optional duplicate of itinerary.prompt_id for envelope consumers." },
     "itinerary_index": { "type": "integer", "description": "Zero-based index of this itinerary." },
     "itinerary_count": { "type": "integer", "description": "Total number of itineraries for this request." },
     "itinerary": {
@@ -262,6 +268,10 @@ In RabbitMQ transport:
       "required": ["itinerary_id", "flights", "hotels", "summary"],
       "properties": {
         "itinerary_id": { "type": "string", "format": "uuid", "description": "Unique id for this composed itinerary instance." },
+        "prompt_id": {
+          "type": "string",
+          "description": "OpenAI Responses id from the LLM structuring turn; use as previous_response_id for follow-up turns. Same nesting as itinerary correlation fields."
+        },
         "flights": {
           "type": "array",
           "items": {
@@ -315,7 +325,8 @@ Shape mirrors `query_router` LLM objects (`request_id`, `type`) with the user-fa
 
 In RabbitMQ transport (routing key `itinerary:empty`):
 
-`{ "id": "...", "request_id": "...", "type": "no_itineraries", "payload": { "message": "No itinerary found for your request, please refine your request." } }`
+`{ "id": "...", "request_id": "...", "type": "no_itineraries", "prompt_id": "...", "payload": { "message": "..." } }`
+(`prompt_id` optional when known from `structured_request`.)
 
 ```json
 {
@@ -326,6 +337,7 @@ In RabbitMQ transport (routing key `itinerary:empty`):
   "properties": {
     "id": { "type": "string", "description": "Pipeline correlation id (same as incoming provider message id)." },
     "request_id": { "type": "string", "description": "Echo of structured_request.request_id when present." },
+    "prompt_id": { "type": "string", "description": "Optional; OpenAI structuring turn id when available." },
     "type": { "type": "string", "const": "no_itineraries" },
     "payload": {
       "type": "object",
@@ -348,7 +360,8 @@ Published by `ranking_service` for **each** itinerary individually.
 Flight and hotel options inside the itinerary are scored and sorted by score descending.
 
 In RabbitMQ transport:
-`{ "id": "...", "itinerary_index": 0, "itinerary_count": N, "ranked_itinerary": <RankedItinerary> }`.
+`{ "id": "...", "itinerary_index": 0, "itinerary_count": N, "ranked_itinerary": <RankedItinerary>, "prompt_id": "..." }`
+(`prompt_id` optional; duplicate of `ranked_itinerary.prompt_id` when present).
 
 ```json
 {
@@ -358,6 +371,7 @@ In RabbitMQ transport:
   "required": ["id", "itinerary_index", "itinerary_count", "ranked_itinerary"],
   "properties": {
     "id": { "type": "string", "description": "Request correlation id." },
+    "prompt_id": { "type": "string", "description": "Optional duplicate of ranked_itinerary.prompt_id." },
     "itinerary_index": { "type": "integer", "description": "Zero-based index of this itinerary." },
     "itinerary_count": { "type": "integer", "description": "Total number of itineraries for this request." },
     "ranked_itinerary": {
@@ -366,6 +380,7 @@ In RabbitMQ transport:
       "description": "Same shape as ComposedItineraryMessage.itinerary but each option has a _ranking annotation.",
       "properties": {
         "itinerary_id": { "type": "string", "format": "uuid", "description": "Passed through from composed itinerary." },
+        "prompt_id": { "type": "string", "description": "Passed through from composed itinerary; OpenAI structuring turn id." },
         "flights": { "type": "array", "items": { "type": "object" } },
         "hotels": { "type": "array", "items": { "type": "object" } },
         "summary": {
@@ -382,7 +397,9 @@ In RabbitMQ transport:
 ### 8) MissingInfoMessage
 
 Message published by `query_router` when the LLM cannot build a complete itinerary request
-and consumed by `endpoint_api` subscriber/websocket bridge.
+and consumed by `endpoint_api` subscriber/websocket bridge. The websocket payload may
+include a top-level `prompt_id` (duplicate of `structured_request.prompt_id`) for clients
+that read a flat envelope.
 
 ```json
 {
@@ -394,6 +411,10 @@ and consumed by `endpoint_api` subscriber/websocket bridge.
     "id": {
       "type": "string",
       "description": "Request correlation id."
+    },
+    "prompt_id": {
+      "type": "string",
+      "description": "Optional duplicate of structured_request.prompt_id (OpenAI structuring turn id)."
     },
     "content": {
       "type": "string",

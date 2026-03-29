@@ -627,6 +627,17 @@ class RankerTest(unittest.TestCase):
         self.assertEqual(ranked["flights"], [])
         self.assertEqual(ranked["hotels"], [])
 
+    def test_rank_single_itinerary_passes_through_prompt_id(self) -> None:
+        ranked = rank_single_itinerary(
+            {
+                "itinerary_id": "550e8400-e29b-41d4-a716-446655440000",
+                "prompt_id": "resp-abc",
+                "flights": [],
+                "hotels": [],
+            }
+        )
+        self.assertEqual(ranked.get("prompt_id"), "resp-abc")
+
     def test_flight_price_prefers_itinerary_currency_fields(self) -> None:
         offer = {
             "price": {
