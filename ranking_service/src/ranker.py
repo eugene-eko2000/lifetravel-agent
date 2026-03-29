@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from datetime import date, datetime
 from typing import Any
 
@@ -15,7 +16,33 @@ def _safe_float(value: Any, default: float = 0.0) -> float:
 
 
 def _clamp(value: float, lo: float, hi: float) -> float:
+    # min(hi, nan) is nan in IEEE math, but Python's min(100.0, nan) returns 100.0 — never clamp NaNs via min/max.
+    if not math.isfinite(value):
+        return lo
     return max(lo, min(hi, value))
+
+
+def _finite_minmax_values(values: list[float]) -> list[float]:
+    """
+    Replace non-finite entries so min/max are well-defined.
+    +inf maps past the max finite value (worse for lower-is-better after _normalize).
+    """
+    finite = [v for v in values if math.isfinite(v)]
+    if not finite:
+        return [0.0] * len(values)
+    lo, hi = min(finite), max(finite)
+    span = max(hi - lo, 1e-15)
+    out: list[float] = []
+    for v in values:
+        if math.isfinite(v):
+            out.append(v)
+        elif v > 0:
+            out.append(hi + span * 10.0)
+        elif v < 0:
+            out.append(lo - span * 10.0)
+        else:
+            out.append((lo + hi) / 2.0)
+    return out
 
 
 def _parse_time_hhmm(value: Any) -> int | None:
@@ -72,11 +99,15 @@ def _duration_minutes_from_iso8601(value: Any) -> float:
 def _normalize(values: list[float], higher_better: bool) -> list[float]:
     if not values:
         return []
-    min_v = min(values)
-    max_v = max(values)
+    # All non-finite (e.g. every hotel missing distance => +inf): no spread; treat as neutral.
+    if not any(math.isfinite(v) for v in values):
+        return [1.0] * len(values)
+    cleaned = _finite_minmax_values(values)
+    min_v = min(cleaned)
+    max_v = max(cleaned)
     denom = max_v - min_v + EPS
     out: list[float] = []
-    for v in values:
+    for v in cleaned:
         if higher_better:
             out.append((v - min_v) / denom)
         else:

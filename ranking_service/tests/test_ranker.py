@@ -6,7 +6,15 @@ PROJECT_DIR = Path(__file__).resolve().parents[1]
 SRC_DIR = PROJECT_DIR / "src"
 sys.path.insert(0, str(SRC_DIR))
 
-from ranker import _flight_price, _normalize, rank_provider_response, rank_single_itinerary
+from ranker import (
+    _clamp,
+    _flight_price,
+    _hotel_total_price,
+    _normalize,
+    _rank_hotels_for_date,
+    rank_provider_response,
+    rank_single_itinerary,
+)
 
 
 INPUT_PROVIDER_RESPONSE = {
@@ -98,7 +106,11 @@ INPUT_PROVIDER_RESPONSE = {
                         "id": "FP2KHQ2K0D",
                         "checkInDate": "2026-04-19",
                         "checkOutDate": "2026-04-21",
-                        "price": {"currency": "INR", "total": "260.00"},
+                        "price": {
+                            "currency": "INR",
+                            "total": "260.00",
+                            "total_itinerary_currency": "260.00",
+                        },
                         "policies": {"cancellation": {"type": "PARTIAL_STAY"}},
                     }
                 ],
@@ -118,7 +130,11 @@ INPUT_PROVIDER_RESPONSE = {
                         "id": "QOR5YE3411",
                         "checkInDate": "2026-04-19",
                         "checkOutDate": "2026-04-21",
-                        "price": {"currency": "INR", "total": "220.00"},
+                        "price": {
+                            "currency": "INR",
+                            "total": "220.00",
+                            "total_itinerary_currency": "220.00",
+                        },
                         "policies": {"cancellation": {"type": "FULL_STAY"}},
                     }
                 ],
@@ -138,7 +154,11 @@ INPUT_PROVIDER_RESPONSE = {
                         "id": "HXDEL77701",
                         "checkInDate": "2026-04-19",
                         "checkOutDate": "2026-04-21",
-                        "price": {"currency": "INR", "total": "180.00"},
+                        "price": {
+                            "currency": "INR",
+                            "total": "180.00",
+                            "total_itinerary_currency": "180.00",
+                        },
                         "policies": {"cancellation": {"type": "FULL_STAY"}},
                     }
                 ],
@@ -160,7 +180,11 @@ INPUT_PROVIDER_RESPONSE = {
                         "id": "SISIN10101",
                         "checkInDate": "2026-04-21",
                         "checkOutDate": "2026-04-23",
-                        "price": {"currency": "SGD", "total": "300.00"},
+                        "price": {
+                            "currency": "SGD",
+                            "total": "300.00",
+                            "total_itinerary_currency": "300.00",
+                        },
                         "policies": {"cancellation": {"type": "PARTIAL_STAY"}},
                     }
                 ],
@@ -180,7 +204,11 @@ INPUT_PROVIDER_RESPONSE = {
                         "id": "BXSIN20201",
                         "checkInDate": "2026-04-21",
                         "checkOutDate": "2026-04-23",
-                        "price": {"currency": "SGD", "total": "190.00"},
+                        "price": {
+                            "currency": "SGD",
+                            "total": "190.00",
+                            "total_itinerary_currency": "190.00",
+                        },
                         "policies": {"cancellation": {"type": "FULL_STAY"}},
                     }
                 ],
@@ -301,7 +329,11 @@ GOLDEN_RANKED_PROVIDER_RESPONSE = {
                         "id": "FP2KHQ2K0D",
                         "checkInDate": "2026-04-19",
                         "checkOutDate": "2026-04-21",
-                        "price": {"currency": "INR", "total": "260.00"},
+                        "price": {
+                            "currency": "INR",
+                            "total": "260.00",
+                            "total_itinerary_currency": "260.00",
+                        },
                         "policies": {"cancellation": {"type": "PARTIAL_STAY"}},
                     }
                 ],
@@ -327,7 +359,11 @@ GOLDEN_RANKED_PROVIDER_RESPONSE = {
                         "id": "QOR5YE3411",
                         "checkInDate": "2026-04-19",
                         "checkOutDate": "2026-04-21",
-                        "price": {"currency": "INR", "total": "220.00"},
+                        "price": {
+                            "currency": "INR",
+                            "total": "220.00",
+                            "total_itinerary_currency": "220.00",
+                        },
                         "policies": {"cancellation": {"type": "FULL_STAY"}},
                     }
                 ],
@@ -353,7 +389,11 @@ GOLDEN_RANKED_PROVIDER_RESPONSE = {
                         "id": "HXDEL77701",
                         "checkInDate": "2026-04-19",
                         "checkOutDate": "2026-04-21",
-                        "price": {"currency": "INR", "total": "180.00"},
+                        "price": {
+                            "currency": "INR",
+                            "total": "180.00",
+                            "total_itinerary_currency": "180.00",
+                        },
                         "policies": {"cancellation": {"type": "FULL_STAY"}},
                     }
                 ],
@@ -381,7 +421,11 @@ GOLDEN_RANKED_PROVIDER_RESPONSE = {
                         "id": "SISIN10101",
                         "checkInDate": "2026-04-21",
                         "checkOutDate": "2026-04-23",
-                        "price": {"currency": "SGD", "total": "300.00"},
+                        "price": {
+                            "currency": "SGD",
+                            "total": "300.00",
+                            "total_itinerary_currency": "300.00",
+                        },
                         "policies": {"cancellation": {"type": "PARTIAL_STAY"}},
                     }
                 ],
@@ -407,7 +451,11 @@ GOLDEN_RANKED_PROVIDER_RESPONSE = {
                         "id": "BXSIN20201",
                         "checkInDate": "2026-04-21",
                         "checkOutDate": "2026-04-23",
-                        "price": {"currency": "SGD", "total": "190.00"},
+                        "price": {
+                            "currency": "SGD",
+                            "total": "190.00",
+                            "total_itinerary_currency": "190.00",
+                        },
                         "policies": {"cancellation": {"type": "FULL_STAY"}},
                     }
                 ],
@@ -447,6 +495,47 @@ class RankerTest(unittest.TestCase):
         # With zero range, denominator falls back to EPS, so all norms are 0.
         self.assertEqual(higher, [0.0, 0.0, 0.0])
         self.assertEqual(lower, [0.0, 0.0, 0.0])
+
+    def test_normalize_all_nonfinite_returns_neutral(self) -> None:
+        """When every value is inf/nan, min/max are undefined; use neutral 1.0 per slot."""
+        self.assertEqual(_normalize([float("inf")] * 3, higher_better=False), [1.0, 1.0, 1.0])
+
+    def test_clamp_nonfinite_returns_lo(self) -> None:
+        """Python's min(hi, nan) can return hi; never treat NaN as in-range."""
+        self.assertEqual(_clamp(float("nan"), 0.0, 100.0), 0.0)
+
+    def test_hotel_ranking_varies_by_price_when_distance_missing(self) -> None:
+        """Missing distance is +inf for all; must not collapse scores to 100 via NaN clamp bug."""
+        offers = [
+            {
+                "available": True,
+                "hotel": {"rating": "4.0"},
+                "offers": [
+                    {
+                        "checkInDate": "2026-04-19",
+                        "checkOutDate": "2026-04-21",
+                        "price": {"total": "100.00"},
+                    }
+                ],
+            },
+            {
+                "available": True,
+                "hotel": {"rating": "4.0"},
+                "offers": [
+                    {
+                        "checkInDate": "2026-04-19",
+                        "checkOutDate": "2026-04-21",
+                        "price": {"total": "500.00"},
+                    }
+                ],
+            },
+        ]
+        ranked = _rank_hotels_for_date(offers, {})
+        scores = [o["_ranking"]["score"] for o in ranked]
+        self.assertEqual(len(scores), 2)
+        self.assertNotEqual(scores[0], scores[1])
+        self.assertNotEqual(scores[0], 100.0)
+        self.assertNotEqual(scores[1], 100.0)
 
     def test_rank_provider_response_matches_golden_output(self) -> None:
         ranked = rank_provider_response(INPUT_PROVIDER_RESPONSE)
@@ -513,6 +602,26 @@ class RankerTest(unittest.TestCase):
             for opt in hg["options"]:
                 self.assertIn("_ranking", opt)
 
+        # Flight group 0: same three options as INPUT golden → same scores as GOLDEN flights.
+        fg0 = ranked["flights"][0]["options"]
+        self.assertEqual(
+            [(o["id"], o["_ranking"]["score"]) for o in fg0],
+            [("1", 100.0), ("2", 85.71), ("3", 13.25)],
+        )
+        # Flight group 1: single option; normalization is over a cohort of one (fixed score).
+        fg1 = ranked["flights"][1]["options"]
+        self.assertEqual(len(fg1), 1)
+        self.assertEqual(fg1[0]["id"], "1")
+        self.assertEqual(fg1[0]["_ranking"]["score"], 40.0)
+
+        hg_del = ranked["hotels"][0]["options"]
+        self.assertEqual(
+            [o["_ranking"]["score"] for o in hg_del],
+            [55.0, 36.89, 35.0],
+        )
+        hg_sin = ranked["hotels"][1]["options"]
+        self.assertEqual([o["_ranking"]["score"] for o in hg_sin], [55.0, 35.0])
+
     def test_rank_single_itinerary_empty(self) -> None:
         ranked = rank_single_itinerary({"flights": [], "hotels": []})
         self.assertEqual(ranked["flights"], [])
@@ -527,6 +636,23 @@ class RankerTest(unittest.TestCase):
             "itineraries": [{"duration": "PT4H", "segments": []}],
         }
         self.assertEqual(_flight_price(offer), 250.0)
+
+    def test_hotel_total_price_prefers_total_itinerary_currency(self) -> None:
+        offer = {
+            "offers": [
+                {
+                    "checkInDate": "2026-04-19",
+                    "checkOutDate": "2026-04-21",
+                    "price": {
+                        "currency": "INR",
+                        "total": "999.00",
+                        "total_itinerary_currency": "40.00",
+                    },
+                }
+            ],
+            "hotel": {"distance": {"value": 1.0}, "rating": "4.0"},
+        }
+        self.assertEqual(_hotel_total_price(offer), 40.0)
 
     def test_rank_single_itinerary_uses_itinerary_currency_for_scoring(self) -> None:
         """When *_itinerary_currency is present, ranking score uses those amounts."""
@@ -589,6 +715,71 @@ class RankerTest(unittest.TestCase):
         self.assertEqual(opts[0]["id"], "cheap-ic")
         self.assertEqual(opts[0]["_ranking"]["price"], 100.0)
         self.assertEqual(opts[0]["_ranking"]["currency"], "CHF")
+        self.assertEqual(opts[0]["_ranking"]["score"], 66.0)
+        self.assertEqual(opts[1]["_ranking"]["score"], 36.0)
+
+    def test_rank_single_itinerary_hotel_uses_itinerary_currency_for_scoring(self) -> None:
+        """When total_itinerary_currency is present, hotel PPN uses that (not raw total)."""
+        cheap_in_ic = {
+            "available": True,
+            "hotel": {
+                "hotelId": "cheap-h",
+                "distance": {"value": 2.0},
+                "rating": "4.0",
+            },
+            "offers": [
+                {
+                    "id": "o-cheap",
+                    "checkInDate": "2026-04-19",
+                    "checkOutDate": "2026-04-21",
+                    "price": {
+                        "currency": "INR",
+                        "total": "900.00",
+                        "total_itinerary_currency": "100.00",
+                    },
+                }
+            ],
+        }
+        expensive_in_ic = {
+            "available": True,
+            "hotel": {
+                "hotelId": "expensive-h",
+                "distance": {"value": 2.0},
+                "rating": "4.0",
+            },
+            "offers": [
+                {
+                    "id": "o-exp",
+                    "checkInDate": "2026-04-19",
+                    "checkOutDate": "2026-04-21",
+                    "price": {
+                        "currency": "INR",
+                        "total": "100.00",
+                        "total_itinerary_currency": "400.00",
+                    },
+                }
+            ],
+        }
+        itinerary = {
+            "itinerary_currency": "CHF",
+            "summary": {"itinerary_currency": "CHF"},
+            "flights": [],
+            "hotels": [
+                {
+                    "city_code": "DEL",
+                    "check_in": "2026-04-19",
+                    "check_out": "2026-04-21",
+                    "options": [expensive_in_ic, cheap_in_ic],
+                }
+            ],
+        }
+        ranked = rank_single_itinerary(itinerary)
+        opts = ranked["hotels"][0]["options"]
+        self.assertEqual(opts[0]["offers"][0]["id"], "o-cheap")
+        self.assertEqual(opts[0]["_ranking"]["price_per_night"], 50.0)
+        self.assertEqual(opts[0]["_ranking"]["currency"], "CHF")
+        self.assertEqual(opts[0]["_ranking"]["score"], 35.0)
+        self.assertEqual(opts[1]["_ranking"]["score"], 0.0)
 
     def test_rank_single_itinerary_options_sorted_by_score(self) -> None:
         flight_group = {
@@ -604,6 +795,7 @@ class RankerTest(unittest.TestCase):
         options = ranked["flights"][0]["options"]
         option_scores = [opt["_ranking"]["score"] for opt in options]
         self.assertEqual(option_scores, sorted(option_scores, reverse=True))
+        self.assertEqual(option_scores, [100.0, 85.71, 13.25])
 
 
 if __name__ == "__main__":
