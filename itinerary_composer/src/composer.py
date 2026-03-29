@@ -121,58 +121,6 @@ def _convert_via_usd(
 
 
 # ---------------------------------------------------------------------------
-# Min-price helpers (currency-aware)
-# ---------------------------------------------------------------------------
-
-def _min_flight_price(
-    options: list[dict[str, Any]],
-    target_currency: str,
-    usd_rates: dict[str, float],
-) -> float:
-    best = float("inf")
-    target = target_currency.upper()
-    for opt in options:
-        price = opt.get("price")
-        if not isinstance(price, dict):
-            continue
-        val = _safe_float(price.get("grandTotal", price.get("total")), float("inf"))
-        if val == float("inf"):
-            continue
-        src = str(price.get("currency", "")).upper()
-        if src and src != target:
-            val = _convert_via_usd(val, src, target, usd_rates)
-        if val < best:
-            best = val
-    return best if best != float("inf") else 0.0
-
-
-def _min_hotel_price(
-    options: list[dict[str, Any]],
-    target_currency: str,
-    usd_rates: dict[str, float],
-) -> float:
-    best = float("inf")
-    target = target_currency.upper()
-    for opt in options:
-        offers = opt.get("offers")
-        if not isinstance(offers, list) or not offers:
-            continue
-        first = offers[0] if isinstance(offers[0], dict) else {}
-        price = first.get("price")
-        if not isinstance(price, dict):
-            continue
-        val = _safe_float(price.get("total"), float("inf"))
-        if val == float("inf"):
-            continue
-        src = str(price.get("currency", "")).upper()
-        if src and src != target:
-            val = _convert_via_usd(val, src, target, usd_rates)
-        if val < best:
-            best = val
-    return best if best != float("inf") else 0.0
-
-
-# ---------------------------------------------------------------------------
 # Budget currency extraction & summary
 # ---------------------------------------------------------------------------
 

@@ -24,7 +24,7 @@ def _normalize_airline_preferences(trip: dict[str, Any]) -> list[str]:
 
 def _build_search_criteria(airline_codes: list[str]) -> dict[str, Any]:
     """Amadeus Flight Offers Search searchCriteria; optional carrier whitelist."""
-    criteria: dict[str, Any] = {"maxFlightOffers": 10}
+    criteria: dict[str, Any] = {"maxFlightOffers": 250}
     if airline_codes:
         criteria["flightFilters"] = {
             "carrierRestrictions": {
