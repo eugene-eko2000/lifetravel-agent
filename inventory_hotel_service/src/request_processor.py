@@ -333,7 +333,7 @@ async def _fetch_hotels_for_request(
     hotel_ids = _extract_hotel_ids(hotels_list_response)
     distance_index = _extract_distance_index(hotels_list_response)
     sorted_hotel_ids = _select_nearest_hotel_ids(hotel_ids, distance_index, limit=len(hotel_ids))
-    chunk_size = max(1, cfg.amadeus_hotels_offers_limit)
+    chunk_size = max(1, cfg.amadeus_hotel_offers_max_chunk_size)
 
     adults = int(stay.get("travelers", 1) or 1)
     room_quantity = int(stay.get("min_rooms", 1) or 1)

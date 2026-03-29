@@ -44,7 +44,7 @@ class Cfg:
     amadeus_interval_between_queries: float | None
     amadeus_429_max_attempts: int
     amadeus_token_url: str
-    amadeus_hotels_offers_limit: int
+    amadeus_hotel_offers_max_chunk_size: int
     amadeus_max_hotel_offers: int | None
     amadeus_hotels_citycode_radius_km: int
     amadeus_hotels_latlng_radius_km: int
@@ -98,7 +98,9 @@ class Cfg:
                 "AMADEUS_TOKEN_URL",
                 "https://test.api.amadeus.com/v1/security/oauth2/token",
             ),
-            amadeus_hotels_offers_limit=int(os.getenv("AMADEUS_HOTELS_OFFERS_LIMIT", "10")),
+            amadeus_hotel_offers_max_chunk_size=int(
+                os.getenv("AMADEUS_HOTEL_OFFERS_MAX_CHUNK_SIZE", "10")
+            ),
             amadeus_max_hotel_offers=_parse_amadeus_max_hotel_offers(),
             amadeus_hotels_citycode_radius_km=int(
                 os.getenv("AMADEUS_HOTELS_CITYCODE_RADIUS_KM", "15")
