@@ -24,13 +24,13 @@ services:
       AMQP_USER: ${AMQP_USER:-guest}
       AMQP_PASSWORD: ${AMQP_PASSWORD:-guest}
       RABBITMQ_EXCHANGE: lifetravel_agent
-      RABBITMQ_ITINERARY_REQUEST_ROUTING_KEY: itinerary:user_request
-      RABBITMQ_MISSING_INFO_ROUTING_KEY: itinerary:missing_info
+      RABBITMQ_TRIP_REQUEST_ROUTING_KEY: trip:user_request
+      RABBITMQ_MISSING_INFO_ROUTING_KEY: trip:missing_info
       RABBITMQ_MISSING_INFO_QUEUE: endpoint_api_missing_info_queue
-      RABBITMQ_RANKED_ROUTING_KEY: itinerary:ranked
+      RABBITMQ_RANKED_ROUTING_KEY: trip:ranked
       RABBITMQ_RANKED_QUEUE: endpoint_api_ranked_queue
-      RABBITMQ_EMPTY_ITINERARY_ROUTING_KEY: itinerary:empty
-      RABBITMQ_EMPTY_ITINERARY_QUEUE: endpoint_api_empty_itinerary_queue
+      RABBITMQ_EMPTY_TRIP_ROUTING_KEY: trip:empty
+      RABBITMQ_EMPTY_TRIP_QUEUE: endpoint_api_empty_trip_queue
       RABBITMQ_DEBUG_ROUTING_KEY: debug:message
       RABBITMQ_DEBUG_QUEUE: endpoint_api_debug_queue
       RABBITMQ_STATUS_ROUTING_KEY: status:message
@@ -52,12 +52,12 @@ services:
       AMQP_USER: ${AMQP_USER:-guest}
       AMQP_PASSWORD: ${AMQP_PASSWORD:-guest}
       RABBITMQ_EXCHANGE: lifetravel_agent
-      RABBITMQ_SUBSCRIBE_ROUTING_KEY: itinerary:user_request
-      RABBITMQ_PUBLISH_ROUTING_KEY: itinerary:structured_request
-      RABBITMQ_MISSING_INFO_ROUTING_KEY: itinerary:missing_info
+      RABBITMQ_SUBSCRIBE_ROUTING_KEY: trip:user_request
+      RABBITMQ_PUBLISH_ROUTING_KEY: trip:structured_request
+      RABBITMQ_MISSING_INFO_ROUTING_KEY: trip:missing_info
       RABBITMQ_DEBUG_ROUTING_KEY: debug:message
       RABBITMQ_STATUS_ROUTING_KEY: status:message
-      RABBITMQ_QUEUE_NAME: query_router_itinerary_user_request_queue
+      RABBITMQ_QUEUE_NAME: query_router_trip_user_request_queue
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_MODEL: gpt-5.2
       OPENAI_BASE_URL: ${OPENAI_BASE_URL}
@@ -78,8 +78,8 @@ services:
       AMQP_USER: ${AMQP_USER:-guest}
       AMQP_PASSWORD: ${AMQP_PASSWORD:-guest}
       RABBITMQ_EXCHANGE: lifetravel_agent
-      RABBITMQ_SUBSCRIBE_ROUTING_KEY: itinerary:structured_request
-      RABBITMQ_PUBLISH_ROUTING_KEY: itinerary:provider_flight_response
+      RABBITMQ_SUBSCRIBE_ROUTING_KEY: trip:structured_request
+      RABBITMQ_PUBLISH_ROUTING_KEY: trip:provider_flight_response
       RABBITMQ_DEBUG_ROUTING_KEY: debug:message
       RABBITMQ_STATUS_ROUTING_KEY: status:message
       RABBITMQ_QUEUE_NAME: inventory_flight_service_structured_request_queue
@@ -106,8 +106,8 @@ services:
       AMQP_USER: ${AMQP_USER:-guest}
       AMQP_PASSWORD: ${AMQP_PASSWORD:-guest}
       RABBITMQ_EXCHANGE: lifetravel_agent
-      RABBITMQ_SUBSCRIBE_ROUTING_KEY: itinerary:provider_flight_response
-      RABBITMQ_PUBLISH_ROUTING_KEY: itinerary:provider_response
+      RABBITMQ_SUBSCRIBE_ROUTING_KEY: trip:provider_flight_response
+      RABBITMQ_PUBLISH_ROUTING_KEY: trip:provider_response
       RABBITMQ_DEBUG_ROUTING_KEY: debug:message
       RABBITMQ_STATUS_ROUTING_KEY: status:message
       RABBITMQ_QUEUE_NAME: inventory_hotel_service_provider_flight_response_queue
@@ -129,10 +129,10 @@ services:
       inventory_flight_service:
         condition: service_started
 
-  # ── Itinerary Composer ──────────────────────────────────────────────────────
-  itinerary_composer:
+  # ── Trip Composer ──────────────────────────────────────────────────────
+  trip_composer:
     build:
-      context: ./itinerary_composer
+      context: ./trip_composer
     ports:
       - "8085:8080"
     environment:
@@ -142,12 +142,12 @@ services:
       AMQP_USER: ${AMQP_USER:-guest}
       AMQP_PASSWORD: ${AMQP_PASSWORD:-guest}
       RABBITMQ_EXCHANGE: lifetravel_agent
-      RABBITMQ_SUBSCRIBE_ROUTING_KEY: itinerary:provider_response
-      RABBITMQ_PUBLISH_ROUTING_KEY: itinerary:composed
+      RABBITMQ_SUBSCRIBE_ROUTING_KEY: trip:provider_response
+      RABBITMQ_PUBLISH_ROUTING_KEY: trip:composed
       RABBITMQ_DEBUG_ROUTING_KEY: debug:message
       RABBITMQ_STATUS_ROUTING_KEY: status:message
-      RABBITMQ_QUEUE_NAME: itinerary_composer_provider_response_queue
-      RABBITMQ_EMPTY_ITINERARY_ROUTING_KEY: itinerary:empty
+      RABBITMQ_QUEUE_NAME: trip_composer_provider_response_queue
+      RABBITMQ_EMPTY_TRIP_ROUTING_KEY: trip:empty
       EXCHANGE_RATE_APP_ID: ${EXCHANGE_RATE_APP_ID:-}
     depends_on:
       rabbitmq:
@@ -168,12 +168,12 @@ services:
       AMQP_USER: ${AMQP_USER:-guest}
       AMQP_PASSWORD: ${AMQP_PASSWORD:-guest}
       RABBITMQ_EXCHANGE: lifetravel_agent
-      RABBITMQ_SUBSCRIBE_ROUTING_KEY: itinerary:composed
-      RABBITMQ_PUBLISH_ROUTING_KEY: itinerary:ranked
+      RABBITMQ_SUBSCRIBE_ROUTING_KEY: trip:composed
+      RABBITMQ_PUBLISH_ROUTING_KEY: trip:ranked
       RABBITMQ_STATUS_ROUTING_KEY: status:message
       RABBITMQ_QUEUE_NAME: ranking_service_composed_queue
     depends_on:
       rabbitmq:
         condition: service_healthy
-      itinerary_composer:
+      trip_composer:
         condition: service_started

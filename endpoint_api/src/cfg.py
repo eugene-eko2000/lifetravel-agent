@@ -15,8 +15,8 @@ class Cfg:
     rabbitmq_missing_info_queue: str
     rabbitmq_ranked_routing_key: str
     rabbitmq_ranked_queue: str
-    rabbitmq_empty_itinerary_routing_key: str
-    rabbitmq_empty_itinerary_queue: str
+    rabbitmq_empty_trip_routing_key: str
+    rabbitmq_empty_trip_queue: str
     rabbitmq_debug_routing_key: str
     rabbitmq_debug_queue: str
     rabbitmq_status_routing_key: str
@@ -32,12 +32,12 @@ class Cfg:
             amqp_password=os.getenv("AMQP_PASSWORD", "guest"),
             rabbitmq_exchange=os.getenv("RABBITMQ_EXCHANGE", "lifetravel_agent"),
             rabbitmq_routing_key=os.getenv(
-                "RABBITMQ_ITINERARY_REQUEST_ROUTING_KEY",
-                "itinerary:user_request",
+                "RABBITMQ_TRIP_REQUEST_ROUTING_KEY",
+                "trip:user_request",
             ),
             rabbitmq_missing_info_routing_key=os.getenv(
                 "RABBITMQ_MISSING_INFO_ROUTING_KEY",
-                "itinerary:missing_info",
+                "trip:missing_info",
             ),
             rabbitmq_missing_info_queue=os.getenv(
                 "RABBITMQ_MISSING_INFO_QUEUE",
@@ -45,19 +45,19 @@ class Cfg:
             ),
             rabbitmq_ranked_routing_key=os.getenv(
                 "RABBITMQ_RANKED_ROUTING_KEY",
-                "itinerary:ranked",
+                "trip:ranked",
             ),
             rabbitmq_ranked_queue=os.getenv(
                 "RABBITMQ_RANKED_QUEUE",
                 "endpoint_api_ranked_queue",
             ),
-            rabbitmq_empty_itinerary_routing_key=os.getenv(
-                "RABBITMQ_EMPTY_ITINERARY_ROUTING_KEY",
-                "itinerary:empty",
+            rabbitmq_empty_trip_routing_key=os.getenv(
+                "RABBITMQ_EMPTY_TRIP_ROUTING_KEY",
+                "trip:empty",
             ),
-            rabbitmq_empty_itinerary_queue=os.getenv(
-                "RABBITMQ_EMPTY_ITINERARY_QUEUE",
-                "endpoint_api_empty_itinerary_queue",
+            rabbitmq_empty_trip_queue=os.getenv(
+                "RABBITMQ_EMPTY_TRIP_QUEUE",
+                "endpoint_api_empty_trip_queue",
             ),
             rabbitmq_debug_routing_key=os.getenv(
                 "RABBITMQ_DEBUG_ROUTING_KEY",

@@ -26,7 +26,7 @@ class FlightOfferFilterTest(unittest.TestCase):
         self.assertEqual(_iso8601_duration_to_seconds("PT5H30M"), 5 * 3600 + 30 * 60)
         self.assertEqual(_iso8601_duration_to_seconds("PT2H"), 7200.0)
 
-    def test_connection_count_sums_across_itineraries(self) -> None:
+    def test_connection_count_sums_across_trips(self) -> None:
         one_stop = {
             "itineraries": [
                 {
@@ -82,7 +82,7 @@ class FlightOfferFilterTest(unittest.TestCase):
         out = _filter_and_limit_flight_offers(resp, max_options=2)
         self.assertEqual(len(out["data"]), 2)
 
-    def test_total_duration_sums_itineraries(self) -> None:
+    def test_total_duration_sums_trips(self) -> None:
         offer = {
             "itineraries": [
                 {"duration": "PT2H", "segments": [_seg()]},

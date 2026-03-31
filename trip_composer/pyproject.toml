@@ -3,9 +3,9 @@ requires = ["setuptools>=69", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "itinerary-composer"
+name = "trip-composer"
 version = "0.1.0"
-description = "Async itinerary composer microservice"
+description = "Async trip composer microservice"
 requires-python = ">=3.10"
 dependencies = [
   "aio-pika",

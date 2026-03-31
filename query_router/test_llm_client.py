@@ -13,7 +13,7 @@ SRC_DIR = PROJECT_DIR / "src"
 ENV_FILE = PROJECT_DIR.parent / ".env"
 sys.path.insert(0, str(SRC_DIR))
 
-from llm_client import request_structured_itinerary  # noqa: E402
+from llm_client import request_structured_trip  # noqa: E402
 
 
 def _load_env_file(path: Path) -> None:
@@ -32,7 +32,7 @@ def _load_env_file(path: Path) -> None:
 
 async def _run(text: str, request_id: str | None) -> None:
     rid = request_id or str(uuid.uuid4())
-    response = await request_structured_itinerary(rid, None, text)
+    response = await request_structured_trip(rid, None, text)
     print(json.dumps(response, indent=2))
 
 
@@ -40,7 +40,7 @@ def main() -> None:
     _load_env_file(ENV_FILE)
 
     parser = argparse.ArgumentParser(description="Test query_router LLM client")
-    parser.add_argument("text", help="Input text to send to request_structured_itinerary")
+    parser.add_argument("text", help="Input text to send to request_structured_trip")
     parser.add_argument(
         "--request-id",
         dest="request_id",

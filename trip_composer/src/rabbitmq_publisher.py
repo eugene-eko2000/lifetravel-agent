@@ -5,10 +5,10 @@ from typing import Any
 from aio_pika import DeliveryMode, Message
 from aio_pika.abc import AbstractExchange
 
-logger = logging.getLogger("itinerary_composer.rabbitmq_publisher")
+logger = logging.getLogger("trip_composer.rabbitmq_publisher")
 
 
-async def publish_composed_itinerary(
+async def publish_composed_trip(
     exchange: AbstractExchange,
     routing_key: str,
     payload: dict[str, Any],
@@ -19,7 +19,7 @@ async def publish_composed_itinerary(
         content_type="application/json",
     )
     await exchange.publish(message, routing_key=routing_key)
-    logger.info("Published composed itinerary via routing_key=%s", routing_key)
+    logger.info("Published composed trip via routing_key=%s", routing_key)
 
 
 async def publish_debug_message(
@@ -50,7 +50,7 @@ async def publish_status_message(
     logger.info("Published status message via routing_key=%s", routing_key)
 
 
-async def publish_empty_itinerary(
+async def publish_empty_trip(
     exchange: AbstractExchange,
     routing_key: str,
     payload: dict[str, Any],
@@ -61,4 +61,4 @@ async def publish_empty_itinerary(
         content_type="application/json",
     )
     await exchange.publish(message, routing_key=routing_key)
-    logger.info("Published empty itinerary notice via routing_key=%s", routing_key)
+    logger.info("Published empty trip notice via routing_key=%s", routing_key)

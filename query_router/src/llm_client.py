@@ -105,7 +105,7 @@ MISSING_INFO_SCHEMA = {
 
 
 SYSTEM_PROMPT = f"""You are a helpful assistant that converts 
-a user query about a travel itinerary into a structured output.
+a user query about a travel trip into a structured output.
 
 The user query is expected to contain flight hauls and hotel stays
 with dates ranges for each haul and stay and other conditions like 
@@ -184,7 +184,7 @@ def _extract_output_text(response_json: dict[str, Any]) -> str:
     raise ValueError("No text content found in OpenAI response")
 
 
-async def request_structured_itinerary(
+async def request_structured_trip(
     request_id: str,
     prompt_id: str | None,
     content: str,

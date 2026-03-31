@@ -42,8 +42,8 @@ export OPENAI_BASE_URL="${OPENAI_BASE_URL:-https://api.openai.com/v1}"
 # Amadeus/OpenAI service URLs are exported above; use this script before docker compose so
 # compose receives AMADEUS_*_URL, AMADEUS_TOKEN_URL, and OPENAI_BASE_URL. Override via .env
 # (e.g. AMADEUS_BASE_URL or individual AMADEUS_FLIGHTS_OFFERS_URL).
-# EXCHANGE_RATE_APP_ID (Open Exchange Rates for itinerary_composer) is read from .env when
-# sourced above; docker compose passes it to itinerary_composer.
+# EXCHANGE_RATE_APP_ID (Open Exchange Rates for trip_composer) is read from .env when
+# sourced above; docker compose passes it to trip_composer.
 ATTACH=false
 RERUN=false
 while [[ $# -gt 0 ]]; do

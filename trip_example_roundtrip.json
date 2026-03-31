@@ -1,9 +1,9 @@
 {
     "type": "ranked",
     "id": "7af11fa1-6b02-4422-9f62-e063af56406b",
-    "itinerary_index": 0,
-    "itinerary_count": 49,
-    "ranked_itinerary": {
+    "trip_index": 0,
+    "trip_count": 49,
+    "ranked_trip": {
       "flights": [
         {
           "depart_date": "2026-05-12",
@@ -87,18 +87,18 @@
                   {
                     "amount": "0.00",
                     "type": "SUPPLIER",
-                    "amount_itinerary_currency": "0.00"
+                    "amount_trip_currency": "0.00"
                   },
                   {
                     "amount": "0.00",
                     "type": "TICKETING",
-                    "amount_itinerary_currency": "0.00"
+                    "amount_trip_currency": "0.00"
                   }
                 ],
                 "grandTotal": "369.93",
-                "total_itinerary_currency": "321.52",
-                "base_itinerary_currency": "200.77",
-                "grandTotal_itinerary_currency": "321.52"
+                "total_trip_currency": "321.52",
+                "base_trip_currency": "200.77",
+                "grandTotal_trip_currency": "321.52"
               },
               "pricingOptions": {
                 "fareType": [
@@ -118,8 +118,8 @@
                     "currency": "EUR",
                     "total": "369.93",
                     "base": "231.00",
-                    "total_itinerary_currency": "321.52",
-                    "base_itinerary_currency": "200.77"
+                    "total_trip_currency": "321.52",
+                    "base_trip_currency": "200.77"
                   },
                   "fareDetailsBySegment": [
                     {
@@ -237,18 +237,18 @@
                   {
                     "amount": "0.00",
                     "type": "SUPPLIER",
-                    "amount_itinerary_currency": "0.00"
+                    "amount_trip_currency": "0.00"
                   },
                   {
                     "amount": "0.00",
                     "type": "TICKETING",
-                    "amount_itinerary_currency": "0.00"
+                    "amount_trip_currency": "0.00"
                   }
                 ],
                 "grandTotal": "369.93",
-                "total_itinerary_currency": "321.52",
-                "base_itinerary_currency": "200.77",
-                "grandTotal_itinerary_currency": "321.52"
+                "total_trip_currency": "321.52",
+                "base_trip_currency": "200.77",
+                "grandTotal_trip_currency": "321.52"
               },
               "pricingOptions": {
                 "fareType": [
@@ -268,8 +268,8 @@
                     "currency": "EUR",
                     "total": "369.93",
                     "base": "231.00",
-                    "total_itinerary_currency": "321.52",
-                    "base_itinerary_currency": "200.77"
+                    "total_trip_currency": "321.52",
+                    "base_trip_currency": "200.77"
                   },
                   "fareDetailsBySegment": [
                     {
@@ -387,18 +387,18 @@
                   {
                     "amount": "0.00",
                     "type": "SUPPLIER",
-                    "amount_itinerary_currency": "0.00"
+                    "amount_trip_currency": "0.00"
                   },
                   {
                     "amount": "0.00",
                     "type": "TICKETING",
-                    "amount_itinerary_currency": "0.00"
+                    "amount_trip_currency": "0.00"
                   }
                 ],
                 "grandTotal": "369.93",
-                "total_itinerary_currency": "321.52",
-                "base_itinerary_currency": "200.77",
-                "grandTotal_itinerary_currency": "321.52"
+                "total_trip_currency": "321.52",
+                "base_trip_currency": "200.77",
+                "grandTotal_trip_currency": "321.52"
               },
               "pricingOptions": {
                 "fareType": [
@@ -418,8 +418,8 @@
                     "currency": "EUR",
                     "total": "369.93",
                     "base": "231.00",
-                    "total_itinerary_currency": "321.52",
-                    "base_itinerary_currency": "200.77"
+                    "total_trip_currency": "321.52",
+                    "base_trip_currency": "200.77"
                   },
                   "fareDetailsBySegment": [
                     {
@@ -536,18 +536,18 @@
                   {
                     "amount": "0.00",
                     "type": "SUPPLIER",
-                    "amount_itinerary_currency": "0.00"
+                    "amount_trip_currency": "0.00"
                   },
                   {
                     "amount": "0.00",
                     "type": "TICKETING",
-                    "amount_itinerary_currency": "0.00"
+                    "amount_trip_currency": "0.00"
                   }
                 ],
                 "grandTotal": "380.24",
-                "total_itinerary_currency": "330.48",
-                "base_itinerary_currency": "200.77",
-                "grandTotal_itinerary_currency": "330.48"
+                "total_trip_currency": "330.48",
+                "base_trip_currency": "200.77",
+                "grandTotal_trip_currency": "330.48"
               },
               "pricingOptions": {
                 "fareType": [
@@ -567,8 +567,8 @@
                     "currency": "EUR",
                     "total": "380.24",
                     "base": "231.00",
-                    "total_itinerary_currency": "330.48",
-                    "base_itinerary_currency": "200.77"
+                    "total_trip_currency": "330.48",
+                    "base_trip_currency": "200.77"
                   },
                   "fareDetailsBySegment": [
                     {
@@ -685,18 +685,18 @@
                   {
                     "amount": "0.00",
                     "type": "SUPPLIER",
-                    "amount_itinerary_currency": "0.00"
+                    "amount_trip_currency": "0.00"
                   },
                   {
                     "amount": "0.00",
                     "type": "TICKETING",
-                    "amount_itinerary_currency": "0.00"
+                    "amount_trip_currency": "0.00"
                   }
                 ],
                 "grandTotal": "380.24",
-                "total_itinerary_currency": "330.48",
-                "base_itinerary_currency": "200.77",
-                "grandTotal_itinerary_currency": "330.48"
+                "total_trip_currency": "330.48",
+                "base_trip_currency": "200.77",
+                "grandTotal_trip_currency": "330.48"
               },
               "pricingOptions": {
                 "fareType": [
@@ -716,8 +716,8 @@
                     "currency": "EUR",
                     "total": "380.24",
                     "base": "231.00",
-                    "total_itinerary_currency": "330.48",
-                    "base_itinerary_currency": "200.77"
+                    "total_trip_currency": "330.48",
+                    "base_trip_currency": "200.77"
                   },
                   "fareDetailsBySegment": [
                     {
@@ -834,18 +834,18 @@
                   {
                     "amount": "0.00",
                     "type": "SUPPLIER",
-                    "amount_itinerary_currency": "0.00"
+                    "amount_trip_currency": "0.00"
                   },
                   {
                     "amount": "0.00",
                     "type": "TICKETING",
-                    "amount_itinerary_currency": "0.00"
+                    "amount_trip_currency": "0.00"
                   }
                 ],
                 "grandTotal": "380.24",
-                "total_itinerary_currency": "330.48",
-                "base_itinerary_currency": "200.77",
-                "grandTotal_itinerary_currency": "330.48"
+                "total_trip_currency": "330.48",
+                "base_trip_currency": "200.77",
+                "grandTotal_trip_currency": "330.48"
               },
               "pricingOptions": {
                 "fareType": [
@@ -865,8 +865,8 @@
                     "currency": "EUR",
                     "total": "380.24",
                     "base": "231.00",
-                    "total_itinerary_currency": "330.48",
-                    "base_itinerary_currency": "200.77"
+                    "total_trip_currency": "330.48",
+                    "base_trip_currency": "200.77"
                   },
                   "fareDetailsBySegment": [
                     {
@@ -983,18 +983,18 @@
                   {
                     "amount": "0.00",
                     "type": "SUPPLIER",
-                    "amount_itinerary_currency": "0.00"
+                    "amount_trip_currency": "0.00"
                   },
                   {
                     "amount": "0.00",
                     "type": "TICKETING",
-                    "amount_itinerary_currency": "0.00"
+                    "amount_trip_currency": "0.00"
                   }
                 ],
                 "grandTotal": "380.24",
-                "total_itinerary_currency": "330.48",
-                "base_itinerary_currency": "200.77",
-                "grandTotal_itinerary_currency": "330.48"
+                "total_trip_currency": "330.48",
+                "base_trip_currency": "200.77",
+                "grandTotal_trip_currency": "330.48"
               },
               "pricingOptions": {
                 "fareType": [
@@ -1014,8 +1014,8 @@
                     "currency": "EUR",
                     "total": "380.24",
                     "base": "231.00",
-                    "total_itinerary_currency": "330.48",
-                    "base_itinerary_currency": "200.77"
+                    "total_trip_currency": "330.48",
+                    "base_trip_currency": "200.77"
                   },
                   "fareDetailsBySegment": [
                     {
@@ -1132,18 +1132,18 @@
                   {
                     "amount": "0.00",
                     "type": "SUPPLIER",
-                    "amount_itinerary_currency": "0.00"
+                    "amount_trip_currency": "0.00"
                   },
                   {
                     "amount": "0.00",
                     "type": "TICKETING",
-                    "amount_itinerary_currency": "0.00"
+                    "amount_trip_currency": "0.00"
                   }
                 ],
                 "grandTotal": "380.24",
-                "total_itinerary_currency": "330.48",
-                "base_itinerary_currency": "200.77",
-                "grandTotal_itinerary_currency": "330.48"
+                "total_trip_currency": "330.48",
+                "base_trip_currency": "200.77",
+                "grandTotal_trip_currency": "330.48"
               },
               "pricingOptions": {
                 "fareType": [
@@ -1163,8 +1163,8 @@
                     "currency": "EUR",
                     "total": "380.24",
                     "base": "231.00",
-                    "total_itinerary_currency": "330.48",
-                    "base_itinerary_currency": "200.77"
+                    "total_trip_currency": "330.48",
+                    "base_trip_currency": "200.77"
                   },
                   "fareDetailsBySegment": [
                     {
@@ -1281,18 +1281,18 @@
                   {
                     "amount": "0.00",
                     "type": "SUPPLIER",
-                    "amount_itinerary_currency": "0.00"
+                    "amount_trip_currency": "0.00"
                   },
                   {
                     "amount": "0.00",
                     "type": "TICKETING",
-                    "amount_itinerary_currency": "0.00"
+                    "amount_trip_currency": "0.00"
                   }
                 ],
                 "grandTotal": "380.24",
-                "total_itinerary_currency": "330.48",
-                "base_itinerary_currency": "200.77",
-                "grandTotal_itinerary_currency": "330.48"
+                "total_trip_currency": "330.48",
+                "base_trip_currency": "200.77",
+                "grandTotal_trip_currency": "330.48"
               },
               "pricingOptions": {
                 "fareType": [
@@ -1312,8 +1312,8 @@
                     "currency": "EUR",
                     "total": "380.24",
                     "base": "231.00",
-                    "total_itinerary_currency": "330.48",
-                    "base_itinerary_currency": "200.77"
+                    "total_trip_currency": "330.48",
+                    "base_trip_currency": "200.77"
                   },
                   "fareDetailsBySegment": [
                     {
@@ -1431,18 +1431,18 @@
                   {
                     "amount": "0.00",
                     "type": "SUPPLIER",
-                    "amount_itinerary_currency": "0.00"
+                    "amount_trip_currency": "0.00"
                   },
                   {
                     "amount": "0.00",
                     "type": "TICKETING",
-                    "amount_itinerary_currency": "0.00"
+                    "amount_trip_currency": "0.00"
                   }
                 ],
                 "grandTotal": "418.01",
-                "total_itinerary_currency": "363.31",
-                "base_itinerary_currency": "234.67",
-                "grandTotal_itinerary_currency": "363.31"
+                "total_trip_currency": "363.31",
+                "base_trip_currency": "234.67",
+                "grandTotal_trip_currency": "363.31"
               },
               "pricingOptions": {
                 "fareType": [
@@ -1462,8 +1462,8 @@
                     "currency": "EUR",
                     "total": "418.01",
                     "base": "270.00",
-                    "total_itinerary_currency": "363.31",
-                    "base_itinerary_currency": "234.67"
+                    "total_trip_currency": "363.31",
+                    "base_trip_currency": "234.67"
                   },
                   "fareDetailsBySegment": [
                     {
@@ -1581,18 +1581,18 @@
                   {
                     "amount": "0.00",
                     "type": "SUPPLIER",
-                    "amount_itinerary_currency": "0.00"
+                    "amount_trip_currency": "0.00"
                   },
                   {
                     "amount": "0.00",
                     "type": "TICKETING",
-                    "amount_itinerary_currency": "0.00"
+                    "amount_trip_currency": "0.00"
                   }
                 ],
                 "grandTotal": "418.01",
-                "total_itinerary_currency": "363.31",
-                "base_itinerary_currency": "234.67",
-                "grandTotal_itinerary_currency": "363.31"
+                "total_trip_currency": "363.31",
+                "base_trip_currency": "234.67",
+                "grandTotal_trip_currency": "363.31"
               },
               "pricingOptions": {
                 "fareType": [
@@ -1612,8 +1612,8 @@
                     "currency": "EUR",
                     "total": "418.01",
                     "base": "270.00",
-                    "total_itinerary_currency": "363.31",
-                    "base_itinerary_currency": "234.67"
+                    "total_trip_currency": "363.31",
+                    "base_trip_currency": "234.67"
                   },
                   "fareDetailsBySegment": [
                     {
@@ -1731,18 +1731,18 @@
                   {
                     "amount": "0.00",
                     "type": "SUPPLIER",
-                    "amount_itinerary_currency": "0.00"
+                    "amount_trip_currency": "0.00"
                   },
                   {
                     "amount": "0.00",
                     "type": "TICKETING",
-                    "amount_itinerary_currency": "0.00"
+                    "amount_trip_currency": "0.00"
                   }
                 ],
                 "grandTotal": "418.01",
-                "total_itinerary_currency": "363.31",
-                "base_itinerary_currency": "234.67",
-                "grandTotal_itinerary_currency": "363.31"
+                "total_trip_currency": "363.31",
+                "base_trip_currency": "234.67",
+                "grandTotal_trip_currency": "363.31"
               },
               "pricingOptions": {
                 "fareType": [
@@ -1762,8 +1762,8 @@
                     "currency": "EUR",
                     "total": "418.01",
                     "base": "270.00",
-                    "total_itinerary_currency": "363.31",
-                    "base_itinerary_currency": "234.67"
+                    "total_trip_currency": "363.31",
+                    "base_trip_currency": "234.67"
                   },
                   "fareDetailsBySegment": [
                     {
@@ -1882,18 +1882,18 @@
                   {
                     "amount": "0.00",
                     "type": "SUPPLIER",
-                    "amount_itinerary_currency": "0.00"
+                    "amount_trip_currency": "0.00"
                   },
                   {
                     "amount": "0.00",
                     "type": "TICKETING",
-                    "amount_itinerary_currency": "0.00"
+                    "amount_trip_currency": "0.00"
                   }
                 ],
                 "grandTotal": "428.65",
-                "total_itinerary_currency": "372.56",
-                "base_itinerary_currency": "250.31",
-                "grandTotal_itinerary_currency": "372.56"
+                "total_trip_currency": "372.56",
+                "base_trip_currency": "250.31",
+                "grandTotal_trip_currency": "372.56"
               },
               "pricingOptions": {
                 "fareType": [
@@ -1913,8 +1913,8 @@
                     "currency": "EUR",
                     "total": "428.65",
                     "base": "288.00",
-                    "total_itinerary_currency": "372.56",
-                    "base_itinerary_currency": "250.31"
+                    "total_trip_currency": "372.56",
+                    "base_trip_currency": "250.31"
                   },
                   "fareDetailsBySegment": [
                     {
@@ -2031,18 +2031,18 @@
                   {
                     "amount": "0.00",
                     "type": "SUPPLIER",
-                    "amount_itinerary_currency": "0.00"
+                    "amount_trip_currency": "0.00"
                   },
                   {
                     "amount": "0.00",
                     "type": "TICKETING",
-                    "amount_itinerary_currency": "0.00"
+                    "amount_trip_currency": "0.00"
                   }
                 ],
                 "grandTotal": "429.07",
-                "total_itinerary_currency": "372.92",
-                "base_itinerary_currency": "234.67",
-                "grandTotal_itinerary_currency": "372.92"
+                "total_trip_currency": "372.92",
+                "base_trip_currency": "234.67",
+                "grandTotal_trip_currency": "372.92"
               },
               "pricingOptions": {
                 "fareType": [
@@ -2062,8 +2062,8 @@
                     "currency": "EUR",
                     "total": "429.07",
                     "base": "270.00",
-                    "total_itinerary_currency": "372.92",
-                    "base_itinerary_currency": "234.67"
+                    "total_trip_currency": "372.92",
+                    "base_trip_currency": "234.67"
                   },
                   "fareDetailsBySegment": [
                     {
@@ -2180,18 +2180,18 @@
                   {
                     "amount": "0.00",
                     "type": "SUPPLIER",
-                    "amount_itinerary_currency": "0.00"
+                    "amount_trip_currency": "0.00"
                   },
                   {
                     "amount": "0.00",
                     "type": "TICKETING",
-                    "amount_itinerary_currency": "0.00"
+                    "amount_trip_currency": "0.00"
                   }
                 ],
                 "grandTotal": "429.07",
-                "total_itinerary_currency": "372.92",
-                "base_itinerary_currency": "234.67",
-                "grandTotal_itinerary_currency": "372.92"
+                "total_trip_currency": "372.92",
+                "base_trip_currency": "234.67",
+                "grandTotal_trip_currency": "372.92"
               },
               "pricingOptions": {
                 "fareType": [
@@ -2211,8 +2211,8 @@
                     "currency": "EUR",
                     "total": "429.07",
                     "base": "270.00",
-                    "total_itinerary_currency": "372.92",
-                    "base_itinerary_currency": "234.67"
+                    "total_trip_currency": "372.92",
+                    "base_trip_currency": "234.67"
                   },
                   "fareDetailsBySegment": [
                     {
@@ -2329,18 +2329,18 @@
                   {
                     "amount": "0.00",
                     "type": "SUPPLIER",
-                    "amount_itinerary_currency": "0.00"
+                    "amount_trip_currency": "0.00"
                   },
                   {
                     "amount": "0.00",
                     "type": "TICKETING",
-                    "amount_itinerary_currency": "0.00"
+                    "amount_trip_currency": "0.00"
                   }
                 ],
                 "grandTotal": "429.07",
-                "total_itinerary_currency": "372.92",
-                "base_itinerary_currency": "234.67",
-                "grandTotal_itinerary_currency": "372.92"
+                "total_trip_currency": "372.92",
+                "base_trip_currency": "234.67",
+                "grandTotal_trip_currency": "372.92"
               },
               "pricingOptions": {
                 "fareType": [
@@ -2360,8 +2360,8 @@
                     "currency": "EUR",
                     "total": "429.07",
                     "base": "270.00",
-                    "total_itinerary_currency": "372.92",
-                    "base_itinerary_currency": "234.67"
+                    "total_trip_currency": "372.92",
+                    "base_trip_currency": "234.67"
                   },
                   "fareDetailsBySegment": [
                     {
@@ -2479,18 +2479,18 @@
                   {
                     "amount": "0.00",
                     "type": "SUPPLIER",
-                    "amount_itinerary_currency": "0.00"
+                    "amount_trip_currency": "0.00"
                   },
                   {
                     "amount": "0.00",
                     "type": "TICKETING",
-                    "amount_itinerary_currency": "0.00"
+                    "amount_trip_currency": "0.00"
                   }
                 ],
                 "grandTotal": "418.76",
-                "total_itinerary_currency": "363.96",
-                "base_itinerary_currency": "234.67",
-                "grandTotal_itinerary_currency": "363.96"
+                "total_trip_currency": "363.96",
+                "base_trip_currency": "234.67",
+                "grandTotal_trip_currency": "363.96"
               },
               "pricingOptions": {
                 "fareType": [
@@ -2510,8 +2510,8 @@
                     "currency": "EUR",
                     "total": "418.76",
                     "base": "270.00",
-                    "total_itinerary_currency": "363.96",
-                    "base_itinerary_currency": "234.67"
+                    "total_trip_currency": "363.96",
+                    "base_trip_currency": "234.67"
                   },
                   "fareDetailsBySegment": [
                     {
@@ -2629,18 +2629,18 @@
                   {
                     "amount": "0.00",
                     "type": "SUPPLIER",
-                    "amount_itinerary_currency": "0.00"
+                    "amount_trip_currency": "0.00"
                   },
                   {
                     "amount": "0.00",
                     "type": "TICKETING",
-                    "amount_itinerary_currency": "0.00"
+                    "amount_trip_currency": "0.00"
                   }
                 ],
                 "grandTotal": "418.76",
-                "total_itinerary_currency": "363.96",
-                "base_itinerary_currency": "234.67",
-                "grandTotal_itinerary_currency": "363.96"
+                "total_trip_currency": "363.96",
+                "base_trip_currency": "234.67",
+                "grandTotal_trip_currency": "363.96"
               },
               "pricingOptions": {
                 "fareType": [
@@ -2660,8 +2660,8 @@
                     "currency": "EUR",
                     "total": "418.76",
                     "base": "270.00",
-                    "total_itinerary_currency": "363.96",
-                    "base_itinerary_currency": "234.67"
+                    "total_trip_currency": "363.96",
+                    "base_trip_currency": "234.67"
                   },
                   "fareDetailsBySegment": [
                     {
@@ -2779,18 +2779,18 @@
                   {
                     "amount": "0.00",
                     "type": "SUPPLIER",
-                    "amount_itinerary_currency": "0.00"
+                    "amount_trip_currency": "0.00"
                   },
                   {
                     "amount": "0.00",
                     "type": "TICKETING",
-                    "amount_itinerary_currency": "0.00"
+                    "amount_trip_currency": "0.00"
                   }
                 ],
                 "grandTotal": "418.76",
-                "total_itinerary_currency": "363.96",
-                "base_itinerary_currency": "234.67",
-                "grandTotal_itinerary_currency": "363.96"
+                "total_trip_currency": "363.96",
+                "base_trip_currency": "234.67",
+                "grandTotal_trip_currency": "363.96"
               },
               "pricingOptions": {
                 "fareType": [
@@ -2810,8 +2810,8 @@
                     "currency": "EUR",
                     "total": "418.76",
                     "base": "270.00",
-                    "total_itinerary_currency": "363.96",
-                    "base_itinerary_currency": "234.67"
+                    "total_trip_currency": "363.96",
+                    "base_trip_currency": "234.67"
                   },
                   "fareDetailsBySegment": [
                     {
@@ -2929,18 +2929,18 @@
                   {
                     "amount": "0.00",
                     "type": "SUPPLIER",
-                    "amount_itinerary_currency": "0.00"
+                    "amount_trip_currency": "0.00"
                   },
                   {
                     "amount": "0.00",
                     "type": "TICKETING",
-                    "amount_itinerary_currency": "0.00"
+                    "amount_trip_currency": "0.00"
                   }
                 ],
                 "grandTotal": "435.67",
-                "total_itinerary_currency": "378.66",
-                "base_itinerary_currency": "250.31",
-                "grandTotal_itinerary_currency": "378.66"
+                "total_trip_currency": "378.66",
+                "base_trip_currency": "250.31",
+                "grandTotal_trip_currency": "378.66"
               },
               "pricingOptions": {
                 "fareType": [
@@ -2960,8 +2960,8 @@
                     "currency": "EUR",
                     "total": "435.67",
                     "base": "288.00",
-                    "total_itinerary_currency": "378.66",
-                    "base_itinerary_currency": "250.31"
+                    "total_trip_currency": "378.66",
+                    "base_trip_currency": "250.31"
                   },
                   "fareDetailsBySegment": [
                     {
@@ -3008,12 +3008,12 @@
       ],
       "hotels": [],
       "summary": {
-        "itinerary_start_date": "2026-05-12",
-        "itinerary_end_date": "2026-05-18",
+        "trip_start_date": "2026-05-12",
+        "trip_end_date": "2026-05-18",
         "total_duration_days": 6,
-        "itinerary_currency": "GBP"
+        "trip_currency": "GBP"
       },
-      "itinerary_id": "8a23f1cf-6038-40bd-905d-e03eaeaefd63",
+      "trip_id": "8a23f1cf-6038-40bd-905d-e03eaeaefd63",
       "prompt_id": "resp_06729c188aaa78540069cade869bfc8194b496b0e7f06d2452"
     },
     "prompt_id": "resp_06729c188aaa78540069cade869bfc8194b496b0e7f06d2452"

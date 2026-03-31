@@ -16,7 +16,7 @@ class Cfg:
     rabbitmq_debug_routing_key: str
     rabbitmq_status_routing_key: str
     rabbitmq_queue_name: str
-    rabbitmq_empty_itinerary_routing_key: str
+    rabbitmq_empty_trip_routing_key: str
     exchange_rate_app_id: str
 
     @classmethod
@@ -30,11 +30,11 @@ class Cfg:
             rabbitmq_exchange=os.getenv("RABBITMQ_EXCHANGE", "lifetravel_agent"),
             rabbitmq_subscribe_routing_key=os.getenv(
                 "RABBITMQ_SUBSCRIBE_ROUTING_KEY",
-                "itinerary:provider_response",
+                "trip:provider_response",
             ),
             rabbitmq_publish_routing_key=os.getenv(
                 "RABBITMQ_PUBLISH_ROUTING_KEY",
-                "itinerary:composed",
+                "trip:composed",
             ),
             rabbitmq_debug_routing_key=os.getenv(
                 "RABBITMQ_DEBUG_ROUTING_KEY",
@@ -46,11 +46,11 @@ class Cfg:
             ),
             rabbitmq_queue_name=os.getenv(
                 "RABBITMQ_QUEUE_NAME",
-                "itinerary_composer_provider_response_queue",
+                "trip_composer_provider_response_queue",
             ),
-            rabbitmq_empty_itinerary_routing_key=os.getenv(
-                "RABBITMQ_EMPTY_ITINERARY_ROUTING_KEY",
-                "itinerary:empty",
+            rabbitmq_empty_trip_routing_key=os.getenv(
+                "RABBITMQ_EMPTY_TRIP_ROUTING_KEY",
+                "trip:empty",
             ),
             exchange_rate_app_id=os.getenv("EXCHANGE_RATE_APP_ID", "").strip(),
         )

@@ -54,11 +54,11 @@ class Cfg:
             rabbitmq_exchange=os.getenv("RABBITMQ_EXCHANGE", "lifetravel_agent"),
             rabbitmq_subscribe_routing_key=os.getenv(
                 "RABBITMQ_SUBSCRIBE_ROUTING_KEY",
-                "itinerary:structured_request",
+                "trip:structured_request",
             ),
             rabbitmq_publish_routing_key=os.getenv(
                 "RABBITMQ_PUBLISH_ROUTING_KEY",
-                "itinerary:provider_flight_response",
+                "trip:provider_flight_response",
             ),
             rabbitmq_debug_routing_key=os.getenv(
                 "RABBITMQ_DEBUG_ROUTING_KEY",

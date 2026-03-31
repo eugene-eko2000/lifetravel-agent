@@ -35,7 +35,7 @@ Message consumed by `query_router` from RabbitMQ.
 
 ### 2) Structured Request Produced by LLM
 
-Object returned by `query_router.llm_client.request_structured_itinerary(...)`
+Object returned by `query_router.llm_client.request_structured_trip(...)`
 and published as `payload.structured_request`. The same `prompt_id` (OpenAI Responses
 `id` for the structuring turn) is also duplicated at `payload.prompt_id` on messages
 from `query_router` through inventory services for convenience.
@@ -155,13 +155,13 @@ chosen to align with those durations between adjacent legs.
 Output produced by `inventory_flight_service.request_processor.process_incoming_message(...)`.
 Flights are grouped by `(depart_date, arrive_date, from, to)` — one group per unique combination.
 In RabbitMQ transport, this object is wrapped as:
-`{ "id": "...", "structured_request": {...}, "prompt_id": "...", "provider_flight_response": <ItineraryFlightResponse> }`
+`{ "id": "...", "structured_request": {...}, "prompt_id": "...", "provider_flight_response": <TripFlightResponse> }`
 (`prompt_id` optional; echoed from `structured_request.prompt_id` / query_router).
 
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "ItineraryFlightResponse",
+  "title": "TripFlightResponse",
   "type": "object",
   "required": ["flights"],
   "properties": {
@@ -188,18 +188,18 @@ In RabbitMQ transport, this object is wrapped as:
 }
 ```
 
-### 4) Itinerary Flight & Hotel Response Message
+### 4) Trip Flight & Hotel Response Message
 
 Output produced by `inventory_hotel_service.request_processor.process_incoming_message(...)`.
 It preserves incoming grouped flights and adds hotel options grouped by stay window.
 In RabbitMQ transport, this object is wrapped as:
-`{ "id": "...", "structured_request": {...}, "prompt_id": "...", "provider_response": <ItineraryInventoryResponse> }`
+`{ "id": "...", "structured_request": {...}, "prompt_id": "...", "provider_response": <TripInventoryResponse> }`
 (`prompt_id` optional).
 
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "ItineraryInventoryResponse",
+  "title": "TripInventoryResponse",
   "type": "object",
   "required": ["flights", "hotels"],
   "properties": {
@@ -240,37 +240,37 @@ In RabbitMQ transport, this object is wrapped as:
 }
 ```
 
-### 5) ComposedItineraryMessage
+### 5) ComposedTripMessage
 
-Published by `itinerary_composer` for **each** composed itinerary individually.
-Each message carries a single itinerary (not a list) together with its index and the
+Published by `trip_composer` for **each** composed trip individually.
+Each message carries a single trip (not a list) together with its index and the
 total count so the frontend can track progress.
 
-**Composition rules:** If `provider_response.hotels` is **empty**, itineraries use **flights only**: consecutive flights `A` then `B` are allowed when `A.to == B.from` and `A.arrive_date <= B.depart_date` (date-only), from trip start airport to trip end airport. If `hotels` is **non-empty**, composition is **hybrid** per intermediate stop: where there is hotel inventory for **(arrival city, arrival date)**, the chain uses **flight → hotel → flight** (next flight departs on hotel check-out from that city). Where there is **no** hotel for that stop, the chain continues with **flight → flight** using the same date/location edge rule as flight-only. Each itinerary is capped at 500 variants.
+**Composition rules:** If `provider_response.hotels` is **empty**, trips use **flights only**: consecutive flights `A` then `B` are allowed when `A.to == B.from` and `A.arrive_date <= B.depart_date` (date-only), from trip start airport to trip end airport. If `hotels` is **non-empty**, composition is **hybrid** per intermediate stop: where there is hotel inventory for **(arrival city, arrival date)**, the chain uses **flight → hotel → flight** (next flight departs on hotel check-out from that city). Where there is **no** hotel for that stop, the chain continues with **flight → flight** using the same date/location edge rule as flight-only. Each trip is capped at 500 variants.
 
 In RabbitMQ transport:
-`{ "id": "...", "itinerary_index": 0, "itinerary_count": N, "itinerary": <Itinerary>, "prompt_id": "..." }`
-(`prompt_id` optional; duplicate of `itinerary.prompt_id` when present).
+`{ "id": "...", "trip_index": 0, "trip_count": N, "trip": <Trip>, "prompt_id": "..." }`
+(`prompt_id` optional; duplicate of `trip.prompt_id` when present).
 
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "ComposedItineraryMessage",
+  "title": "ComposedTripMessage",
   "type": "object",
-  "required": ["id", "itinerary_index", "itinerary_count", "itinerary"],
+  "required": ["id", "trip_index", "trip_count", "trip"],
   "properties": {
     "id": { "type": "string", "description": "Request correlation id." },
-    "prompt_id": { "type": "string", "description": "Optional duplicate of itinerary.prompt_id for envelope consumers." },
-    "itinerary_index": { "type": "integer", "description": "Zero-based index of this itinerary." },
-    "itinerary_count": { "type": "integer", "description": "Total number of itineraries for this request." },
-    "itinerary": {
+    "prompt_id": { "type": "string", "description": "Optional duplicate of trip.prompt_id for envelope consumers." },
+    "trip_index": { "type": "integer", "description": "Zero-based index of this trip." },
+    "trip_count": { "type": "integer", "description": "Total number of trips for this request." },
+    "trip": {
       "type": "object",
-      "required": ["itinerary_id", "flights", "hotels", "summary"],
+      "required": ["trip_id", "flights", "hotels", "summary"],
       "properties": {
-        "itinerary_id": { "type": "string", "format": "uuid", "description": "Unique id for this composed itinerary instance." },
+        "trip_id": { "type": "string", "format": "uuid", "description": "Unique id for this composed trip instance." },
         "prompt_id": {
           "type": "string",
-          "description": "OpenAI Responses id from the LLM structuring turn; use as previous_response_id for follow-up turns. Same nesting as itinerary correlation fields."
+          "description": "OpenAI Responses id from the LLM structuring turn; use as previous_response_id for follow-up turns. Same nesting as trip correlation fields."
         },
         "flights": {
           "type": "array",
@@ -301,13 +301,13 @@ In RabbitMQ transport:
         },
         "summary": {
           "type": "object",
-          "required": ["itinerary_start_date", "itinerary_end_date", "total_duration_days", "itinerary_currency"],
-          "description": "Duration summary and trip currency; per-option prices remain on flight/hotel options (with itinerary_currency annotations).",
+          "required": ["trip_start_date", "trip_end_date", "total_duration_days", "trip_currency"],
+          "description": "Duration summary and trip currency; per-option prices remain on flight/hotel options (with trip_currency annotations).",
           "properties": {
-            "itinerary_start_date": { "type": "string", "format": "date", "description": "Date of first flight departure (YYYY-MM-DD); empty when there are no flights." },
-            "itinerary_end_date": { "type": "string", "format": "date", "description": "Date of last flight arrival (YYYY-MM-DD); empty when there are no flights." },
-            "total_duration_days": { "type": "integer", "description": "Calendar days between itinerary_start_date and itinerary_end_date (last minus first)." },
-            "itinerary_currency": { "type": "string", "description": "Single trip currency from structured_request budgets (itinerary, then flights, then hotels, else USD)." }
+            "trip_start_date": { "type": "string", "format": "date", "description": "Date of first flight departure (YYYY-MM-DD); empty when there are no flights." },
+            "trip_end_date": { "type": "string", "format": "date", "description": "Date of last flight arrival (YYYY-MM-DD); empty when there are no flights." },
+            "total_duration_days": { "type": "integer", "description": "Calendar days between trip_start_date and trip_end_date (last minus first)." },
+            "trip_currency": { "type": "string", "description": "Single trip currency from structured_request budgets (trip, then flights, then hotels, else USD)." }
           }
         }
       }
@@ -317,35 +317,35 @@ In RabbitMQ transport:
 }
 ```
 
-### 6) EmptyItineraryMessage
+### 6) EmptyTripMessage
 
-Published by `itinerary_composer` when composition yields **no** itineraries (instead of publishing `itinerary:composed`). Consumed by `endpoint_api` and forwarded to the websocket as `type: "no_itineraries"`.
+Published by `trip_composer` when composition yields **no** trips (instead of publishing `trip:composed`). Consumed by `endpoint_api` and forwarded to the websocket as `type: "no_trips"`.
 
 Shape mirrors `query_router` LLM objects (`request_id`, `type`) with the user-facing text under `payload` (like `output` for valid requests).
 
-In RabbitMQ transport (routing key `itinerary:empty`):
+In RabbitMQ transport (routing key `trip:empty`):
 
-`{ "id": "...", "request_id": "...", "type": "no_itineraries", "prompt_id": "...", "payload": { "message": "..." } }`
+`{ "id": "...", "request_id": "...", "type": "no_trips", "prompt_id": "...", "payload": { "message": "..." } }`
 (`prompt_id` optional when known from `structured_request`.)
 
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "EmptyItineraryMessage",
+  "title": "EmptyTripMessage",
   "type": "object",
   "required": ["id", "request_id", "type", "payload"],
   "properties": {
     "id": { "type": "string", "description": "Pipeline correlation id (same as incoming provider message id)." },
     "request_id": { "type": "string", "description": "Echo of structured_request.request_id when present." },
     "prompt_id": { "type": "string", "description": "Optional; OpenAI structuring turn id when available." },
-    "type": { "type": "string", "const": "no_itineraries" },
+    "type": { "type": "string", "const": "no_trips" },
     "payload": {
       "type": "object",
       "required": ["message"],
       "properties": {
         "message": {
           "type": "string",
-          "description": "User-facing explanation that no itinerary could be built."
+          "description": "User-facing explanation that no trip could be built."
         }
       }
     }
@@ -354,38 +354,38 @@ In RabbitMQ transport (routing key `itinerary:empty`):
 }
 ```
 
-### 7) RankedItineraryResponse
+### 7) RankedTripResponse
 
-Published by `ranking_service` for **each** itinerary individually.
-Flight and hotel options inside the itinerary are scored and sorted by score descending.
+Published by `ranking_service` for **each** trip individually.
+Flight and hotel options inside the trip are scored and sorted by score descending.
 
 In RabbitMQ transport:
-`{ "id": "...", "itinerary_index": 0, "itinerary_count": N, "ranked_itinerary": <RankedItinerary>, "prompt_id": "..." }`
-(`prompt_id` optional; duplicate of `ranked_itinerary.prompt_id` when present).
+`{ "id": "...", "trip_index": 0, "trip_count": N, "ranked_trip": <RankedTrip>, "prompt_id": "..." }`
+(`prompt_id` optional; duplicate of `ranked_trip.prompt_id` when present).
 
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "RankedItineraryResponse",
+  "title": "RankedTripResponse",
   "type": "object",
-  "required": ["id", "itinerary_index", "itinerary_count", "ranked_itinerary"],
+  "required": ["id", "trip_index", "trip_count", "ranked_trip"],
   "properties": {
     "id": { "type": "string", "description": "Request correlation id." },
-    "prompt_id": { "type": "string", "description": "Optional duplicate of ranked_itinerary.prompt_id." },
-    "itinerary_index": { "type": "integer", "description": "Zero-based index of this itinerary." },
-    "itinerary_count": { "type": "integer", "description": "Total number of itineraries for this request." },
-    "ranked_itinerary": {
+    "prompt_id": { "type": "string", "description": "Optional duplicate of ranked_trip.prompt_id." },
+    "trip_index": { "type": "integer", "description": "Zero-based index of this trip." },
+    "trip_count": { "type": "integer", "description": "Total number of trips for this request." },
+    "ranked_trip": {
       "type": "object",
-      "required": ["itinerary_id", "flights", "hotels", "summary"],
-      "description": "Same shape as ComposedItineraryMessage.itinerary but each option has a _ranking annotation.",
+      "required": ["trip_id", "flights", "hotels", "summary"],
+      "description": "Same shape as ComposedTripMessage.trip but each option has a _ranking annotation.",
       "properties": {
-        "itinerary_id": { "type": "string", "format": "uuid", "description": "Passed through from composed itinerary." },
-        "prompt_id": { "type": "string", "description": "Passed through from composed itinerary; OpenAI structuring turn id." },
+        "trip_id": { "type": "string", "format": "uuid", "description": "Passed through from composed trip." },
+        "prompt_id": { "type": "string", "description": "Passed through from composed trip; OpenAI structuring turn id." },
         "flights": { "type": "array", "items": { "type": "object" } },
         "hotels": { "type": "array", "items": { "type": "object" } },
         "summary": {
           "type": "object",
-          "description": "Passed through from composed itinerary; see ComposedItineraryMessage.itinerary.summary."
+          "description": "Passed through from composed trip; see ComposedTripMessage.trip.summary."
         }
       }
     }
@@ -396,7 +396,7 @@ In RabbitMQ transport:
 
 ### 8) MissingInfoMessage
 
-Message published by `query_router` when the LLM cannot build a complete itinerary request
+Message published by `query_router` when the LLM cannot build a complete trip request
 and consumed by `endpoint_api` subscriber/websocket bridge. The websocket payload may
 include a top-level `prompt_id` (duplicate of `structured_request.prompt_id`) for clients
 that read a flat envelope.
@@ -523,19 +523,19 @@ user-facing processing progress.
 
 `exchange name` is configurable via `RABBITMQ_EXCHANGE` (default: `lifetravel_agent`) in all services.
 
-**Pipeline order:** (1) `inventory_flight_service` fetches flights → `itinerary:provider_flight_response`; (2) `inventory_hotel_service` fetches hotels → `itinerary:provider_response`; (3) `itinerary_composer` builds itinerary chains: if none are found it publishes `itinerary:empty`; otherwise it publishes each itinerary separately → `itinerary:composed`; (4) `ranking_service` ranks flights/hotels within each itinerary → `itinerary:ranked`.
+**Pipeline order:** (1) `inventory_flight_service` fetches flights → `trip:provider_flight_response`; (2) `inventory_hotel_service` fetches hotels → `trip:provider_response`; (3) `trip_composer` builds trip chains: if none are found it publishes `trip:empty`; otherwise it publishes each trip separately → `trip:composed`; (4) `ranking_service` ranks flights/hotels within each trip → `trip:ranked`.
 
-**Itinerary composer FX:** Set `EXCHANGE_RATE_APP_ID` in `.env` (passed through `docker-compose.yml` to `itinerary_composer`). It uses [Open Exchange Rates](https://openexchangerates.org/) `latest.json` with **base USD**; other currencies are converted via cross-rates (`amount_to = amount_from × (rate_to / rate_from)` where `rate_X` is units of X per 1 USD). If unset, summary totals are not converted when currencies differ.
+**Trip composer FX:** Set `EXCHANGE_RATE_APP_ID` in `.env` (passed through `docker-compose.yml` to `trip_composer`). It uses [Open Exchange Rates](https://openexchangerates.org/) `latest.json` with **base USD**; other currencies are converted via cross-rates (`amount_to = amount_from × (rate_to / rate_from)` where `rate_X` is units of X per 1 USD). If unset, summary totals are not converted when currencies differ.
 
 | exchange name | routing key | message name | publishers services list | subscribers services list |
 | --- | --- | --- | --- | --- |
-| `lifetravel_agent` | `itinerary:user_request` | `UserRequestMessage` | `endpoint_api` | `query_router` |
-| `lifetravel_agent` | `itinerary:structured_request` | `StructuredRequest` | `query_router` | `inventory_flight_service` |
-| `lifetravel_agent` | `itinerary:provider_flight_response` | `ItineraryFlightResponse` | `inventory_flight_service` | `inventory_hotel_service` |
-| `lifetravel_agent` | `itinerary:provider_response` | `ItineraryInventoryResponse` | `inventory_hotel_service` | `itinerary_composer` |
-| `lifetravel_agent` | `itinerary:composed` | `ComposedItineraryMessage` | `itinerary_composer` | `ranking_service` |
-| `lifetravel_agent` | `itinerary:empty` | `EmptyItineraryMessage` | `itinerary_composer` | `endpoint_api` |
-| `lifetravel_agent` | `itinerary:ranked` | `RankedItineraryResponse` | `ranking_service` | `endpoint_api` |
-| `lifetravel_agent` | `itinerary:missing_info` | `MissingInfoMessage` (`structured_request.type = "missing_info"`) | `query_router` | `endpoint_api` |
-| `lifetravel_agent` | `status:message` | `StatusMessage` | `query_router`, `inventory_flight_service`, `inventory_hotel_service`, `itinerary_composer`, `ranking_service` | `endpoint_api` |
-| `lifetravel_agent` | `debug:message` | `DebugMessage` | `inventory_flight_service`, `inventory_hotel_service`, `query_router`, `itinerary_composer` | `endpoint_api` |
+| `lifetravel_agent` | `trip:user_request` | `UserRequestMessage` | `endpoint_api` | `query_router` |
+| `lifetravel_agent` | `trip:structured_request` | `StructuredRequest` | `query_router` | `inventory_flight_service` |
+| `lifetravel_agent` | `trip:provider_flight_response` | `TripFlightResponse` | `inventory_flight_service` | `inventory_hotel_service` |
+| `lifetravel_agent` | `trip:provider_response` | `TripInventoryResponse` | `inventory_hotel_service` | `trip_composer` |
+| `lifetravel_agent` | `trip:composed` | `ComposedTripMessage` | `trip_composer` | `ranking_service` |
+| `lifetravel_agent` | `trip:empty` | `EmptyTripMessage` | `trip_composer` | `endpoint_api` |
+| `lifetravel_agent` | `trip:ranked` | `RankedTripResponse` | `ranking_service` | `endpoint_api` |
+| `lifetravel_agent` | `trip:missing_info` | `MissingInfoMessage` (`structured_request.type = "missing_info"`) | `query_router` | `endpoint_api` |
+| `lifetravel_agent` | `status:message` | `StatusMessage` | `query_router`, `inventory_flight_service`, `inventory_hotel_service`, `trip_composer`, `ranking_service` | `endpoint_api` |
+| `lifetravel_agent` | `debug:message` | `DebugMessage` | `inventory_flight_service`, `inventory_hotel_service`, `query_router`, `trip_composer` | `endpoint_api` |

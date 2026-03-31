@@ -8,7 +8,7 @@ from aio_pika.abc import AbstractExchange
 logger = logging.getLogger("ranking_service.rabbitmq_publisher")
 
 
-async def publish_ranked_itinerary(
+async def publish_ranked_trip(
     exchange: AbstractExchange,
     routing_key: str,
     payload: dict[str, Any],

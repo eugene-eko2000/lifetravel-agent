@@ -7,7 +7,7 @@ from typing import Any
 
 import aiohttp
 
-logger = logging.getLogger("itinerary_composer.composer")
+logger = logging.getLogger("trip_composer.composer")
 
 # Open Exchange Rates: one table per process, all rates vs USD (base USD).
 _USD_RATES_CACHE: dict[str, float] | None = None
@@ -50,7 +50,7 @@ async def _fetch_usd_rates(latest_url: str) -> dict[str, float]:
         return _USD_RATES_CACHE
     if not latest_url.strip():
         logger.warning(
-            "EXCHANGE_RATE_APP_ID not set; itinerary cost summary uses no FX conversion "
+            "EXCHANGE_RATE_APP_ID not set; trip cost summary uses no FX conversion "
             "(amounts left numerically unchanged when currencies differ)."
         )
         _USD_RATES_CACHE = {"USD": 1.0}
@@ -125,7 +125,7 @@ def _convert_via_usd(
 # ---------------------------------------------------------------------------
 
 def _extract_prompt_id(payload: dict[str, Any]) -> str:
-    """OpenAI Responses `id` from the structuring LLM turn; echoed on each composed itinerary."""
+    """OpenAI Responses `id` from the structuring LLM turn; echoed on each composed trip."""
     top = payload.get("prompt_id")
     if isinstance(top, str) and top.strip():
         return top.strip()
@@ -137,9 +137,9 @@ def _extract_prompt_id(payload: dict[str, Any]) -> str:
     return ""
 
 
-def _extract_itinerary_currency(payload: dict[str, Any]) -> str:
+def _extract_trip_currency(payload: dict[str, Any]) -> str:
     """
-    Single display currency for the trip: budgets.itinerary.currency if set, else
+    Single display currency for the trip: budgets.trip.currency if set, else
     flights budget currency, else hotels budget currency, else USD.
     """
     sr = payload.get("structured_request")
@@ -151,7 +151,7 @@ def _extract_itinerary_currency(payload: dict[str, Any]) -> str:
     budgets = output.get("budgets")
     if not isinstance(budgets, dict):
         return "USD"
-    itin_b = budgets.get("itinerary")
+    itin_b = budgets.get("trip")
     if isinstance(itin_b, dict):
         c = str(itin_b.get("currency", "")).strip()
         if c:
@@ -191,12 +191,12 @@ def _is_convertible_amount(val: Any) -> bool:
     return False
 
 
-def _set_itinerary_currency_field(
+def _set_trip_currency_field(
     parent: dict[str, Any],
     field: str,
     raw_value: Any,
     source_currency: str,
-    itinerary_currency: str,
+    trip_currency: str,
     usd_rates: dict[str, float],
 ) -> None:
     if not source_currency:
@@ -207,10 +207,10 @@ def _set_itinerary_currency_field(
     converted = _convert_via_usd(
         parsed,
         source_currency,
-        itinerary_currency,
+        trip_currency,
         usd_rates,
     )
-    out_key = f"{field}_itinerary_currency"
+    out_key = f"{field}_trip_currency"
     if isinstance(raw_value, str):
         parent[out_key] = f"{converted:.2f}"
     else:
@@ -219,13 +219,13 @@ def _set_itinerary_currency_field(
 
 def _annotate_price_tree(
     obj: Any,
-    itinerary_currency: str,
+    trip_currency: str,
     usd_rates: dict[str, float],
     inherited_currency: str | None,
 ) -> None:
     """
     In-place: for each monetary field in flight/hotel payloads, add
-    <field>_itinerary_currency using Open Exchange Rates cross-via-USD conversion.
+    <field>_trip_currency using Open Exchange Rates cross-via-USD conversion.
     """
     if isinstance(obj, dict):
         curr = inherited_currency
@@ -233,76 +233,76 @@ def _annotate_price_tree(
             curr = str(obj["currency"]).strip().upper()
 
         for key in list(obj.keys()):
-            if key.endswith("_itinerary_currency"):
+            if key.endswith("_trip_currency"):
                 continue
             val = obj[key]
             if key == "currency":
                 continue
             if isinstance(val, (dict, list)):
-                _annotate_price_tree(val, itinerary_currency, usd_rates, curr)
+                _annotate_price_tree(val, trip_currency, usd_rates, curr)
                 continue
             if (
                 curr
                 and key in _AMOUNT_FIELD_NAMES
                 and _is_convertible_amount(val)
             ):
-                _set_itinerary_currency_field(
+                _set_trip_currency_field(
                     obj,
                     key,
                     val,
                     curr,
-                    itinerary_currency,
+                    trip_currency,
                     usd_rates,
                 )
     elif isinstance(obj, list):
         for item in obj:
-            _annotate_price_tree(item, itinerary_currency, usd_rates, inherited_currency)
+            _annotate_price_tree(item, trip_currency, usd_rates, inherited_currency)
 
 
-def _annotate_itinerary_flight_hotel_prices(
-    itinerary: dict[str, Any],
-    itinerary_currency: str,
+def _annotate_trip_flight_hotel_prices(
+    trip: dict[str, Any],
+    trip_currency: str,
     usd_rates: dict[str, float],
 ) -> None:
-    flights = itinerary.get("flights")
+    flights = trip.get("flights")
     if isinstance(flights, list):
-        _annotate_price_tree(flights, itinerary_currency, usd_rates, None)
-    hotels = itinerary.get("hotels")
+        _annotate_price_tree(flights, trip_currency, usd_rates, None)
+    hotels = trip.get("hotels")
     if isinstance(hotels, list):
-        _annotate_price_tree(hotels, itinerary_currency, usd_rates, None)
+        _annotate_price_tree(hotels, trip_currency, usd_rates, None)
 
 
 def _compute_summary(
-    itinerary: dict[str, Any],
-    itinerary_currency: str,
+    trip: dict[str, Any],
+    trip_currency: str,
 ) -> dict[str, Any]:
-    flights = itinerary.get("flights", [])
+    flights = trip.get("flights", [])
 
-    itinerary_start_date = ""
-    itinerary_end_date = ""
+    trip_start_date = ""
+    trip_end_date = ""
     total_days = 0
     if flights:
         dep0 = flights[0].get("depart_date", "")
         arr_last = flights[-1].get("arrive_date", "")
         if dep0:
-            itinerary_start_date = _date_part(str(dep0))
+            trip_start_date = _date_part(str(dep0))
         if arr_last:
-            itinerary_end_date = _date_part(str(arr_last))
-        if itinerary_start_date and itinerary_end_date:
+            trip_end_date = _date_part(str(arr_last))
+        if trip_start_date and trip_end_date:
             try:
-                d1 = date.fromisoformat(itinerary_start_date)
-                d2 = date.fromisoformat(itinerary_end_date)
+                d1 = date.fromisoformat(trip_start_date)
+                d2 = date.fromisoformat(trip_end_date)
                 total_days = (d2 - d1).days
             except (ValueError, TypeError):
                 total_days = 0
 
-    ic = itinerary_currency.upper()
+    ic = trip_currency.upper()
 
     return {
-        "itinerary_start_date": itinerary_start_date,
-        "itinerary_end_date": itinerary_end_date,
+        "trip_start_date": trip_start_date,
+        "trip_end_date": trip_end_date,
         "total_duration_days": total_days,
-        "itinerary_currency": ic,
+        "trip_currency": ic,
     }
 
 
@@ -362,7 +362,7 @@ def _segment_arr_at(seg: dict[str, Any]) -> str:
     return ""
 
 
-def _option_itinerary_count(opt: dict[str, Any]) -> int:
+def _option_trip_count(opt: dict[str, Any]) -> int:
     itins = opt.get("itineraries")
     if not isinstance(itins, list):
         return 0
@@ -373,15 +373,15 @@ def _partition_flight_groups(
     flight_groups: list[dict[str, Any]],
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """
-    Split groups into single-itinerary options vs multi-itinerary (e.g. full RT from Amadeus).
+    Split groups into single-trip options vs multi-trip (e.g. full RT from Amadeus).
     A group may appear in both lists with disjoint option sets.
     """
     simple: list[dict[str, Any]] = []
     multi: list[dict[str, Any]] = []
     for fg in flight_groups:
         opts = [o for o in fg.get("options", []) if isinstance(o, dict)]
-        multi_o = [o for o in opts if _option_itinerary_count(o) >= 2]
-        single_o = [o for o in opts if _option_itinerary_count(o) < 2]
+        multi_o = [o for o in opts if _option_trip_count(o) >= 2]
+        single_o = [o for o in opts if _option_trip_count(o) < 2]
         if single_o:
             simple.append({**fg, "options": single_o})
         if multi_o:
@@ -446,12 +446,12 @@ def _offer_matches_trip_endpoints(
     return dep0 == so and arr1 == ed
 
 
-def _hotel_fits_between_first_two_itineraries(
+def _hotel_fits_between_first_two_trips(
     hg: dict[str, Any],
     opt: dict[str, Any],
 ) -> bool:
     """
-    Hotel covers the stay between itinerary 1 and 2: last arrival of itin 1 matches
+    Hotel covers the stay between trip 1 and 2: last arrival of itin 1 matches
     check-in (date + city); first departure of itin 2 matches check-out (date + city).
     """
     itins = opt.get("itineraries")
@@ -483,7 +483,7 @@ def _hotel_fits_between_first_two_itineraries(
     return _date_part(arr_dt) == _date_part(ci) and _date_part(dep_dt) == _date_part(co)
 
 
-def _enumerate_multi_itinerary_flight_only(
+def _enumerate_multi_trip_flight_only(
     multi_fgs: list[dict[str, Any]],
     start_origin: str,
     end_destination: str,
@@ -496,27 +496,27 @@ def _enumerate_multi_itinerary_flight_only(
         fitted = [
             o for o in opts
             if isinstance(o, dict)
-            and _option_itinerary_count(o) >= 2
+            and _option_trip_count(o) >= 2
             and _offer_matches_trip_endpoints(o, start_origin, end_destination)
         ]
         if not fitted:
             continue
         row = {**fg, "options": fitted}
         out.append({
-            "itinerary_id": str(uuid.uuid4()),
+            "trip_id": str(uuid.uuid4()),
             "flights": [copy.deepcopy(row)],
             "hotels": [],
         })
     return out
 
 
-def _enumerate_multi_itinerary_with_hotels(
+def _enumerate_multi_trip_with_hotels(
     multi_fgs: list[dict[str, Any]],
     hotel_groups: list[dict[str, Any]],
     start_origin: str,
     end_destination: str,
 ) -> list[dict[str, Any]]:
-    """One flight group (full multi-itinerary offer) + hotels slotted between itin 1 and 2."""
+    """One flight group (full multi-trip offer) + hotels slotted between itin 1 and 2."""
     out: list[dict[str, Any]] = []
     for fg in multi_fgs:
         opts = fg.get("options", [])
@@ -528,22 +528,22 @@ def _enumerate_multi_itinerary_with_hotels(
             fitted = [
                 o for o in opts
                 if isinstance(o, dict)
-                and _option_itinerary_count(o) >= 2
+                and _option_trip_count(o) >= 2
                 and _offer_matches_trip_endpoints(o, start_origin, end_destination)
-                and _hotel_fits_between_first_two_itineraries(hg, o)
+                and _hotel_fits_between_first_two_trips(hg, o)
             ]
             if not fitted:
                 continue
             row = {**fg, "options": fitted}
             out.append({
-                "itinerary_id": str(uuid.uuid4()),
+                "trip_id": str(uuid.uuid4()),
                 "flights": [copy.deepcopy(row)],
                 "hotels": [copy.deepcopy(hg)],
             })
     return out
 
 
-_MAX_ITINERARIES = 500
+_MAX_TRIPS = 500
 
 
 def _flight_edge_ok(last_fg: dict[str, Any], next_fg: dict[str, Any]) -> bool:
@@ -574,17 +574,17 @@ def _enumerate_flight_only_chains(
     When there is no hotel inventory: connect flights where A.to == B.from and
     A.arrive_date <= B.depart_date (dates only). Hotels list is always empty.
     """
-    itineraries: list[dict[str, Any]] = []
+    trips: list[dict[str, Any]] = []
 
     def _dfs(chain_flights: list[dict[str, Any]], used_fg: set[int]) -> None:
-        if len(itineraries) >= _MAX_ITINERARIES:
+        if len(trips) >= _MAX_TRIPS:
             return
 
         last_fg = chain_flights[-1]
         to_code = str(last_fg.get("to", ""))
         if to_code == end_destination:
-            itineraries.append({
-                "itinerary_id": str(uuid.uuid4()),
+            trips.append({
+                "trip_id": str(uuid.uuid4()),
                 "flights": copy.deepcopy(chain_flights),
                 "hotels": [],
             })
@@ -606,7 +606,7 @@ def _enumerate_flight_only_chains(
         if str(fg.get("from", "")) == start_origin:
             _dfs([fg], {id(fg)})
 
-    return itineraries
+    return trips
 
 
 def _enumerate_hybrid_chains(
@@ -623,7 +623,7 @@ def _enumerate_hybrid_chains(
     - If there are no hotels for that stop: extend with the next flight only when
       _flight_edge_ok (same rules as flight-only mode).
     """
-    itineraries: list[dict[str, Any]] = []
+    trips: list[dict[str, Any]] = []
 
     def _dfs(
         chain_flights: list[dict[str, Any]],
@@ -631,7 +631,7 @@ def _enumerate_hybrid_chains(
         used_fg: set[int],
         used_hg: set[int],
     ) -> None:
-        if len(itineraries) >= _MAX_ITINERARIES:
+        if len(trips) >= _MAX_TRIPS:
             return
 
         last_fg = chain_flights[-1]
@@ -639,8 +639,8 @@ def _enumerate_hybrid_chains(
         arrive_date = _date_part(last_fg.get("arrive_date", ""))
 
         if to_code == end_destination:
-            itineraries.append({
-                "itinerary_id": str(uuid.uuid4()),
+            trips.append({
+                "trip_id": str(uuid.uuid4()),
                 "flights": copy.deepcopy(chain_flights),
                 "hotels": copy.deepcopy(chain_hotels),
             })
@@ -650,7 +650,7 @@ def _enumerate_hybrid_chains(
 
         if matching_hotels:
             for hg in matching_hotels:
-                if len(itineraries) >= _MAX_ITINERARIES:
+                if len(trips) >= _MAX_TRIPS:
                     return
                 hg_id = id(hg)
                 if hg_id in used_hg:
@@ -675,7 +675,7 @@ def _enumerate_hybrid_chains(
                     used_hg.discard(hg_id)
         else:
             for nfg in flight_groups:
-                if len(itineraries) >= _MAX_ITINERARIES:
+                if len(trips) >= _MAX_TRIPS:
                     return
                 nfg_id = id(nfg)
                 if nfg_id in used_fg:
@@ -692,7 +692,7 @@ def _enumerate_hybrid_chains(
         if str(fg.get("from", "")) == start_origin:
             _dfs([fg], [], {id(fg)}, set())
 
-    return itineraries
+    return trips
 
 
 def _extract_trip_endpoints(payload: dict[str, Any]) -> tuple[str, str]:
@@ -714,27 +714,27 @@ def _extract_trip_endpoints(payload: dict[str, Any]) -> tuple[str, str]:
     return str(first_leg.get("from", "")), str(last_leg.get("to", ""))
 
 
-async def compose_itinerary(
+async def compose_trip(
     payload: dict[str, Any],
     *,
     exchange_rate_latest_url: str,
 ) -> dict[str, Any]:
     """
-    Build itineraries from the inventory response: flight-only when there are no hotels;
+    Build trips from the inventory response: flight-only when there are no hotels;
     otherwise hybrid (hotel stay at stops where (city, arrival date) has inventory, else
     direct flight connections between flights).
     """
     provider_response = payload.get("provider_response")
     if not isinstance(provider_response, dict):
         logger.warning("No provider_response in payload (id=%s)", payload.get("id"))
-        return {"itineraries": []}
+        return {"trips": []}
 
     flight_groups = [fg for fg in provider_response.get("flights", []) if isinstance(fg, dict)]
     hotel_groups = [hg for hg in provider_response.get("hotels", []) if isinstance(hg, dict)]
 
     if not flight_groups:
         logger.info("No flight groups to compose (id=%s)", payload.get("id"))
-        return {"itineraries": []}
+        return {"trips": []}
 
     start_origin, end_destination = _extract_trip_endpoints(payload)
     if not start_origin or not end_destination:
@@ -745,45 +745,45 @@ async def compose_itinerary(
             start_origin,
             end_destination,
         )
-        return {"itineraries": []}
+        return {"trips": []}
 
     simple_fgs, multi_fgs = _partition_flight_groups(flight_groups)
 
     if not hotel_groups:
-        itineraries = (
+        trips = (
             _enumerate_flight_only_chains(simple_fgs, start_origin, end_destination)
-            + _enumerate_multi_itinerary_flight_only(multi_fgs, start_origin, end_destination)
+            + _enumerate_multi_trip_flight_only(multi_fgs, start_origin, end_destination)
         )
         mode = "flight_only"
     else:
         hotels_by_city_checkin, flights_by_origin_date = _build_indexes(
             simple_fgs, hotel_groups,
         )
-        itineraries = (
+        trips = (
             _enumerate_hybrid_chains(
                 simple_fgs, hotels_by_city_checkin, flights_by_origin_date,
                 start_origin, end_destination,
             )
-            + _enumerate_multi_itinerary_with_hotels(
+            + _enumerate_multi_trip_with_hotels(
                 multi_fgs, hotel_groups, start_origin, end_destination,
             )
         )
         mode = "hybrid"
 
-    itinerary_currency = _extract_itinerary_currency(payload)
+    trip_currency = _extract_trip_currency(payload)
     prompt_id = _extract_prompt_id(payload)
     usd_rates = await _fetch_usd_rates(exchange_rate_latest_url)
-    for it in itineraries:
-        it["summary"] = _compute_summary(it, itinerary_currency)
-        it["itinerary_currency"] = itinerary_currency.upper()
+    for it in trips:
+        it["summary"] = _compute_summary(it, trip_currency)
+        it["trip_currency"] = trip_currency.upper()
         if prompt_id:
             it["prompt_id"] = prompt_id
-        _annotate_itinerary_flight_hotel_prices(it, itinerary_currency, usd_rates)
+        _annotate_trip_flight_hotel_prices(it, trip_currency, usd_rates)
 
     logger.info(
-        "Composed %d itineraries (mode=%s) from %d flight groups and %d hotel groups "
+        "Composed %d trips (mode=%s) from %d flight groups and %d hotel groups "
         "(start=%s, end=%s, id=%s)",
-        len(itineraries),
+        len(trips),
         mode,
         len(flight_groups),
         len(hotel_groups),
@@ -791,4 +791,4 @@ async def compose_itinerary(
         end_destination,
         payload.get("id"),
     )
-    return {"itineraries": itineraries}
+    return {"trips": trips}

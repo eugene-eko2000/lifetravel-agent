@@ -1,5 +1,5 @@
 """
-Integration-style unit tests for compose_itinerary: building itineraries from
+Integration-style unit tests for compose_trip: building trips from
 flight groups and hotel groups in provider_response plus structured_request trip legs.
 """
 
@@ -15,7 +15,7 @@ SRC_DIR = PROJECT_DIR / "src"
 sys.path.insert(0, str(SRC_DIR))
 
 import composer as composer_module  # noqa: E402
-from composer import compose_itinerary  # noqa: E402
+from composer import compose_trip  # noqa: E402
 
 
 def _flight_group(
@@ -104,7 +104,7 @@ def _structured_payload(
     return out
 
 
-class ComposeItineraryTest(unittest.IsolatedAsyncioTestCase):
+class ComposeTripTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
         # Avoid cross-test pollution of FX cache (compose uses process-global cache).
         composer_module._USD_RATES_CACHE = None
@@ -134,15 +134,15 @@ class ComposeItineraryTest(unittest.IsolatedAsyncioTestCase):
             ],
             hotels=[],
         )
-        out = await compose_itinerary(payload, exchange_rate_latest_url="")
-        its = out.get("itineraries", [])
+        out = await compose_trip(payload, exchange_rate_latest_url="")
+        its = out.get("trips", [])
         self.assertEqual(len(its), 1)
         it = its[0]
         self.assertEqual(len(it["flights"]), 2)
         self.assertEqual(it["flights"][0]["from"], "AAA")
         self.assertEqual(it["flights"][1]["to"], "CCC")
         self.assertEqual(it["hotels"], [])
-        self.assertEqual(it["summary"]["itinerary_currency"], "USD")
+        self.assertEqual(it["summary"]["trip_currency"], "USD")
 
     async def test_hybrid_flight_hotel_flight_single_stay(self) -> None:
         """Hotel at (city, arrival date): flight → hotel → next flight."""
@@ -176,8 +176,8 @@ class ComposeItineraryTest(unittest.IsolatedAsyncioTestCase):
                 ),
             ],
         )
-        out = await compose_itinerary(payload, exchange_rate_latest_url="")
-        its = out["itineraries"]
+        out = await compose_trip(payload, exchange_rate_latest_url="")
+        its = out["trips"]
         self.assertEqual(len(its), 1)
         it = its[0]
         self.assertEqual(len(it["flights"]), 2)
@@ -228,15 +228,15 @@ class ComposeItineraryTest(unittest.IsolatedAsyncioTestCase):
             ],
             request_id="compose-test-hybrid-gap",
         )
-        out = await compose_itinerary(payload, exchange_rate_latest_url="")
-        its = out["itineraries"]
+        out = await compose_trip(payload, exchange_rate_latest_url="")
+        its = out["trips"]
         self.assertEqual(len(its), 1)
         it = its[0]
         self.assertEqual(len(it["flights"]), 3)
         self.assertEqual(len(it["hotels"]), 1)
         self.assertEqual(it["flights"][2]["to"], "DDD")
 
-    async def test_no_itineraries_when_flights_do_not_reach_destination(self) -> None:
+    async def test_no_trips_when_flights_do_not_reach_destination(self) -> None:
         """Inventory ends at BBB but trip asks for CCC → no valid chain."""
         payload = _structured_payload(
             legs=[
@@ -252,10 +252,10 @@ class ComposeItineraryTest(unittest.IsolatedAsyncioTestCase):
             ],
             hotels=[],
         )
-        out = await compose_itinerary(payload, exchange_rate_latest_url="")
-        self.assertEqual(out["itineraries"], [])
+        out = await compose_trip(payload, exchange_rate_latest_url="")
+        self.assertEqual(out["trips"], [])
 
-    async def test_no_itineraries_without_trip_endpoints(self) -> None:
+    async def test_no_trips_without_trip_endpoints(self) -> None:
         payload = {
             "id": "bad",
             "structured_request": {"output": {"trip": {"timezone": "UTC", "legs": []}}},
@@ -271,10 +271,10 @@ class ComposeItineraryTest(unittest.IsolatedAsyncioTestCase):
                 "hotels": [],
             },
         }
-        out = await compose_itinerary(payload, exchange_rate_latest_url="")
-        self.assertEqual(out["itineraries"], [])
+        out = await compose_trip(payload, exchange_rate_latest_url="")
+        self.assertEqual(out["trips"], [])
 
-    async def test_prompt_id_echoed_on_each_itinerary(self) -> None:
+    async def test_prompt_id_echoed_on_each_trip(self) -> None:
         payload = _structured_payload(
             legs=[
                 {"from": "AAA", "to": "BBB", "depart_dates": ["2026-06-01"]},
@@ -297,16 +297,16 @@ class ComposeItineraryTest(unittest.IsolatedAsyncioTestCase):
             hotels=[],
             llm_prompt_id="resp-openai-xyz",
         )
-        out = await compose_itinerary(payload, exchange_rate_latest_url="")
-        for it in out["itineraries"]:
+        out = await compose_trip(payload, exchange_rate_latest_url="")
+        for it in out["trips"]:
             self.assertEqual(it.get("prompt_id"), "resp-openai-xyz")
 
     async def test_no_provider_response(self) -> None:
-        out = await compose_itinerary({"id": "x"}, exchange_rate_latest_url="")
-        self.assertEqual(out["itineraries"], [])
+        out = await compose_trip({"id": "x"}, exchange_rate_latest_url="")
+        self.assertEqual(out["trips"], [])
 
-    async def test_multi_itinerary_round_trip_flight_only(self) -> None:
-        """Full Amadeus offer with two itineraries: one flight group, no hotel."""
+    async def test_multi_trip_round_trip_flight_only(self) -> None:
+        """Full Amadeus offer with two trips: one flight group, no hotel."""
         legs = [
             {"from": "ZRH", "to": "LAX", "depart_dates": ["2026-06-01"]},
             {"from": "LAX", "to": "ZRH", "depart_dates": ["2026-06-15"]},
@@ -347,16 +347,16 @@ class ComposeItineraryTest(unittest.IsolatedAsyncioTestCase):
             ],
             hotels=[],
         )
-        out = await compose_itinerary(payload, exchange_rate_latest_url="")
-        its = out["itineraries"]
+        out = await compose_trip(payload, exchange_rate_latest_url="")
+        its = out["trips"]
         self.assertEqual(len(its), 1)
         self.assertEqual(len(its[0]["flights"]), 1)
         self.assertEqual(len(its[0]["flights"][0]["options"][0]["itineraries"]), 2)
         self.assertEqual(its[0]["hotels"], [])
 
-    async def test_multi_itinerary_rt_hotel_between_itineraries(self) -> None:
+    async def test_multi_trip_rt_hotel_between_trips(self) -> None:
         """
-        Hotel stay between itinerary 1 and 2: itin1 last arrival date = check-in,
+        Hotel stay between trip 1 and 2: itin1 last arrival date = check-in,
         itin2 first departure date = check-out (same city as gap endpoints).
         """
         legs = [
@@ -406,8 +406,8 @@ class ComposeItineraryTest(unittest.IsolatedAsyncioTestCase):
                 ),
             ],
         )
-        out = await compose_itinerary(payload, exchange_rate_latest_url="")
-        its = out["itineraries"]
+        out = await compose_trip(payload, exchange_rate_latest_url="")
+        its = out["trips"]
         self.assertGreaterEqual(len(its), 1)
         matched = [it for it in its if len(it.get("hotels", [])) == 1 and len(it.get("flights", [])) == 1]
         self.assertEqual(len(matched), 1)
@@ -415,7 +415,7 @@ class ComposeItineraryTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(it["hotels"][0]["city_code"], "LAX")
         self.assertEqual(len(it["flights"][0]["options"][0]["itineraries"]), 2)
 
-    async def test_multi_itinerary_london_metro_different_airports_hotel_lon(self) -> None:
+    async def test_multi_trip_london_metro_different_airports_hotel_lon(self) -> None:
         """
         Outbound arrives LCY, return departs LHR — hotel coded LON must still match the gap
         when check-in/out dates align with segment boundaries.
@@ -467,8 +467,8 @@ class ComposeItineraryTest(unittest.IsolatedAsyncioTestCase):
                 ),
             ],
         )
-        out = await compose_itinerary(payload, exchange_rate_latest_url="")
-        its = out["itineraries"]
+        out = await compose_trip(payload, exchange_rate_latest_url="")
+        its = out["trips"]
         with_hotel = [it for it in its if len(it.get("hotels", [])) == 1]
         self.assertEqual(len(with_hotel), 1)
         self.assertEqual(with_hotel[0]["hotels"][0]["city_code"], "LON")

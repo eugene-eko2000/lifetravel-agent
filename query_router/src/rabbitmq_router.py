@@ -7,7 +7,7 @@ import aio_pika
 from aio_pika import DeliveryMode, ExchangeType, Message
 
 from cfg import Cfg
-from llm_client import request_structured_itinerary
+from llm_client import request_structured_trip
 
 logger = logging.getLogger("query_router.rabbitmq")
 
@@ -72,7 +72,7 @@ async def _handle_message(
     prompt_id = payload.get("prompt_id")
 
     try:
-        llm_response = await request_structured_itinerary(request_id, prompt_id, content)
+        llm_response = await request_structured_trip(request_id, prompt_id, content)
     except Exception:
         logger.exception("LLM processing failed")
         return
@@ -98,7 +98,7 @@ async def _handle_message(
     )
     await exchange.publish(outgoing, routing_key=routing_key)
     logger.info(
-        "Published routed response for itinerary id=%s via routing_key=%s",
+        "Published routed response for trip id=%s via routing_key=%s",
         request_id,
         routing_key,
     )
@@ -118,4 +118,4 @@ async def _handle_message(
         content_type="application/json",
     )
     await exchange.publish(debug_outgoing, routing_key=cfg.rabbitmq_debug_routing_key)
-    logger.info("Published debug message for itinerary id=%s", request_id)
+    logger.info("Published debug message for trip id=%s", request_id)

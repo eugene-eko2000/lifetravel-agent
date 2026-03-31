@@ -13,7 +13,7 @@ from ranker import (
     _normalize,
     _rank_hotels_for_date,
     rank_provider_response,
-    rank_single_itinerary,
+    rank_single_trip,
 )
 
 
@@ -109,7 +109,7 @@ INPUT_PROVIDER_RESPONSE = {
                         "price": {
                             "currency": "INR",
                             "total": "260.00",
-                            "total_itinerary_currency": "260.00",
+                            "total_trip_currency": "260.00",
                         },
                         "policies": {"cancellation": {"type": "PARTIAL_STAY"}},
                     }
@@ -133,7 +133,7 @@ INPUT_PROVIDER_RESPONSE = {
                         "price": {
                             "currency": "INR",
                             "total": "220.00",
-                            "total_itinerary_currency": "220.00",
+                            "total_trip_currency": "220.00",
                         },
                         "policies": {"cancellation": {"type": "FULL_STAY"}},
                     }
@@ -157,7 +157,7 @@ INPUT_PROVIDER_RESPONSE = {
                         "price": {
                             "currency": "INR",
                             "total": "180.00",
-                            "total_itinerary_currency": "180.00",
+                            "total_trip_currency": "180.00",
                         },
                         "policies": {"cancellation": {"type": "FULL_STAY"}},
                     }
@@ -183,7 +183,7 @@ INPUT_PROVIDER_RESPONSE = {
                         "price": {
                             "currency": "SGD",
                             "total": "300.00",
-                            "total_itinerary_currency": "300.00",
+                            "total_trip_currency": "300.00",
                         },
                         "policies": {"cancellation": {"type": "PARTIAL_STAY"}},
                     }
@@ -207,7 +207,7 @@ INPUT_PROVIDER_RESPONSE = {
                         "price": {
                             "currency": "SGD",
                             "total": "190.00",
-                            "total_itinerary_currency": "190.00",
+                            "total_trip_currency": "190.00",
                         },
                         "policies": {"cancellation": {"type": "FULL_STAY"}},
                     }
@@ -332,7 +332,7 @@ GOLDEN_RANKED_PROVIDER_RESPONSE = {
                         "price": {
                             "currency": "INR",
                             "total": "260.00",
-                            "total_itinerary_currency": "260.00",
+                            "total_trip_currency": "260.00",
                         },
                         "policies": {"cancellation": {"type": "PARTIAL_STAY"}},
                     }
@@ -362,7 +362,7 @@ GOLDEN_RANKED_PROVIDER_RESPONSE = {
                         "price": {
                             "currency": "INR",
                             "total": "220.00",
-                            "total_itinerary_currency": "220.00",
+                            "total_trip_currency": "220.00",
                         },
                         "policies": {"cancellation": {"type": "FULL_STAY"}},
                     }
@@ -392,7 +392,7 @@ GOLDEN_RANKED_PROVIDER_RESPONSE = {
                         "price": {
                             "currency": "INR",
                             "total": "180.00",
-                            "total_itinerary_currency": "180.00",
+                            "total_trip_currency": "180.00",
                         },
                         "policies": {"cancellation": {"type": "FULL_STAY"}},
                     }
@@ -424,7 +424,7 @@ GOLDEN_RANKED_PROVIDER_RESPONSE = {
                         "price": {
                             "currency": "SGD",
                             "total": "300.00",
-                            "total_itinerary_currency": "300.00",
+                            "total_trip_currency": "300.00",
                         },
                         "policies": {"cancellation": {"type": "PARTIAL_STAY"}},
                     }
@@ -454,7 +454,7 @@ GOLDEN_RANKED_PROVIDER_RESPONSE = {
                         "price": {
                             "currency": "SGD",
                             "total": "190.00",
-                            "total_itinerary_currency": "190.00",
+                            "total_trip_currency": "190.00",
                         },
                         "policies": {"cancellation": {"type": "FULL_STAY"}},
                     }
@@ -546,7 +546,7 @@ class RankerTest(unittest.TestCase):
         self.assertEqual(ranked["flights"], [])
         self.assertEqual(ranked["hotels"], {})
 
-    def test_rank_single_itinerary_with_grouped_format(self) -> None:
+    def test_rank_single_trip_with_grouped_format(self) -> None:
         flight_group_vie_del = {
             "depart_date": "2026-04-19",
             "arrive_date": "2026-04-19",
@@ -574,12 +574,12 @@ class RankerTest(unittest.TestCase):
             "check_out": "2026-04-23",
             "options": INPUT_PROVIDER_RESPONSE["hotels"]["2026-04-21"],
         }
-        itinerary = {
+        trip = {
             "flights": [flight_group_vie_del, flight_group_del_sin],
             "hotels": [hotel_group_del, hotel_group_sin],
         }
 
-        ranked = rank_single_itinerary(itinerary)
+        ranked = rank_single_trip(trip)
         self.assertIn("flights", ranked)
         self.assertIn("hotels", ranked)
         self.assertEqual(len(ranked["flights"]), 2)
@@ -622,15 +622,15 @@ class RankerTest(unittest.TestCase):
         hg_sin = ranked["hotels"][1]["options"]
         self.assertEqual([o["_ranking"]["score"] for o in hg_sin], [55.0, 35.0])
 
-    def test_rank_single_itinerary_empty(self) -> None:
-        ranked = rank_single_itinerary({"flights": [], "hotels": []})
+    def test_rank_single_trip_empty(self) -> None:
+        ranked = rank_single_trip({"flights": [], "hotels": []})
         self.assertEqual(ranked["flights"], [])
         self.assertEqual(ranked["hotels"], [])
 
-    def test_rank_single_itinerary_passes_through_prompt_id(self) -> None:
-        ranked = rank_single_itinerary(
+    def test_rank_single_trip_passes_through_prompt_id(self) -> None:
+        ranked = rank_single_trip(
             {
-                "itinerary_id": "550e8400-e29b-41d4-a716-446655440000",
+                "trip_id": "550e8400-e29b-41d4-a716-446655440000",
                 "prompt_id": "resp-abc",
                 "flights": [],
                 "hotels": [],
@@ -638,17 +638,17 @@ class RankerTest(unittest.TestCase):
         )
         self.assertEqual(ranked.get("prompt_id"), "resp-abc")
 
-    def test_flight_price_prefers_itinerary_currency_fields(self) -> None:
+    def test_flight_price_prefers_trip_currency_fields(self) -> None:
         offer = {
             "price": {
                 "grandTotal": "1000.00",
-                "grandTotal_itinerary_currency": "250.00",
+                "grandTotal_trip_currency": "250.00",
             },
             "itineraries": [{"duration": "PT4H", "segments": []}],
         }
         self.assertEqual(_flight_price(offer), 250.0)
 
-    def test_hotel_total_price_prefers_total_itinerary_currency(self) -> None:
+    def test_hotel_total_price_prefers_total_trip_currency(self) -> None:
         offer = {
             "offers": [
                 {
@@ -657,7 +657,7 @@ class RankerTest(unittest.TestCase):
                     "price": {
                         "currency": "INR",
                         "total": "999.00",
-                        "total_itinerary_currency": "40.00",
+                        "total_trip_currency": "40.00",
                     },
                 }
             ],
@@ -665,14 +665,14 @@ class RankerTest(unittest.TestCase):
         }
         self.assertEqual(_hotel_total_price(offer), 40.0)
 
-    def test_rank_single_itinerary_uses_itinerary_currency_for_scoring(self) -> None:
-        """When *_itinerary_currency is present, ranking score uses those amounts."""
+    def test_rank_single_trip_uses_trip_currency_for_scoring(self) -> None:
+        """When *_trip_currency is present, ranking score uses those amounts."""
         cheap_in_ic = {
             "id": "cheap-ic",
             "type": "flight-offer",
             "price": {
                 "grandTotal": "999.00",
-                "grandTotal_itinerary_currency": "100.00",
+                "grandTotal_trip_currency": "100.00",
             },
             "itineraries": [
                 {
@@ -692,7 +692,7 @@ class RankerTest(unittest.TestCase):
             "type": "flight-offer",
             "price": {
                 "grandTotal": "100.00",
-                "grandTotal_itinerary_currency": "500.00",
+                "grandTotal_trip_currency": "500.00",
             },
             "itineraries": [
                 {
@@ -707,9 +707,9 @@ class RankerTest(unittest.TestCase):
                 }
             ],
         }
-        itinerary = {
-            "itinerary_currency": "CHF",
-            "summary": {"itinerary_currency": "CHF"},
+        trip = {
+            "trip_currency": "CHF",
+            "summary": {"trip_currency": "CHF"},
             "flights": [
                 {
                     "depart_date": "2026-04-19",
@@ -721,7 +721,7 @@ class RankerTest(unittest.TestCase):
             ],
             "hotels": [],
         }
-        ranked = rank_single_itinerary(itinerary)
+        ranked = rank_single_trip(trip)
         opts = ranked["flights"][0]["options"]
         self.assertEqual(opts[0]["id"], "cheap-ic")
         self.assertEqual(opts[0]["_ranking"]["price"], 100.0)
@@ -729,8 +729,8 @@ class RankerTest(unittest.TestCase):
         self.assertEqual(opts[0]["_ranking"]["score"], 66.0)
         self.assertEqual(opts[1]["_ranking"]["score"], 36.0)
 
-    def test_rank_single_itinerary_hotel_uses_itinerary_currency_for_scoring(self) -> None:
-        """When total_itinerary_currency is present, hotel PPN uses that (not raw total)."""
+    def test_rank_single_trip_hotel_uses_trip_currency_for_scoring(self) -> None:
+        """When total_trip_currency is present, hotel PPN uses that (not raw total)."""
         cheap_in_ic = {
             "available": True,
             "hotel": {
@@ -746,7 +746,7 @@ class RankerTest(unittest.TestCase):
                     "price": {
                         "currency": "INR",
                         "total": "900.00",
-                        "total_itinerary_currency": "100.00",
+                        "total_trip_currency": "100.00",
                     },
                 }
             ],
@@ -766,14 +766,14 @@ class RankerTest(unittest.TestCase):
                     "price": {
                         "currency": "INR",
                         "total": "100.00",
-                        "total_itinerary_currency": "400.00",
+                        "total_trip_currency": "400.00",
                     },
                 }
             ],
         }
-        itinerary = {
-            "itinerary_currency": "CHF",
-            "summary": {"itinerary_currency": "CHF"},
+        trip = {
+            "trip_currency": "CHF",
+            "summary": {"trip_currency": "CHF"},
             "flights": [],
             "hotels": [
                 {
@@ -784,7 +784,7 @@ class RankerTest(unittest.TestCase):
                 }
             ],
         }
-        ranked = rank_single_itinerary(itinerary)
+        ranked = rank_single_trip(trip)
         opts = ranked["hotels"][0]["options"]
         self.assertEqual(opts[0]["offers"][0]["id"], "o-cheap")
         self.assertEqual(opts[0]["_ranking"]["price_per_night"], 50.0)
@@ -792,7 +792,7 @@ class RankerTest(unittest.TestCase):
         self.assertEqual(opts[0]["_ranking"]["score"], 35.0)
         self.assertEqual(opts[1]["_ranking"]["score"], 0.0)
 
-    def test_rank_single_itinerary_options_sorted_by_score(self) -> None:
+    def test_rank_single_trip_options_sorted_by_score(self) -> None:
         flight_group = {
             "depart_date": "2026-04-19",
             "arrive_date": "2026-04-19",
@@ -801,8 +801,8 @@ class RankerTest(unittest.TestCase):
             "options": INPUT_PROVIDER_RESPONSE["flights"][0]["data"]
             + INPUT_PROVIDER_RESPONSE["flights"][1]["data"],
         }
-        itinerary = {"flights": [flight_group], "hotels": []}
-        ranked = rank_single_itinerary(itinerary)
+        trip = {"flights": [flight_group], "hotels": []}
+        ranked = rank_single_trip(trip)
         options = ranked["flights"][0]["options"]
         option_scores = [opt["_ranking"]["score"] for opt in options]
         self.assertEqual(option_scores, sorted(option_scores, reverse=True))

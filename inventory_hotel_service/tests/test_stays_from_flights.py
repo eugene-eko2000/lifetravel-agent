@@ -1,4 +1,4 @@
-"""Tests for stay construction from flight groups (multi-itinerary round-trips)."""
+"""Tests for stay construction from flight groups (multi-trip round-trips)."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from request_processor import _build_stays_from_flight_groups  # noqa: E402
 
 
 def _round_trip_zrh_lon_fixture() -> dict:
-    """Group-level dates/to are misleading; gap is in segment itin0 last / itin1 first."""
+    """Group-level dates/to are misleading; gap is in segment trip0 last / trip1 first."""
     return {
         "flight_kind": "round_trip",
         "from": "ZRH",
@@ -59,7 +59,7 @@ def _round_trip_zrh_lon_fixture() -> dict:
 
 
 class TestBuildStaysFromFlights(unittest.TestCase):
-    def test_multi_itinerary_round_trip_london_metro(self) -> None:
+    def test_multi_trip_round_trip_london_metro(self) -> None:
         fg = _round_trip_zrh_lon_fixture()
         stays = [{"city_code": "LON", "duration": 0, "min_rooms": 1}]
         built = _build_stays_from_flight_groups([fg], stays, currency="CHF", travelers=2)
@@ -70,7 +70,7 @@ class TestBuildStaysFromFlights(unittest.TestCase):
         self.assertEqual(pair["check_out"], "2026-05-18")
 
     def test_coarse_group_dates_alone_would_not_pair_lon(self) -> None:
-        """Without multi-itinerary extraction, group arrive_date is return to ZRH — no LON stay."""
+        """Without multi-trip extraction, group arrive_date is return to ZRH — no LON stay."""
         fg = {
             "from": "ZRH",
             "to": "LON",

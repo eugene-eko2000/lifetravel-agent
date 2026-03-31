@@ -32,15 +32,15 @@ class Cfg:
             rabbitmq_exchange=os.getenv("RABBITMQ_EXCHANGE", "lifetravel_agent"),
             rabbitmq_subscribe_routing_key=os.getenv(
                 "RABBITMQ_SUBSCRIBE_ROUTING_KEY",
-                "itinerary:user_request",
+                "trip:user_request",
             ),
             rabbitmq_publish_routing_key=os.getenv(
                 "RABBITMQ_PUBLISH_ROUTING_KEY",
-                "itinerary:structured_request",
+                "trip:structured_request",
             ),
             rabbitmq_missing_info_routing_key=os.getenv(
                 "RABBITMQ_MISSING_INFO_ROUTING_KEY",
-                "itinerary:missing_info",
+                "trip:missing_info",
             ),
             rabbitmq_debug_routing_key=os.getenv(
                 "RABBITMQ_DEBUG_ROUTING_KEY",
@@ -52,7 +52,7 @@ class Cfg:
             ),
             rabbitmq_queue_name=os.getenv(
                 "RABBITMQ_QUEUE_NAME",
-                "query_router_itinerary_user_request_queue",
+                "query_router_trip_user_request_queue",
             ),
             openai_api_key=os.getenv("OPENAI_API_KEY", ""),
             openai_model=os.getenv("OPENAI_MODEL", "gpt-5.2"),

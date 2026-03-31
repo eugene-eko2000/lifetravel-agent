@@ -65,7 +65,7 @@ async def _emit_debug_message(
         logger.exception("Failed to publish debug message")
 
 def _option_depart_dt(option: dict[str, Any]) -> str:
-    """Departure datetime of the 1st segment of the first itinerary."""
+    """Departure datetime of the 1st segment of the first trip."""
     itineraries = option.get("itineraries")
     if not isinstance(itineraries, list) or not itineraries:
         return ""
@@ -81,7 +81,7 @@ def _option_depart_dt(option: dict[str, Any]) -> str:
 
 
 def _option_arrive_dt(option: dict[str, Any]) -> str:
-    """Arrival datetime of the last segment of the first itinerary."""
+    """Arrival datetime of the last segment of the first trip."""
     itineraries = option.get("itineraries")
     if not isinstance(itineraries, list) or not itineraries:
         return ""
@@ -152,7 +152,7 @@ def _round_trip_outbound_return_segments(
     *,
     return_from: str,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]] | None:
-    """Outbound and return segment lists for a full round-trip offer (two itineraries or one)."""
+    """Outbound and return segment lists for a full round-trip offer (two trips or one)."""
     itins = option.get("itineraries")
     if not isinstance(itins, list) or not itins:
         return None
@@ -182,7 +182,7 @@ def _round_trip_outbound_return_segments(
 
 
 def _tag_roundtrip_offer_full(opt: dict[str, Any]) -> None:
-    """Mark a full Amadeus round-trip offer for downstream (itinerary composer)."""
+    """Mark a full Amadeus round-trip offer for downstream (trip composer)."""
     opt["flight_kind"] = "round_trip"
     opt["round_trip_pair_id"] = str(uuid.uuid4())
 
@@ -237,7 +237,7 @@ def _append_option_to_groups(
 
 
 def _offer_connection_count(offer: dict[str, Any]) -> int:
-    """Total connection count across all itineraries (segments minus one per leg)."""
+    """Total connection count across all trips (segments minus one per leg)."""
     itins = offer.get("itineraries")
     if not isinstance(itins, list):
         return 0
@@ -253,7 +253,7 @@ def _offer_connection_count(offer: dict[str, Any]) -> int:
 
 
 def _iso8601_duration_to_seconds(value: str) -> float:
-    """Parse Amadeus itinerary duration (ISO-8601, e.g. PT5H30M, P1DT2H) to seconds."""
+    """Parse Amadeus trip duration (ISO-8601, e.g. PT5H30M, P1DT2H) to seconds."""
     if not isinstance(value, str) or not value.strip():
         return 0.0
     v = value.strip().upper()
@@ -277,7 +277,7 @@ def _iso8601_duration_to_seconds(value: str) -> float:
 
 
 def _offer_total_duration_seconds(offer: dict[str, Any]) -> float:
-    """Sum of per-itinerary duration fields (Amadeus)."""
+    """Sum of per-trip duration fields (Amadeus)."""
     itins = offer.get("itineraries")
     if not isinstance(itins, list):
         return 0.0

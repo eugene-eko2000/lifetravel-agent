@@ -158,10 +158,10 @@ def _flight_total_duration_minutes(offer: dict[str, Any]) -> float:
     if not isinstance(itineraries, list):
         return 0.0
     total = 0.0
-    for itinerary in itineraries:
-        if not isinstance(itinerary, dict):
+    for itin in itineraries:
+        if not isinstance(itin, dict):
             continue
-        dur = itinerary.get("duration")
+        dur = itin.get("duration")
         total += _duration_minutes_from_iso8601(dur)
     return total
 
@@ -171,8 +171,8 @@ def _flight_total_stops(offer: dict[str, Any]) -> int:
     if not isinstance(itineraries, list):
         return 99
     stops = 0
-    for itinerary in itineraries:
-        segments = itinerary.get("segments") if isinstance(itinerary, dict) else None
+    for itin in itineraries:
+        segments = itin.get("segments") if isinstance(itin, dict) else None
         if isinstance(segments, list) and segments:
             stops += max(0, len(segments) - 1)
     return stops
@@ -181,13 +181,13 @@ def _flight_total_stops(offer: dict[str, Any]) -> int:
 def _numeric_price_from_dict(
     price: dict[str, Any],
     *,
-    itinerary_first: tuple[str, ...],
+    trip_first: tuple[str, ...],
     legacy: tuple[str, ...],
 ) -> float:
     """
-    Prefer itinerary-composer converted amounts (*_itinerary_currency), then legacy fields.
+    Prefer trip-composer converted amounts (*_trip_currency), then legacy fields.
     """
-    for key in itinerary_first:
+    for key in trip_first:
         if key not in price:
             continue
         v = price.get(key)
@@ -214,7 +214,7 @@ def _flight_price(offer: dict[str, Any]) -> float:
         return float("inf")
     return _numeric_price_from_dict(
         price,
-        itinerary_first=("grandTotal_itinerary_currency", "total_itinerary_currency"),
+        trip_first=("grandTotal_trip_currency", "total_trip_currency"),
         legacy=("grandTotal", "total"),
     )
 
@@ -225,8 +225,8 @@ def _first_departure_and_last_arrival(offer: dict[str, Any]) -> tuple[datetime |
         return None, None
     first_dep: datetime | None = None
     last_arr: datetime | None = None
-    for itinerary in itineraries:
-        segments = itinerary.get("segments") if isinstance(itinerary, dict) else None
+    for itin in itineraries:
+        segments = itin.get("segments") if isinstance(itin, dict) else None
         if not isinstance(segments, list) or not segments:
             continue
         dep = _parse_iso_dt((segments[0].get("departure") or {}).get("at"))
@@ -243,8 +243,8 @@ def _flight_leg_departure_arrival(offer: dict[str, Any]) -> list[tuple[datetime 
     if not isinstance(itineraries, list):
         return []
     leg_ranges: list[tuple[datetime | None, datetime | None]] = []
-    for itinerary in itineraries:
-        segments = itinerary.get("segments") if isinstance(itinerary, dict) else None
+    for itin in itineraries:
+        segments = itin.get("segments") if isinstance(itin, dict) else None
         if not isinstance(segments, list) or not segments:
             leg_ranges.append((None, None))
             continue
@@ -309,8 +309,8 @@ def _minimum_layover_minutes(offer: dict[str, Any]) -> float:
     itineraries = offer.get("itineraries")
     if not isinstance(itineraries, list):
         return 9999.0
-    for itinerary in itineraries:
-        segments = itinerary.get("segments") if isinstance(itinerary, dict) else None
+    for itin in itineraries:
+        segments = itin.get("segments") if isinstance(itin, dict) else None
         if not isinstance(segments, list) or len(segments) < 2:
             continue
         for idx in range(len(segments) - 1):
@@ -536,7 +536,7 @@ def _hotel_total_price(offer: dict[str, Any]) -> float:
         return float("inf")
     return _numeric_price_from_dict(
         price,
-        itinerary_first=("total_itinerary_currency",),
+        trip_first=("total_trip_currency",),
         legacy=("total",),
     )
 
@@ -709,23 +709,23 @@ def _rank_hotels_for_date(
     return ranked
 
 
-def rank_single_itinerary(itinerary: dict[str, Any]) -> dict[str, Any]:
-    """Rank flight and hotel options inside a single itinerary."""
-    if not isinstance(itinerary, dict):
+def rank_single_trip(trip: dict[str, Any]) -> dict[str, Any]:
+    """Rank flight and hotel options inside a single trip."""
+    if not isinstance(trip, dict):
         return {"flights": [], "hotels": []}
 
     flight_constraints: dict[str, Any] = {}
     hotel_constraints: dict[str, Any] = {}
 
     currency_label = ""
-    summary = itinerary.get("summary")
+    summary = trip.get("summary")
     if isinstance(summary, dict):
-        currency_label = str(summary.get("itinerary_currency", "") or "").strip()
+        currency_label = str(summary.get("trip_currency", "") or "").strip()
     if not currency_label:
-        currency_label = str(itinerary.get("itinerary_currency", "") or "").strip()
+        currency_label = str(trip.get("trip_currency", "") or "").strip()
 
-    flight_groups = [fg for fg in itinerary.get("flights", []) if isinstance(fg, dict)]
-    hotel_groups = [hg for hg in itinerary.get("hotels", []) if isinstance(hg, dict)]
+    flight_groups = [fg for fg in trip.get("flights", []) if isinstance(fg, dict)]
+    hotel_groups = [hg for hg in trip.get("hotels", []) if isinstance(hg, dict)]
 
     ranked_flights = _rank_flight_groups(
         flight_groups, flight_constraints, currency_label=currency_label
@@ -738,12 +738,12 @@ def rank_single_itinerary(itinerary: dict[str, Any]) -> dict[str, Any]:
         "flights": ranked_flights,
         "hotels": ranked_hotels,
     }
-    if "summary" in itinerary:
-        result["summary"] = itinerary["summary"]
-    if "itinerary_id" in itinerary:
-        result["itinerary_id"] = itinerary["itinerary_id"]
-    if "prompt_id" in itinerary:
-        result["prompt_id"] = itinerary["prompt_id"]
+    if "summary" in trip:
+        result["summary"] = trip["summary"]
+    if "trip_id" in trip:
+        result["trip_id"] = trip["trip_id"]
+    if "prompt_id" in trip:
+        result["prompt_id"] = trip["prompt_id"]
     return result
 
 

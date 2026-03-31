@@ -10,10 +10,10 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, ValidationError
 
 from cfg import Cfg
-from rabbitmq_publisher import send_itinerary
+from rabbitmq_publisher import send_trip_request
 from rabbitmq_subscriber import (
     run_debug_subscriber,
-    run_empty_itinerary_subscriber,
+    run_empty_trip_subscriber,
     run_missing_info_subscriber,
     run_ranked_subscriber,
     run_status_subscriber,
@@ -22,7 +22,7 @@ from rabbitmq_subscriber import (
 logger = logging.getLogger("endpoint_api")
 
 
-class ItineraryRequest(BaseModel):
+class TripRequest(BaseModel):
     id: Optional[str] = None
     prompt_id: Optional[str] = None
     content: str
@@ -125,12 +125,12 @@ async def _handle_missing_info_message(payload: dict) -> None:
         logger.warning("No active websocket mapping for missing_info id=%s", request_id)
 
 
-async def _handle_empty_itinerary_message(payload: dict) -> None:
+async def _handle_empty_trip_message(payload: dict) -> None:
     request_id = payload.get("id")
     if not isinstance(request_id, str) or not request_id.strip():
         request_id = payload.get("request_id")
     if not isinstance(request_id, str) or not request_id.strip():
-        logger.warning("Empty-itinerary message without valid id: %s", payload)
+        logger.warning("Empty-trip message without valid id: %s", payload)
         return
 
     inner = payload.get("payload")
@@ -138,11 +138,11 @@ async def _handle_empty_itinerary_message(payload: dict) -> None:
     if isinstance(inner, dict):
         message_text = inner.get("message")
     if not isinstance(message_text, str) or not message_text.strip():
-        logger.warning("Empty-itinerary message without payload.message: %s", payload)
+        logger.warning("Empty-trip message without payload.message: %s", payload)
         return
 
     message = {
-        "type": "no_itineraries",
+        "type": "no_trips",
         "id": request_id,
         "request_id": payload.get("request_id"),
         "payload": inner if isinstance(inner, dict) else {"message": message_text},
@@ -153,37 +153,37 @@ async def _handle_empty_itinerary_message(payload: dict) -> None:
 
     delivered = await connection_manager.send_to_request(request_id, message)
     if delivered:
-        logger.info("Delivered empty-itinerary message to websocket for id=%s", request_id)
+        logger.info("Delivered empty-trip message to websocket for id=%s", request_id)
     else:
-        logger.warning("No active websocket mapping for empty-itinerary id=%s", request_id)
+        logger.warning("No active websocket mapping for empty-trip id=%s", request_id)
 
 
 async def _handle_ranked_message(payload: dict) -> None:
     request_id = payload.get("id")
-    ranked_itinerary = payload.get("ranked_itinerary")
+    ranked_trip = payload.get("ranked_trip")
     if not isinstance(request_id, str) or not request_id.strip():
         logger.warning("Ranked message without valid id: %s", payload)
         return
-    if not isinstance(ranked_itinerary, dict):
-        logger.warning("Ranked message without ranked_itinerary: %s", payload)
+    if not isinstance(ranked_trip, dict):
+        logger.warning("Ranked message without ranked_trip: %s", payload)
         return
 
     message = {
         "type": "ranked",
         "id": request_id,
-        "itinerary_index": payload.get("itinerary_index"),
-        "itinerary_count": payload.get("itinerary_count"),
-        "ranked_itinerary": ranked_itinerary,
+        "trip_index": payload.get("trip_index"),
+        "trip_count": payload.get("trip_count"),
+        "ranked_trip": ranked_trip,
     }
     top_pid = payload.get("prompt_id")
     if isinstance(top_pid, str) and top_pid.strip():
         message["prompt_id"] = top_pid.strip()
-    elif isinstance(ranked_itinerary.get("prompt_id"), str) and ranked_itinerary["prompt_id"].strip():
-        message["prompt_id"] = ranked_itinerary["prompt_id"].strip()
+    elif isinstance(ranked_trip.get("prompt_id"), str) and ranked_trip["prompt_id"].strip():
+        message["prompt_id"] = ranked_trip["prompt_id"].strip()
 
     delivered = await connection_manager.send_to_request(request_id, message)
     if delivered:
-        logger.info("Delivered ranked itinerary to websocket for id=%s", request_id)
+        logger.info("Delivered ranked trip to websocket for id=%s", request_id)
     else:
         logger.warning("No active websocket mapping for ranked id=%s", request_id)
 
@@ -204,9 +204,9 @@ async def _handle_debug_message(payload: dict) -> None:
 
     delivered = await connection_manager.send_to_request(request_id, message)
     if delivered:
-        logger.info("Delivered debug message to itinerary websocket for id=%s", request_id)
+        logger.info("Delivered debug message to trip websocket for id=%s", request_id)
     else:
-        logger.warning("No active itinerary websocket mapping for debug id=%s", request_id)
+        logger.warning("No active trip websocket mapping for debug id=%s", request_id)
 
 
 async def _handle_status_message(payload: dict) -> None:
@@ -241,8 +241,8 @@ async def on_startup() -> None:
     app.state.ranked_task = asyncio.create_task(
         run_ranked_subscriber(_handle_ranked_message)
     )
-    app.state.empty_itinerary_task = asyncio.create_task(
-        run_empty_itinerary_subscriber(_handle_empty_itinerary_message)
+    app.state.empty_trip_task = asyncio.create_task(
+        run_empty_trip_subscriber(_handle_empty_trip_message)
     )
     app.state.debug_task = asyncio.create_task(
         run_debug_subscriber(_handle_debug_message)
@@ -256,13 +256,13 @@ async def on_startup() -> None:
 async def on_shutdown() -> None:
     missing_info_task = getattr(app.state, "missing_info_task", None)
     ranked_task = getattr(app.state, "ranked_task", None)
-    empty_itinerary_task = getattr(app.state, "empty_itinerary_task", None)
+    empty_trip_task = getattr(app.state, "empty_trip_task", None)
     debug_task = getattr(app.state, "debug_task", None)
     status_task = getattr(app.state, "status_task", None)
     for name, task in (
         ("missing-info", missing_info_task),
         ("ranked", ranked_task),
-        ("empty-itinerary", empty_itinerary_task),
+        ("empty-trip", empty_trip_task),
         ("debug", debug_task),
         ("status", status_task),
     ):
@@ -282,11 +282,11 @@ async def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-@app.websocket("/api/v1/itinerary")
-async def itinerary_websocket(websocket: WebSocket) -> None:
+@app.websocket("/api/v1/trip")
+async def trip_websocket(websocket: WebSocket) -> None:
     await websocket.accept()
     session_id = await connection_manager.connect(websocket)
-    logger.info("WebSocket client connected to /api/v1/itinerary")
+    logger.info("WebSocket client connected to /api/v1/trip")
 
     try:
         while True:
@@ -298,25 +298,25 @@ async def itinerary_websocket(websocket: WebSocket) -> None:
 
             try:
                 payload = json.loads(raw_message)
-                request = ItineraryRequest.model_validate(payload)
+                request = TripRequest.model_validate(payload)
             except json.JSONDecodeError:
                 logger.warning("Invalid JSON payload received: %s", raw_message)
                 await connection_manager.send_to_session(
                     session_id,
                     {
                         "error": "Invalid JSON payload",
-                        "expected": {"id": "optional itinerary_id", "content": "user_prompt"},
+                        "expected": {"id": "optional trip_id", "content": "user_prompt"},
                     }
                 )
                 continue
             except ValidationError as error:
-                logger.warning("Invalid itinerary request structure: %s", error)
+                logger.warning("Invalid trip request structure: %s", error)
                 await connection_manager.send_to_session(
                     session_id,
                     {
                         "error": "Invalid request structure",
                         "details": error.errors(),
-                        "expected": {"id": "optional itinerary_id", "content": "user_prompt"},
+                        "expected": {"id": "optional trip_id", "content": "user_prompt"},
                     }
                 )
                 continue
@@ -330,15 +330,15 @@ async def itinerary_websocket(websocket: WebSocket) -> None:
                     outgoing_payload["id"] = request_id
 
                 await connection_manager.bind_request(request_id, session_id)
-                await send_itinerary(outgoing_payload)
+                await send_trip_request(outgoing_payload)
             except Exception as error:  # noqa: BLE001
-                logger.exception("Error processing itinerary request")
+                logger.exception("Error processing trip request")
                 if isinstance(request_id, str) and request_id:
                     await connection_manager.unbind_request(request_id)
                 await connection_manager.send_to_session(
                     session_id,
                     {
-                        "error": "Failed to publish itinerary request",
+                        "error": "Failed to publish trip request",
                         "details": str(error),
                     }
                 )
@@ -349,7 +349,7 @@ async def itinerary_websocket(websocket: WebSocket) -> None:
         await connection_manager.disconnect(session_id)
         return
     except Exception:
-        logger.exception("Unhandled error in itinerary WebSocket handler")
+        logger.exception("Unhandled error in trip WebSocket handler")
         await connection_manager.disconnect(session_id)
         return
 

@@ -7,8 +7,8 @@ from fastapi import FastAPI
 from cfg import Cfg
 from rabbitmq_subscriber import run_subscriber
 
-logger = logging.getLogger("itinerary_composer")
-app = FastAPI(title="Itinerary Composer")
+logger = logging.getLogger("trip_composer")
+app = FastAPI(title="Trip Composer")
 
 subscriber_task: asyncio.Task[None] | None = None
 
@@ -22,7 +22,7 @@ async def health() -> dict[str, str]:
 async def startup_event() -> None:
     global subscriber_task
     subscriber_task = asyncio.create_task(run_subscriber())
-    logger.info("Itinerary composer started successfully")
+    logger.info("Trip composer started successfully")
 
 
 @app.on_event("shutdown")
@@ -32,7 +32,7 @@ async def shutdown_event() -> None:
         try:
             await subscriber_task
         except asyncio.CancelledError:
-            logger.info("Itinerary composer subscriber task cancelled")
+            logger.info("Trip composer subscriber task cancelled")
 
 
 if __name__ == "__main__":

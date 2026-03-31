@@ -6,21 +6,21 @@ import aio_pika
 from aio_pika import ExchangeType
 
 from cfg import Cfg
-from composer import compose_itinerary
+from composer import compose_trip
 from rabbitmq_publisher import (
-    publish_composed_itinerary,
-    publish_empty_itinerary,
+    publish_composed_trip,
+    publish_empty_trip,
     publish_status_message,
 )
 
-_EMPTY_ITINERARY_MESSAGE = (
-    "No itinerary found for your request, please refine your request."
+_EMPTY_TRIP_MESSAGE = (
+    "No trip found for your request, please refine your request."
 )
 
-logger = logging.getLogger("itinerary_composer.rabbitmq_subscriber")
+logger = logging.getLogger("trip_composer.rabbitmq_subscriber")
 
 
-def _build_no_itineraries_payload(
+def _build_no_trips_payload(
     incoming: dict[str, Any],
     *,
     outer_request_id: str | None,
@@ -55,9 +55,9 @@ def _build_no_itineraries_payload(
     out: dict[str, Any] = {
         "id": correlation_id,
         "request_id": llm_request_id,
-        "type": "no_itineraries",
+        "type": "no_trips",
         "payload": {
-            "message": _EMPTY_ITINERARY_MESSAGE,
+            "message": _EMPTY_TRIP_MESSAGE,
         },
     }
     if prompt_id:
@@ -75,20 +75,20 @@ async def _handle_message(
     await publish_status_message(
         exchange=exchange,
         routing_key=cfg.rabbitmq_status_routing_key,
-        payload={"id": request_id, "message": "Composing itinerary..."},
+        payload={"id": request_id, "message": "Composing trip..."},
     )
 
-    composed = await compose_itinerary(
+    composed = await compose_trip(
         payload,
         exchange_rate_latest_url=cfg.exchange_rate_latest_url,
     )
-    itineraries = composed.get("itineraries", [])
+    trips = composed.get("trips", [])
 
-    if not itineraries:
-        await publish_empty_itinerary(
+    if not trips:
+        await publish_empty_trip(
             exchange=exchange,
-            routing_key=cfg.rabbitmq_empty_itinerary_routing_key,
-            payload=_build_no_itineraries_payload(
+            routing_key=cfg.rabbitmq_empty_trip_routing_key,
+            payload=_build_no_trips_payload(
                 payload,
                 outer_request_id=request_id if isinstance(request_id, str) else None,
             ),
@@ -96,22 +96,22 @@ async def _handle_message(
         return
 
     logger.info(
-        "Publishing %d itineraries separately (id=%s)",
-        len(itineraries),
+        "Publishing %d trips separately (id=%s)",
+        len(trips),
         request_id,
     )
 
-    for idx, itinerary in enumerate(itineraries):
+    for idx, trip in enumerate(trips):
         composed_payload: dict[str, Any] = {
             "id": request_id,
-            "itinerary_index": idx,
-            "itinerary_count": len(itineraries),
-            "itinerary": itinerary,
+            "trip_index": idx,
+            "trip_count": len(trips),
+            "trip": trip,
         }
-        pid = itinerary.get("prompt_id")
+        pid = trip.get("prompt_id")
         if isinstance(pid, str) and pid.strip():
             composed_payload["prompt_id"] = pid.strip()
-        await publish_composed_itinerary(
+        await publish_composed_trip(
             exchange=exchange,
             routing_key=cfg.rabbitmq_publish_routing_key,
             payload=composed_payload,
@@ -122,7 +122,7 @@ async def run_subscriber() -> None:
     cfg = Cfg.from_env()
 
     logger.info(
-        "Starting itinerary composer RabbitMQ subscriber "
+        "Starting trip composer RabbitMQ subscriber "
         "(exchange=%s, subscribe_key=%s, queue=%s)",
         cfg.rabbitmq_exchange,
         cfg.rabbitmq_subscribe_routing_key,
@@ -148,5 +148,5 @@ async def run_subscriber() -> None:
                         await _handle_message(cfg, exchange, incoming_payload)
                     except Exception:
                         logger.exception(
-                            "Failed to process incoming itinerary composer message"
+                            "Failed to process incoming trip composer message"
                         )

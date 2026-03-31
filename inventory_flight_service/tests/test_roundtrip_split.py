@@ -15,7 +15,7 @@ from request_processor import (  # noqa: E402
 
 
 class RoundtripFullOfferTest(unittest.TestCase):
-    def test_two_itineraries_outbound_return_segments(self) -> None:
+    def test_two_trips_outbound_return_segments(self) -> None:
         offer = {
             "itineraries": [
                 {
@@ -41,7 +41,7 @@ class RoundtripFullOfferTest(unittest.TestCase):
         self.assertEqual(len(out), 1)
         self.assertEqual(len(ret), 1)
 
-    def test_single_itinerary_split_by_return_airport(self) -> None:
+    def test_single_trip_split_by_return_airport(self) -> None:
         offer = {
             "itineraries": [
                 {

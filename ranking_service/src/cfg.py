@@ -26,11 +26,11 @@ class Cfg:
             rabbitmq_exchange=os.getenv("RABBITMQ_EXCHANGE", "lifetravel_agent"),
             rabbitmq_subscribe_routing_key=os.getenv(
                 "RABBITMQ_SUBSCRIBE_ROUTING_KEY",
-                "itinerary:composed",
+                "trip:composed",
             ),
             rabbitmq_publish_routing_key=os.getenv(
                 "RABBITMQ_PUBLISH_ROUTING_KEY",
-                "itinerary:ranked",
+                "trip:ranked",
             ),
             rabbitmq_status_routing_key=os.getenv(
                 "RABBITMQ_STATUS_ROUTING_KEY",

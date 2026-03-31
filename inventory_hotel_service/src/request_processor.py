@@ -205,7 +205,7 @@ def _seg_arr_at(seg: dict[str, Any]) -> str:
     return ""
 
 
-# Same-city / metro aliases as itinerary_composer (hotel stays keyed by e.g. LON).
+# Same-city / metro aliases as trip_composer (hotel stays keyed by e.g. LON).
 _METRO_AIRPORT_GROUPS: tuple[frozenset[str], ...] = (
     frozenset({"LHR", "LCY", "LGW", "STN", "LTN", "LON", "SEN"}),
     frozenset({"JFK", "LGA", "EWR", "SWF", "NYC"}),
@@ -231,40 +231,40 @@ def _accumulate_city_date_for_stays(
             break
 
 
-def _flight_group_has_multi_itinerary_offer(fg: dict[str, Any]) -> bool:
+def _flight_group_has_multi_trip_offer(fg: dict[str, Any]) -> bool:
     if str(fg.get("flight_kind", "")).strip().lower() == "round_trip":
         return True
     for o in fg.get("options", []) or []:
         if not isinstance(o, dict):
             continue
-        itins = o.get("itineraries")
-        if isinstance(itins, list) and len(itins) >= 2:
+        trip_legs = o.get("itineraries")
+        if isinstance(trip_legs, list) and len(trip_legs) >= 2:
             return True
     return False
 
 
-def _accumulate_gap_dates_from_multi_itinerary_offers(
+def _accumulate_gap_dates_from_multi_trip_offers(
     fg: dict[str, Any],
     arrive_dates_by_dest: dict[str, set[str]],
     depart_dates_by_origin: dict[str, set[str]],
 ) -> None:
     """
-    For full round-trip offers (2+ itineraries), group-level from/to/dates do not describe
-    the destination stay window. Use last arrival of itinerary 1 and first departure of
-    itinerary 2 so stays (e.g. city LON) get correct check-in / check-out dates.
+    For full round-trip offers (2+ trips), group-level from/to/dates do not describe
+    the destination stay window. Use last arrival of trip 1 and first departure of
+    trip 2 so stays (e.g. city LON) get correct check-in / check-out dates.
     """
     for opt in fg.get("options", []) or []:
         if not isinstance(opt, dict):
             continue
-        itins = opt.get("itineraries")
-        if not isinstance(itins, list) or len(itins) < 2:
+        trip_legs = opt.get("itineraries")
+        if not isinstance(trip_legs, list) or len(trip_legs) < 2:
             continue
-        it0 = itins[0]
-        it1 = itins[1]
-        if not isinstance(it0, dict) or not isinstance(it1, dict):
+        leg0 = trip_legs[0]
+        leg1 = trip_legs[1]
+        if not isinstance(leg0, dict) or not isinstance(leg1, dict):
             continue
-        segs0 = it0.get("segments")
-        segs1 = it1.get("segments")
+        segs0 = leg0.get("segments")
+        segs1 = leg1.get("segments")
         if not isinstance(segs0, list) or not segs0 or not isinstance(segs1, list) or not segs1:
             continue
         last0 = segs0[-1]
@@ -291,8 +291,8 @@ def _build_stays_from_flight_groups(
     depart_dates_by_origin: dict[str, set[str]] = defaultdict(set)
 
     for fg in flight_groups:
-        if _flight_group_has_multi_itinerary_offer(fg):
-            _accumulate_gap_dates_from_multi_itinerary_offers(
+        if _flight_group_has_multi_trip_offer(fg):
+            _accumulate_gap_dates_from_multi_trip_offers(
                 fg, arrive_dates_by_dest, depart_dates_by_origin
             )
             continue

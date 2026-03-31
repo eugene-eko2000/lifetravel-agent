@@ -7,8 +7,8 @@ import aio_pika
 from aio_pika import ExchangeType
 
 from cfg import Cfg
-from rabbitmq_publisher import publish_ranked_itinerary, publish_status_message
-from ranker import rank_single_itinerary
+from rabbitmq_publisher import publish_ranked_trip, publish_status_message
+from ranker import rank_single_trip
 
 logger = logging.getLogger("ranking_service.rabbitmq_subscriber")
 
@@ -17,10 +17,10 @@ async def _process_message(incoming: aio_pika.abc.AbstractIncomingMessage, excha
     async with incoming.process():
         try:
             payload: dict[str, Any] = json.loads(incoming.body.decode("utf-8"))
-            itinerary = payload.get("itinerary")
-            if not isinstance(itinerary, dict):
+            trip = payload.get("trip")
+            if not isinstance(trip, dict):
                 logger.warning(
-                    "Skipping message without itinerary object: %s",
+                    "Skipping message without trip object: %s",
                     payload,
                 )
                 return
@@ -34,18 +34,18 @@ async def _process_message(incoming: aio_pika.abc.AbstractIncomingMessage, excha
                 },
             )
 
-            ranked_itinerary = rank_single_itinerary(itinerary)
+            ranked_trip = rank_single_trip(trip)
             outgoing_payload: dict[str, Any] = {
                 "id": payload.get("id"),
-                "itinerary_index": payload.get("itinerary_index"),
-                "itinerary_count": payload.get("itinerary_count"),
-                "ranked_itinerary": ranked_itinerary,
+                "trip_index": payload.get("trip_index"),
+                "trip_count": payload.get("trip_count"),
+                "ranked_trip": ranked_trip,
             }
-            rpid = ranked_itinerary.get("prompt_id")
+            rpid = ranked_trip.get("prompt_id")
             if isinstance(rpid, str) and rpid.strip():
                 outgoing_payload["prompt_id"] = rpid.strip()
 
-            await publish_ranked_itinerary(
+            await publish_ranked_trip(
                 exchange=exchange,
                 routing_key=cfg.rabbitmq_publish_routing_key,
                 payload=outgoing_payload,
