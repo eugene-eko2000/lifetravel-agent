@@ -1,0 +1,3020 @@
+{
+    "type": "ranked",
+    "id": "7af11fa1-6b02-4422-9f62-e063af56406b",
+    "itinerary_index": 0,
+    "itinerary_count": 49,
+    "ranked_itinerary": {
+      "flights": [
+        {
+          "depart_date": "2026-05-12",
+          "arrive_date": "2026-05-18",
+          "from": "ZRH",
+          "to": "LON",
+          "options": [
+            {
+              "type": "flight-offer",
+              "id": "44",
+              "source": "GDS",
+              "instantTicketingRequired": false,
+              "nonHomogeneous": false,
+              "oneWay": false,
+              "isUpsellOffer": false,
+              "lastTicketingDate": "2026-03-31",
+              "lastTicketingDateTime": "2026-03-31",
+              "numberOfBookableSeats": 9,
+              "itineraries": [
+                {
+                  "duration": "PT1H40M",
+                  "segments": [
+                    {
+                      "departure": {
+                        "iataCode": "ZRH",
+                        "at": "2026-05-12T11:55:00"
+                      },
+                      "arrival": {
+                        "iataCode": "LCY",
+                        "at": "2026-05-12T12:35:00"
+                      },
+                      "carrierCode": "LX",
+                      "number": "456",
+                      "aircraft": {
+                        "code": "290"
+                      },
+                      "operating": {
+                        "carrierCode": "2L"
+                      },
+                      "duration": "PT1H40M",
+                      "id": "56",
+                      "numberOfStops": 0,
+                      "blacklistedInEU": false
+                    }
+                  ]
+                },
+                {
+                  "duration": "PT1H40M",
+                  "segments": [
+                    {
+                      "departure": {
+                        "iataCode": "LHR",
+                        "terminal": "2",
+                        "at": "2026-05-18T06:00:00"
+                      },
+                      "arrival": {
+                        "iataCode": "ZRH",
+                        "at": "2026-05-18T08:40:00"
+                      },
+                      "carrierCode": "LX",
+                      "number": "345",
+                      "aircraft": {
+                        "code": "223"
+                      },
+                      "operating": {
+                        "carrierCode": "BT"
+                      },
+                      "duration": "PT1H40M",
+                      "id": "119",
+                      "numberOfStops": 0,
+                      "blacklistedInEU": false
+                    }
+                  ]
+                }
+              ],
+              "price": {
+                "currency": "EUR",
+                "total": "369.93",
+                "base": "231.00",
+                "fees": [
+                  {
+                    "amount": "0.00",
+                    "type": "SUPPLIER",
+                    "amount_itinerary_currency": "0.00"
+                  },
+                  {
+                    "amount": "0.00",
+                    "type": "TICKETING",
+                    "amount_itinerary_currency": "0.00"
+                  }
+                ],
+                "grandTotal": "369.93",
+                "total_itinerary_currency": "321.52",
+                "base_itinerary_currency": "200.77",
+                "grandTotal_itinerary_currency": "321.52"
+              },
+              "pricingOptions": {
+                "fareType": [
+                  "PUBLISHED"
+                ],
+                "includedCheckedBagsOnly": true
+              },
+              "validatingAirlineCodes": [
+                "LX"
+              ],
+              "travelerPricings": [
+                {
+                  "travelerId": "1",
+                  "fareOption": "STANDARD",
+                  "travelerType": "ADULT",
+                  "price": {
+                    "currency": "EUR",
+                    "total": "369.93",
+                    "base": "231.00",
+                    "total_itinerary_currency": "321.52",
+                    "base_itinerary_currency": "200.77"
+                  },
+                  "fareDetailsBySegment": [
+                    {
+                      "segmentId": "56",
+                      "cabin": "ECONOMY",
+                      "fareBasis": "LEUCLSP0",
+                      "class": "L",
+                      "includedCheckedBags": {
+                        "quantity": 1
+                      },
+                      "includedCabinBags": {
+                        "quantity": 1
+                      }
+                    },
+                    {
+                      "segmentId": "119",
+                      "cabin": "ECONOMY",
+                      "fareBasis": "SEUCLSP0",
+                      "class": "S",
+                      "includedCheckedBags": {
+                        "quantity": 1
+                      },
+                      "includedCabinBags": {
+                        "quantity": 1
+                      }
+                    }
+                  ]
+                }
+              ],
+              "flight_kind": "round_trip",
+              "round_trip_pair_id": "835d38b2-9d96-42c5-9a87-1d2d0c611e5f",
+              "_ranking": {
+                "score": 66,
+                "stops": 0,
+                "price": 321.52,
+                "duration_minutes": 200,
+                "eligible": true,
+                "ineligibility_reason": "",
+                "currency": "GBP"
+              }
+            },
+            {
+              "type": "flight-offer",
+              "id": "45",
+              "source": "GDS",
+              "instantTicketingRequired": false,
+              "nonHomogeneous": false,
+              "oneWay": false,
+              "isUpsellOffer": false,
+              "lastTicketingDate": "2026-03-31",
+              "lastTicketingDateTime": "2026-03-31",
+              "numberOfBookableSeats": 9,
+              "itineraries": [
+                {
+                  "duration": "PT1H40M",
+                  "segments": [
+                    {
+                      "departure": {
+                        "iataCode": "ZRH",
+                        "at": "2026-05-12T16:50:00"
+                      },
+                      "arrival": {
+                        "iataCode": "LCY",
+                        "at": "2026-05-12T17:30:00"
+                      },
+                      "carrierCode": "LX",
+                      "number": "464",
+                      "aircraft": {
+                        "code": "290"
+                      },
+                      "operating": {
+                        "carrierCode": "2L"
+                      },
+                      "duration": "PT1H40M",
+                      "id": "57",
+                      "numberOfStops": 0,
+                      "blacklistedInEU": false
+                    }
+                  ]
+                },
+                {
+                  "duration": "PT1H40M",
+                  "segments": [
+                    {
+                      "departure": {
+                        "iataCode": "LHR",
+                        "terminal": "2",
+                        "at": "2026-05-18T06:00:00"
+                      },
+                      "arrival": {
+                        "iataCode": "ZRH",
+                        "at": "2026-05-18T08:40:00"
+                      },
+                      "carrierCode": "LX",
+                      "number": "345",
+                      "aircraft": {
+                        "code": "223"
+                      },
+                      "operating": {
+                        "carrierCode": "BT"
+                      },
+                      "duration": "PT1H40M",
+                      "id": "119",
+                      "numberOfStops": 0,
+                      "blacklistedInEU": false
+                    }
+                  ]
+                }
+              ],
+              "price": {
+                "currency": "EUR",
+                "total": "369.93",
+                "base": "231.00",
+                "fees": [
+                  {
+                    "amount": "0.00",
+                    "type": "SUPPLIER",
+                    "amount_itinerary_currency": "0.00"
+                  },
+                  {
+                    "amount": "0.00",
+                    "type": "TICKETING",
+                    "amount_itinerary_currency": "0.00"
+                  }
+                ],
+                "grandTotal": "369.93",
+                "total_itinerary_currency": "321.52",
+                "base_itinerary_currency": "200.77",
+                "grandTotal_itinerary_currency": "321.52"
+              },
+              "pricingOptions": {
+                "fareType": [
+                  "PUBLISHED"
+                ],
+                "includedCheckedBagsOnly": true
+              },
+              "validatingAirlineCodes": [
+                "LX"
+              ],
+              "travelerPricings": [
+                {
+                  "travelerId": "1",
+                  "fareOption": "STANDARD",
+                  "travelerType": "ADULT",
+                  "price": {
+                    "currency": "EUR",
+                    "total": "369.93",
+                    "base": "231.00",
+                    "total_itinerary_currency": "321.52",
+                    "base_itinerary_currency": "200.77"
+                  },
+                  "fareDetailsBySegment": [
+                    {
+                      "segmentId": "57",
+                      "cabin": "ECONOMY",
+                      "fareBasis": "LEUCLSP0",
+                      "class": "L",
+                      "includedCheckedBags": {
+                        "quantity": 1
+                      },
+                      "includedCabinBags": {
+                        "quantity": 1
+                      }
+                    },
+                    {
+                      "segmentId": "119",
+                      "cabin": "ECONOMY",
+                      "fareBasis": "SEUCLSP0",
+                      "class": "S",
+                      "includedCheckedBags": {
+                        "quantity": 1
+                      },
+                      "includedCabinBags": {
+                        "quantity": 1
+                      }
+                    }
+                  ]
+                }
+              ],
+              "flight_kind": "round_trip",
+              "round_trip_pair_id": "07aa7be5-9190-4a9d-a680-fc599636de08",
+              "_ranking": {
+                "score": 66,
+                "stops": 0,
+                "price": 321.52,
+                "duration_minutes": 200,
+                "eligible": true,
+                "ineligibility_reason": "",
+                "currency": "GBP"
+              }
+            },
+            {
+              "type": "flight-offer",
+              "id": "46",
+              "source": "GDS",
+              "instantTicketingRequired": false,
+              "nonHomogeneous": false,
+              "oneWay": false,
+              "isUpsellOffer": false,
+              "lastTicketingDate": "2026-03-31",
+              "lastTicketingDateTime": "2026-03-31",
+              "numberOfBookableSeats": 9,
+              "itineraries": [
+                {
+                  "duration": "PT1H40M",
+                  "segments": [
+                    {
+                      "departure": {
+                        "iataCode": "ZRH",
+                        "at": "2026-05-12T18:00:00"
+                      },
+                      "arrival": {
+                        "iataCode": "LCY",
+                        "at": "2026-05-12T18:40:00"
+                      },
+                      "carrierCode": "LX",
+                      "number": "466",
+                      "aircraft": {
+                        "code": "290"
+                      },
+                      "operating": {
+                        "carrierCode": "2L"
+                      },
+                      "duration": "PT1H40M",
+                      "id": "59",
+                      "numberOfStops": 0,
+                      "blacklistedInEU": false
+                    }
+                  ]
+                },
+                {
+                  "duration": "PT1H40M",
+                  "segments": [
+                    {
+                      "departure": {
+                        "iataCode": "LHR",
+                        "terminal": "2",
+                        "at": "2026-05-18T06:00:00"
+                      },
+                      "arrival": {
+                        "iataCode": "ZRH",
+                        "at": "2026-05-18T08:40:00"
+                      },
+                      "carrierCode": "LX",
+                      "number": "345",
+                      "aircraft": {
+                        "code": "223"
+                      },
+                      "operating": {
+                        "carrierCode": "BT"
+                      },
+                      "duration": "PT1H40M",
+                      "id": "119",
+                      "numberOfStops": 0,
+                      "blacklistedInEU": false
+                    }
+                  ]
+                }
+              ],
+              "price": {
+                "currency": "EUR",
+                "total": "369.93",
+                "base": "231.00",
+                "fees": [
+                  {
+                    "amount": "0.00",
+                    "type": "SUPPLIER",
+                    "amount_itinerary_currency": "0.00"
+                  },
+                  {
+                    "amount": "0.00",
+                    "type": "TICKETING",
+                    "amount_itinerary_currency": "0.00"
+                  }
+                ],
+                "grandTotal": "369.93",
+                "total_itinerary_currency": "321.52",
+                "base_itinerary_currency": "200.77",
+                "grandTotal_itinerary_currency": "321.52"
+              },
+              "pricingOptions": {
+                "fareType": [
+                  "PUBLISHED"
+                ],
+                "includedCheckedBagsOnly": true
+              },
+              "validatingAirlineCodes": [
+                "LX"
+              ],
+              "travelerPricings": [
+                {
+                  "travelerId": "1",
+                  "fareOption": "STANDARD",
+                  "travelerType": "ADULT",
+                  "price": {
+                    "currency": "EUR",
+                    "total": "369.93",
+                    "base": "231.00",
+                    "total_itinerary_currency": "321.52",
+                    "base_itinerary_currency": "200.77"
+                  },
+                  "fareDetailsBySegment": [
+                    {
+                      "segmentId": "59",
+                      "cabin": "ECONOMY",
+                      "fareBasis": "LEUCLSP0",
+                      "class": "L",
+                      "includedCheckedBags": {
+                        "quantity": 1
+                      },
+                      "includedCabinBags": {
+                        "quantity": 1
+                      }
+                    },
+                    {
+                      "segmentId": "119",
+                      "cabin": "ECONOMY",
+                      "fareBasis": "SEUCLSP0",
+                      "class": "S",
+                      "includedCheckedBags": {
+                        "quantity": 1
+                      },
+                      "includedCabinBags": {
+                        "quantity": 1
+                      }
+                    }
+                  ]
+                }
+              ],
+              "flight_kind": "round_trip",
+              "round_trip_pair_id": "81fb9b1f-bb48-46e3-bd3c-be9068910b45",
+              "_ranking": {
+                "score": 66,
+                "stops": 0,
+                "price": 321.52,
+                "duration_minutes": 200,
+                "eligible": true,
+                "ineligibility_reason": "",
+                "currency": "GBP"
+              }
+            },
+            {
+              "type": "flight-offer",
+              "id": "54",
+              "source": "GDS",
+              "instantTicketingRequired": false,
+              "nonHomogeneous": false,
+              "oneWay": false,
+              "isUpsellOffer": false,
+              "lastTicketingDate": "2026-03-31",
+              "lastTicketingDateTime": "2026-03-31",
+              "numberOfBookableSeats": 9,
+              "itineraries": [
+                {
+                  "duration": "PT1H40M",
+                  "segments": [
+                    {
+                      "departure": {
+                        "iataCode": "ZRH",
+                        "at": "2026-05-12T11:55:00"
+                      },
+                      "arrival": {
+                        "iataCode": "LCY",
+                        "at": "2026-05-12T12:35:00"
+                      },
+                      "carrierCode": "LX",
+                      "number": "456",
+                      "aircraft": {
+                        "code": "290"
+                      },
+                      "operating": {
+                        "carrierCode": "2L"
+                      },
+                      "duration": "PT1H40M",
+                      "id": "56",
+                      "numberOfStops": 0,
+                      "blacklistedInEU": false
+                    }
+                  ]
+                },
+                {
+                  "duration": "PT1H40M",
+                  "segments": [
+                    {
+                      "departure": {
+                        "iataCode": "LCY",
+                        "at": "2026-05-18T09:15:00"
+                      },
+                      "arrival": {
+                        "iataCode": "ZRH",
+                        "at": "2026-05-18T11:55:00"
+                      },
+                      "carrierCode": "LX",
+                      "number": "461",
+                      "aircraft": {
+                        "code": "290"
+                      },
+                      "operating": {
+                        "carrierCode": "2L"
+                      },
+                      "duration": "PT1H40M",
+                      "id": "120",
+                      "numberOfStops": 0,
+                      "blacklistedInEU": false
+                    }
+                  ]
+                }
+              ],
+              "price": {
+                "currency": "EUR",
+                "total": "380.24",
+                "base": "231.00",
+                "fees": [
+                  {
+                    "amount": "0.00",
+                    "type": "SUPPLIER",
+                    "amount_itinerary_currency": "0.00"
+                  },
+                  {
+                    "amount": "0.00",
+                    "type": "TICKETING",
+                    "amount_itinerary_currency": "0.00"
+                  }
+                ],
+                "grandTotal": "380.24",
+                "total_itinerary_currency": "330.48",
+                "base_itinerary_currency": "200.77",
+                "grandTotal_itinerary_currency": "330.48"
+              },
+              "pricingOptions": {
+                "fareType": [
+                  "PUBLISHED"
+                ],
+                "includedCheckedBagsOnly": true
+              },
+              "validatingAirlineCodes": [
+                "LX"
+              ],
+              "travelerPricings": [
+                {
+                  "travelerId": "1",
+                  "fareOption": "STANDARD",
+                  "travelerType": "ADULT",
+                  "price": {
+                    "currency": "EUR",
+                    "total": "380.24",
+                    "base": "231.00",
+                    "total_itinerary_currency": "330.48",
+                    "base_itinerary_currency": "200.77"
+                  },
+                  "fareDetailsBySegment": [
+                    {
+                      "segmentId": "56",
+                      "cabin": "ECONOMY",
+                      "fareBasis": "LEUCLSP0",
+                      "class": "L",
+                      "includedCheckedBags": {
+                        "quantity": 1
+                      },
+                      "includedCabinBags": {
+                        "quantity": 1
+                      }
+                    },
+                    {
+                      "segmentId": "120",
+                      "cabin": "ECONOMY",
+                      "fareBasis": "SEUCLSP0",
+                      "class": "S",
+                      "includedCheckedBags": {
+                        "quantity": 1
+                      },
+                      "includedCabinBags": {
+                        "quantity": 1
+                      }
+                    }
+                  ]
+                }
+              ],
+              "flight_kind": "round_trip",
+              "round_trip_pair_id": "295999fa-a1c9-4768-8b58-a2b08cb91140",
+              "_ranking": {
+                "score": 61.3,
+                "stops": 0,
+                "price": 330.48,
+                "duration_minutes": 200,
+                "eligible": true,
+                "ineligibility_reason": "",
+                "currency": "GBP"
+              }
+            },
+            {
+              "type": "flight-offer",
+              "id": "56",
+              "source": "GDS",
+              "instantTicketingRequired": false,
+              "nonHomogeneous": false,
+              "oneWay": false,
+              "isUpsellOffer": false,
+              "lastTicketingDate": "2026-03-31",
+              "lastTicketingDateTime": "2026-03-31",
+              "numberOfBookableSeats": 9,
+              "itineraries": [
+                {
+                  "duration": "PT1H40M",
+                  "segments": [
+                    {
+                      "departure": {
+                        "iataCode": "ZRH",
+                        "at": "2026-05-12T16:50:00"
+                      },
+                      "arrival": {
+                        "iataCode": "LCY",
+                        "at": "2026-05-12T17:30:00"
+                      },
+                      "carrierCode": "LX",
+                      "number": "464",
+                      "aircraft": {
+                        "code": "290"
+                      },
+                      "operating": {
+                        "carrierCode": "2L"
+                      },
+                      "duration": "PT1H40M",
+                      "id": "57",
+                      "numberOfStops": 0,
+                      "blacklistedInEU": false
+                    }
+                  ]
+                },
+                {
+                  "duration": "PT1H40M",
+                  "segments": [
+                    {
+                      "departure": {
+                        "iataCode": "LCY",
+                        "at": "2026-05-18T09:15:00"
+                      },
+                      "arrival": {
+                        "iataCode": "ZRH",
+                        "at": "2026-05-18T11:55:00"
+                      },
+                      "carrierCode": "LX",
+                      "number": "461",
+                      "aircraft": {
+                        "code": "290"
+                      },
+                      "operating": {
+                        "carrierCode": "2L"
+                      },
+                      "duration": "PT1H40M",
+                      "id": "120",
+                      "numberOfStops": 0,
+                      "blacklistedInEU": false
+                    }
+                  ]
+                }
+              ],
+              "price": {
+                "currency": "EUR",
+                "total": "380.24",
+                "base": "231.00",
+                "fees": [
+                  {
+                    "amount": "0.00",
+                    "type": "SUPPLIER",
+                    "amount_itinerary_currency": "0.00"
+                  },
+                  {
+                    "amount": "0.00",
+                    "type": "TICKETING",
+                    "amount_itinerary_currency": "0.00"
+                  }
+                ],
+                "grandTotal": "380.24",
+                "total_itinerary_currency": "330.48",
+                "base_itinerary_currency": "200.77",
+                "grandTotal_itinerary_currency": "330.48"
+              },
+              "pricingOptions": {
+                "fareType": [
+                  "PUBLISHED"
+                ],
+                "includedCheckedBagsOnly": true
+              },
+              "validatingAirlineCodes": [
+                "LX"
+              ],
+              "travelerPricings": [
+                {
+                  "travelerId": "1",
+                  "fareOption": "STANDARD",
+                  "travelerType": "ADULT",
+                  "price": {
+                    "currency": "EUR",
+                    "total": "380.24",
+                    "base": "231.00",
+                    "total_itinerary_currency": "330.48",
+                    "base_itinerary_currency": "200.77"
+                  },
+                  "fareDetailsBySegment": [
+                    {
+                      "segmentId": "57",
+                      "cabin": "ECONOMY",
+                      "fareBasis": "LEUCLSP0",
+                      "class": "L",
+                      "includedCheckedBags": {
+                        "quantity": 1
+                      },
+                      "includedCabinBags": {
+                        "quantity": 1
+                      }
+                    },
+                    {
+                      "segmentId": "120",
+                      "cabin": "ECONOMY",
+                      "fareBasis": "SEUCLSP0",
+                      "class": "S",
+                      "includedCheckedBags": {
+                        "quantity": 1
+                      },
+                      "includedCabinBags": {
+                        "quantity": 1
+                      }
+                    }
+                  ]
+                }
+              ],
+              "flight_kind": "round_trip",
+              "round_trip_pair_id": "87174457-3bba-408d-a244-b53048595b13",
+              "_ranking": {
+                "score": 61.3,
+                "stops": 0,
+                "price": 330.48,
+                "duration_minutes": 200,
+                "eligible": true,
+                "ineligibility_reason": "",
+                "currency": "GBP"
+              }
+            },
+            {
+              "type": "flight-offer",
+              "id": "58",
+              "source": "GDS",
+              "instantTicketingRequired": false,
+              "nonHomogeneous": false,
+              "oneWay": false,
+              "isUpsellOffer": false,
+              "lastTicketingDate": "2026-03-31",
+              "lastTicketingDateTime": "2026-03-31",
+              "numberOfBookableSeats": 9,
+              "itineraries": [
+                {
+                  "duration": "PT1H40M",
+                  "segments": [
+                    {
+                      "departure": {
+                        "iataCode": "ZRH",
+                        "at": "2026-05-12T18:00:00"
+                      },
+                      "arrival": {
+                        "iataCode": "LCY",
+                        "at": "2026-05-12T18:40:00"
+                      },
+                      "carrierCode": "LX",
+                      "number": "466",
+                      "aircraft": {
+                        "code": "290"
+                      },
+                      "operating": {
+                        "carrierCode": "2L"
+                      },
+                      "duration": "PT1H40M",
+                      "id": "59",
+                      "numberOfStops": 0,
+                      "blacklistedInEU": false
+                    }
+                  ]
+                },
+                {
+                  "duration": "PT1H40M",
+                  "segments": [
+                    {
+                      "departure": {
+                        "iataCode": "LCY",
+                        "at": "2026-05-18T09:15:00"
+                      },
+                      "arrival": {
+                        "iataCode": "ZRH",
+                        "at": "2026-05-18T11:55:00"
+                      },
+                      "carrierCode": "LX",
+                      "number": "461",
+                      "aircraft": {
+                        "code": "290"
+                      },
+                      "operating": {
+                        "carrierCode": "2L"
+                      },
+                      "duration": "PT1H40M",
+                      "id": "120",
+                      "numberOfStops": 0,
+                      "blacklistedInEU": false
+                    }
+                  ]
+                }
+              ],
+              "price": {
+                "currency": "EUR",
+                "total": "380.24",
+                "base": "231.00",
+                "fees": [
+                  {
+                    "amount": "0.00",
+                    "type": "SUPPLIER",
+                    "amount_itinerary_currency": "0.00"
+                  },
+                  {
+                    "amount": "0.00",
+                    "type": "TICKETING",
+                    "amount_itinerary_currency": "0.00"
+                  }
+                ],
+                "grandTotal": "380.24",
+                "total_itinerary_currency": "330.48",
+                "base_itinerary_currency": "200.77",
+                "grandTotal_itinerary_currency": "330.48"
+              },
+              "pricingOptions": {
+                "fareType": [
+                  "PUBLISHED"
+                ],
+                "includedCheckedBagsOnly": true
+              },
+              "validatingAirlineCodes": [
+                "LX"
+              ],
+              "travelerPricings": [
+                {
+                  "travelerId": "1",
+                  "fareOption": "STANDARD",
+                  "travelerType": "ADULT",
+                  "price": {
+                    "currency": "EUR",
+                    "total": "380.24",
+                    "base": "231.00",
+                    "total_itinerary_currency": "330.48",
+                    "base_itinerary_currency": "200.77"
+                  },
+                  "fareDetailsBySegment": [
+                    {
+                      "segmentId": "59",
+                      "cabin": "ECONOMY",
+                      "fareBasis": "LEUCLSP0",
+                      "class": "L",
+                      "includedCheckedBags": {
+                        "quantity": 1
+                      },
+                      "includedCabinBags": {
+                        "quantity": 1
+                      }
+                    },
+                    {
+                      "segmentId": "120",
+                      "cabin": "ECONOMY",
+                      "fareBasis": "SEUCLSP0",
+                      "class": "S",
+                      "includedCheckedBags": {
+                        "quantity": 1
+                      },
+                      "includedCabinBags": {
+                        "quantity": 1
+                      }
+                    }
+                  ]
+                }
+              ],
+              "flight_kind": "round_trip",
+              "round_trip_pair_id": "891f37ee-0b1e-4ecc-9a64-c945b7ccab3d",
+              "_ranking": {
+                "score": 61.3,
+                "stops": 0,
+                "price": 330.48,
+                "duration_minutes": 200,
+                "eligible": true,
+                "ineligibility_reason": "",
+                "currency": "GBP"
+              }
+            },
+            {
+              "type": "flight-offer",
+              "id": "55",
+              "source": "GDS",
+              "instantTicketingRequired": false,
+              "nonHomogeneous": false,
+              "oneWay": false,
+              "isUpsellOffer": false,
+              "lastTicketingDate": "2026-03-31",
+              "lastTicketingDateTime": "2026-03-31",
+              "numberOfBookableSeats": 9,
+              "itineraries": [
+                {
+                  "duration": "PT1H40M",
+                  "segments": [
+                    {
+                      "departure": {
+                        "iataCode": "ZRH",
+                        "at": "2026-05-12T11:55:00"
+                      },
+                      "arrival": {
+                        "iataCode": "LCY",
+                        "at": "2026-05-12T12:35:00"
+                      },
+                      "carrierCode": "LX",
+                      "number": "456",
+                      "aircraft": {
+                        "code": "290"
+                      },
+                      "operating": {
+                        "carrierCode": "2L"
+                      },
+                      "duration": "PT1H40M",
+                      "id": "56",
+                      "numberOfStops": 0,
+                      "blacklistedInEU": false
+                    }
+                  ]
+                },
+                {
+                  "duration": "PT1H40M",
+                  "segments": [
+                    {
+                      "departure": {
+                        "iataCode": "LCY",
+                        "at": "2026-05-18T18:00:00"
+                      },
+                      "arrival": {
+                        "iataCode": "ZRH",
+                        "at": "2026-05-18T20:40:00"
+                      },
+                      "carrierCode": "LX",
+                      "number": "465",
+                      "aircraft": {
+                        "code": "295"
+                      },
+                      "operating": {
+                        "carrierCode": "2L"
+                      },
+                      "duration": "PT1H40M",
+                      "id": "123",
+                      "numberOfStops": 0,
+                      "blacklistedInEU": false
+                    }
+                  ]
+                }
+              ],
+              "price": {
+                "currency": "EUR",
+                "total": "380.24",
+                "base": "231.00",
+                "fees": [
+                  {
+                    "amount": "0.00",
+                    "type": "SUPPLIER",
+                    "amount_itinerary_currency": "0.00"
+                  },
+                  {
+                    "amount": "0.00",
+                    "type": "TICKETING",
+                    "amount_itinerary_currency": "0.00"
+                  }
+                ],
+                "grandTotal": "380.24",
+                "total_itinerary_currency": "330.48",
+                "base_itinerary_currency": "200.77",
+                "grandTotal_itinerary_currency": "330.48"
+              },
+              "pricingOptions": {
+                "fareType": [
+                  "PUBLISHED"
+                ],
+                "includedCheckedBagsOnly": true
+              },
+              "validatingAirlineCodes": [
+                "LX"
+              ],
+              "travelerPricings": [
+                {
+                  "travelerId": "1",
+                  "fareOption": "STANDARD",
+                  "travelerType": "ADULT",
+                  "price": {
+                    "currency": "EUR",
+                    "total": "380.24",
+                    "base": "231.00",
+                    "total_itinerary_currency": "330.48",
+                    "base_itinerary_currency": "200.77"
+                  },
+                  "fareDetailsBySegment": [
+                    {
+                      "segmentId": "56",
+                      "cabin": "ECONOMY",
+                      "fareBasis": "LEUCLSP0",
+                      "class": "L",
+                      "includedCheckedBags": {
+                        "quantity": 1
+                      },
+                      "includedCabinBags": {
+                        "quantity": 1
+                      }
+                    },
+                    {
+                      "segmentId": "123",
+                      "cabin": "ECONOMY",
+                      "fareBasis": "SEUCLSP0",
+                      "class": "S",
+                      "includedCheckedBags": {
+                        "quantity": 1
+                      },
+                      "includedCabinBags": {
+                        "quantity": 1
+                      }
+                    }
+                  ]
+                }
+              ],
+              "flight_kind": "round_trip",
+              "round_trip_pair_id": "3feacc16-bb47-4279-881a-02a326f90226",
+              "_ranking": {
+                "score": 60.05,
+                "stops": 0,
+                "price": 330.48,
+                "duration_minutes": 200,
+                "eligible": true,
+                "ineligibility_reason": "",
+                "currency": "GBP"
+              }
+            },
+            {
+              "type": "flight-offer",
+              "id": "57",
+              "source": "GDS",
+              "instantTicketingRequired": false,
+              "nonHomogeneous": false,
+              "oneWay": false,
+              "isUpsellOffer": false,
+              "lastTicketingDate": "2026-03-31",
+              "lastTicketingDateTime": "2026-03-31",
+              "numberOfBookableSeats": 9,
+              "itineraries": [
+                {
+                  "duration": "PT1H40M",
+                  "segments": [
+                    {
+                      "departure": {
+                        "iataCode": "ZRH",
+                        "at": "2026-05-12T16:50:00"
+                      },
+                      "arrival": {
+                        "iataCode": "LCY",
+                        "at": "2026-05-12T17:30:00"
+                      },
+                      "carrierCode": "LX",
+                      "number": "464",
+                      "aircraft": {
+                        "code": "290"
+                      },
+                      "operating": {
+                        "carrierCode": "2L"
+                      },
+                      "duration": "PT1H40M",
+                      "id": "57",
+                      "numberOfStops": 0,
+                      "blacklistedInEU": false
+                    }
+                  ]
+                },
+                {
+                  "duration": "PT1H40M",
+                  "segments": [
+                    {
+                      "departure": {
+                        "iataCode": "LCY",
+                        "at": "2026-05-18T18:00:00"
+                      },
+                      "arrival": {
+                        "iataCode": "ZRH",
+                        "at": "2026-05-18T20:40:00"
+                      },
+                      "carrierCode": "LX",
+                      "number": "465",
+                      "aircraft": {
+                        "code": "295"
+                      },
+                      "operating": {
+                        "carrierCode": "2L"
+                      },
+                      "duration": "PT1H40M",
+                      "id": "123",
+                      "numberOfStops": 0,
+                      "blacklistedInEU": false
+                    }
+                  ]
+                }
+              ],
+              "price": {
+                "currency": "EUR",
+                "total": "380.24",
+                "base": "231.00",
+                "fees": [
+                  {
+                    "amount": "0.00",
+                    "type": "SUPPLIER",
+                    "amount_itinerary_currency": "0.00"
+                  },
+                  {
+                    "amount": "0.00",
+                    "type": "TICKETING",
+                    "amount_itinerary_currency": "0.00"
+                  }
+                ],
+                "grandTotal": "380.24",
+                "total_itinerary_currency": "330.48",
+                "base_itinerary_currency": "200.77",
+                "grandTotal_itinerary_currency": "330.48"
+              },
+              "pricingOptions": {
+                "fareType": [
+                  "PUBLISHED"
+                ],
+                "includedCheckedBagsOnly": true
+              },
+              "validatingAirlineCodes": [
+                "LX"
+              ],
+              "travelerPricings": [
+                {
+                  "travelerId": "1",
+                  "fareOption": "STANDARD",
+                  "travelerType": "ADULT",
+                  "price": {
+                    "currency": "EUR",
+                    "total": "380.24",
+                    "base": "231.00",
+                    "total_itinerary_currency": "330.48",
+                    "base_itinerary_currency": "200.77"
+                  },
+                  "fareDetailsBySegment": [
+                    {
+                      "segmentId": "57",
+                      "cabin": "ECONOMY",
+                      "fareBasis": "LEUCLSP0",
+                      "class": "L",
+                      "includedCheckedBags": {
+                        "quantity": 1
+                      },
+                      "includedCabinBags": {
+                        "quantity": 1
+                      }
+                    },
+                    {
+                      "segmentId": "123",
+                      "cabin": "ECONOMY",
+                      "fareBasis": "SEUCLSP0",
+                      "class": "S",
+                      "includedCheckedBags": {
+                        "quantity": 1
+                      },
+                      "includedCabinBags": {
+                        "quantity": 1
+                      }
+                    }
+                  ]
+                }
+              ],
+              "flight_kind": "round_trip",
+              "round_trip_pair_id": "d24542fa-026c-4b17-a908-a85f62ae9b30",
+              "_ranking": {
+                "score": 60.05,
+                "stops": 0,
+                "price": 330.48,
+                "duration_minutes": 200,
+                "eligible": true,
+                "ineligibility_reason": "",
+                "currency": "GBP"
+              }
+            },
+            {
+              "type": "flight-offer",
+              "id": "59",
+              "source": "GDS",
+              "instantTicketingRequired": false,
+              "nonHomogeneous": false,
+              "oneWay": false,
+              "isUpsellOffer": false,
+              "lastTicketingDate": "2026-03-31",
+              "lastTicketingDateTime": "2026-03-31",
+              "numberOfBookableSeats": 9,
+              "itineraries": [
+                {
+                  "duration": "PT1H40M",
+                  "segments": [
+                    {
+                      "departure": {
+                        "iataCode": "ZRH",
+                        "at": "2026-05-12T18:00:00"
+                      },
+                      "arrival": {
+                        "iataCode": "LCY",
+                        "at": "2026-05-12T18:40:00"
+                      },
+                      "carrierCode": "LX",
+                      "number": "466",
+                      "aircraft": {
+                        "code": "290"
+                      },
+                      "operating": {
+                        "carrierCode": "2L"
+                      },
+                      "duration": "PT1H40M",
+                      "id": "59",
+                      "numberOfStops": 0,
+                      "blacklistedInEU": false
+                    }
+                  ]
+                },
+                {
+                  "duration": "PT1H40M",
+                  "segments": [
+                    {
+                      "departure": {
+                        "iataCode": "LCY",
+                        "at": "2026-05-18T18:00:00"
+                      },
+                      "arrival": {
+                        "iataCode": "ZRH",
+                        "at": "2026-05-18T20:40:00"
+                      },
+                      "carrierCode": "LX",
+                      "number": "465",
+                      "aircraft": {
+                        "code": "295"
+                      },
+                      "operating": {
+                        "carrierCode": "2L"
+                      },
+                      "duration": "PT1H40M",
+                      "id": "123",
+                      "numberOfStops": 0,
+                      "blacklistedInEU": false
+                    }
+                  ]
+                }
+              ],
+              "price": {
+                "currency": "EUR",
+                "total": "380.24",
+                "base": "231.00",
+                "fees": [
+                  {
+                    "amount": "0.00",
+                    "type": "SUPPLIER",
+                    "amount_itinerary_currency": "0.00"
+                  },
+                  {
+                    "amount": "0.00",
+                    "type": "TICKETING",
+                    "amount_itinerary_currency": "0.00"
+                  }
+                ],
+                "grandTotal": "380.24",
+                "total_itinerary_currency": "330.48",
+                "base_itinerary_currency": "200.77",
+                "grandTotal_itinerary_currency": "330.48"
+              },
+              "pricingOptions": {
+                "fareType": [
+                  "PUBLISHED"
+                ],
+                "includedCheckedBagsOnly": true
+              },
+              "validatingAirlineCodes": [
+                "LX"
+              ],
+              "travelerPricings": [
+                {
+                  "travelerId": "1",
+                  "fareOption": "STANDARD",
+                  "travelerType": "ADULT",
+                  "price": {
+                    "currency": "EUR",
+                    "total": "380.24",
+                    "base": "231.00",
+                    "total_itinerary_currency": "330.48",
+                    "base_itinerary_currency": "200.77"
+                  },
+                  "fareDetailsBySegment": [
+                    {
+                      "segmentId": "59",
+                      "cabin": "ECONOMY",
+                      "fareBasis": "LEUCLSP0",
+                      "class": "L",
+                      "includedCheckedBags": {
+                        "quantity": 1
+                      },
+                      "includedCabinBags": {
+                        "quantity": 1
+                      }
+                    },
+                    {
+                      "segmentId": "123",
+                      "cabin": "ECONOMY",
+                      "fareBasis": "SEUCLSP0",
+                      "class": "S",
+                      "includedCheckedBags": {
+                        "quantity": 1
+                      },
+                      "includedCabinBags": {
+                        "quantity": 1
+                      }
+                    }
+                  ]
+                }
+              ],
+              "flight_kind": "round_trip",
+              "round_trip_pair_id": "61f31fc2-c467-4a34-88f4-1a29c0d64f73",
+              "_ranking": {
+                "score": 60.05,
+                "stops": 0,
+                "price": 330.48,
+                "duration_minutes": 200,
+                "eligible": true,
+                "ineligibility_reason": "",
+                "currency": "GBP"
+              }
+            },
+            {
+              "type": "flight-offer",
+              "id": "109",
+              "source": "GDS",
+              "instantTicketingRequired": false,
+              "nonHomogeneous": false,
+              "oneWay": false,
+              "isUpsellOffer": false,
+              "lastTicketingDate": "2026-03-31",
+              "lastTicketingDateTime": "2026-03-31",
+              "numberOfBookableSeats": 9,
+              "itineraries": [
+                {
+                  "duration": "PT1H40M",
+                  "segments": [
+                    {
+                      "departure": {
+                        "iataCode": "ZRH",
+                        "at": "2026-05-12T11:55:00"
+                      },
+                      "arrival": {
+                        "iataCode": "LCY",
+                        "at": "2026-05-12T12:35:00"
+                      },
+                      "carrierCode": "LX",
+                      "number": "456",
+                      "aircraft": {
+                        "code": "290"
+                      },
+                      "operating": {
+                        "carrierCode": "2L"
+                      },
+                      "duration": "PT1H40M",
+                      "id": "56",
+                      "numberOfStops": 0,
+                      "blacklistedInEU": false
+                    }
+                  ]
+                },
+                {
+                  "duration": "PT1H40M",
+                  "segments": [
+                    {
+                      "departure": {
+                        "iataCode": "LGW",
+                        "terminal": "N",
+                        "at": "2026-05-18T09:25:00"
+                      },
+                      "arrival": {
+                        "iataCode": "ZRH",
+                        "at": "2026-05-18T12:05:00"
+                      },
+                      "carrierCode": "LX",
+                      "number": "431",
+                      "aircraft": {
+                        "code": "E90"
+                      },
+                      "operating": {
+                        "carrierCode": "2L"
+                      },
+                      "duration": "PT1H40M",
+                      "id": "121",
+                      "numberOfStops": 0,
+                      "blacklistedInEU": false
+                    }
+                  ]
+                }
+              ],
+              "price": {
+                "currency": "EUR",
+                "total": "418.01",
+                "base": "270.00",
+                "fees": [
+                  {
+                    "amount": "0.00",
+                    "type": "SUPPLIER",
+                    "amount_itinerary_currency": "0.00"
+                  },
+                  {
+                    "amount": "0.00",
+                    "type": "TICKETING",
+                    "amount_itinerary_currency": "0.00"
+                  }
+                ],
+                "grandTotal": "418.01",
+                "total_itinerary_currency": "363.31",
+                "base_itinerary_currency": "234.67",
+                "grandTotal_itinerary_currency": "363.31"
+              },
+              "pricingOptions": {
+                "fareType": [
+                  "PUBLISHED"
+                ],
+                "includedCheckedBagsOnly": true
+              },
+              "validatingAirlineCodes": [
+                "LX"
+              ],
+              "travelerPricings": [
+                {
+                  "travelerId": "1",
+                  "fareOption": "STANDARD",
+                  "travelerType": "ADULT",
+                  "price": {
+                    "currency": "EUR",
+                    "total": "418.01",
+                    "base": "270.00",
+                    "total_itinerary_currency": "363.31",
+                    "base_itinerary_currency": "234.67"
+                  },
+                  "fareDetailsBySegment": [
+                    {
+                      "segmentId": "56",
+                      "cabin": "ECONOMY",
+                      "fareBasis": "LEUCLSP0",
+                      "class": "L",
+                      "includedCheckedBags": {
+                        "quantity": 1
+                      },
+                      "includedCabinBags": {
+                        "quantity": 1
+                      }
+                    },
+                    {
+                      "segmentId": "121",
+                      "cabin": "ECONOMY",
+                      "fareBasis": "WEUCLSP0",
+                      "class": "W",
+                      "includedCheckedBags": {
+                        "quantity": 1
+                      },
+                      "includedCabinBags": {
+                        "quantity": 1
+                      }
+                    }
+                  ]
+                }
+              ],
+              "flight_kind": "round_trip",
+              "round_trip_pair_id": "d55e455c-1a04-4d02-a2c5-43b9d18ba6fd",
+              "_ranking": {
+                "score": 44.06,
+                "stops": 0,
+                "price": 363.31,
+                "duration_minutes": 200,
+                "eligible": true,
+                "ineligibility_reason": "",
+                "currency": "GBP"
+              }
+            },
+            {
+              "type": "flight-offer",
+              "id": "110",
+              "source": "GDS",
+              "instantTicketingRequired": false,
+              "nonHomogeneous": false,
+              "oneWay": false,
+              "isUpsellOffer": false,
+              "lastTicketingDate": "2026-03-31",
+              "lastTicketingDateTime": "2026-03-31",
+              "numberOfBookableSeats": 9,
+              "itineraries": [
+                {
+                  "duration": "PT1H40M",
+                  "segments": [
+                    {
+                      "departure": {
+                        "iataCode": "ZRH",
+                        "at": "2026-05-12T16:50:00"
+                      },
+                      "arrival": {
+                        "iataCode": "LCY",
+                        "at": "2026-05-12T17:30:00"
+                      },
+                      "carrierCode": "LX",
+                      "number": "464",
+                      "aircraft": {
+                        "code": "290"
+                      },
+                      "operating": {
+                        "carrierCode": "2L"
+                      },
+                      "duration": "PT1H40M",
+                      "id": "57",
+                      "numberOfStops": 0,
+                      "blacklistedInEU": false
+                    }
+                  ]
+                },
+                {
+                  "duration": "PT1H40M",
+                  "segments": [
+                    {
+                      "departure": {
+                        "iataCode": "LGW",
+                        "terminal": "N",
+                        "at": "2026-05-18T09:25:00"
+                      },
+                      "arrival": {
+                        "iataCode": "ZRH",
+                        "at": "2026-05-18T12:05:00"
+                      },
+                      "carrierCode": "LX",
+                      "number": "431",
+                      "aircraft": {
+                        "code": "E90"
+                      },
+                      "operating": {
+                        "carrierCode": "2L"
+                      },
+                      "duration": "PT1H40M",
+                      "id": "121",
+                      "numberOfStops": 0,
+                      "blacklistedInEU": false
+                    }
+                  ]
+                }
+              ],
+              "price": {
+                "currency": "EUR",
+                "total": "418.01",
+                "base": "270.00",
+                "fees": [
+                  {
+                    "amount": "0.00",
+                    "type": "SUPPLIER",
+                    "amount_itinerary_currency": "0.00"
+                  },
+                  {
+                    "amount": "0.00",
+                    "type": "TICKETING",
+                    "amount_itinerary_currency": "0.00"
+                  }
+                ],
+                "grandTotal": "418.01",
+                "total_itinerary_currency": "363.31",
+                "base_itinerary_currency": "234.67",
+                "grandTotal_itinerary_currency": "363.31"
+              },
+              "pricingOptions": {
+                "fareType": [
+                  "PUBLISHED"
+                ],
+                "includedCheckedBagsOnly": true
+              },
+              "validatingAirlineCodes": [
+                "LX"
+              ],
+              "travelerPricings": [
+                {
+                  "travelerId": "1",
+                  "fareOption": "STANDARD",
+                  "travelerType": "ADULT",
+                  "price": {
+                    "currency": "EUR",
+                    "total": "418.01",
+                    "base": "270.00",
+                    "total_itinerary_currency": "363.31",
+                    "base_itinerary_currency": "234.67"
+                  },
+                  "fareDetailsBySegment": [
+                    {
+                      "segmentId": "57",
+                      "cabin": "ECONOMY",
+                      "fareBasis": "LEUCLSP0",
+                      "class": "L",
+                      "includedCheckedBags": {
+                        "quantity": 1
+                      },
+                      "includedCabinBags": {
+                        "quantity": 1
+                      }
+                    },
+                    {
+                      "segmentId": "121",
+                      "cabin": "ECONOMY",
+                      "fareBasis": "WEUCLSP0",
+                      "class": "W",
+                      "includedCheckedBags": {
+                        "quantity": 1
+                      },
+                      "includedCabinBags": {
+                        "quantity": 1
+                      }
+                    }
+                  ]
+                }
+              ],
+              "flight_kind": "round_trip",
+              "round_trip_pair_id": "fd41ff1d-135a-4e40-85dd-dedc45121ba1",
+              "_ranking": {
+                "score": 44.06,
+                "stops": 0,
+                "price": 363.31,
+                "duration_minutes": 200,
+                "eligible": true,
+                "ineligibility_reason": "",
+                "currency": "GBP"
+              }
+            },
+            {
+              "type": "flight-offer",
+              "id": "111",
+              "source": "GDS",
+              "instantTicketingRequired": false,
+              "nonHomogeneous": false,
+              "oneWay": false,
+              "isUpsellOffer": false,
+              "lastTicketingDate": "2026-03-31",
+              "lastTicketingDateTime": "2026-03-31",
+              "numberOfBookableSeats": 9,
+              "itineraries": [
+                {
+                  "duration": "PT1H40M",
+                  "segments": [
+                    {
+                      "departure": {
+                        "iataCode": "ZRH",
+                        "at": "2026-05-12T18:00:00"
+                      },
+                      "arrival": {
+                        "iataCode": "LCY",
+                        "at": "2026-05-12T18:40:00"
+                      },
+                      "carrierCode": "LX",
+                      "number": "466",
+                      "aircraft": {
+                        "code": "290"
+                      },
+                      "operating": {
+                        "carrierCode": "2L"
+                      },
+                      "duration": "PT1H40M",
+                      "id": "59",
+                      "numberOfStops": 0,
+                      "blacklistedInEU": false
+                    }
+                  ]
+                },
+                {
+                  "duration": "PT1H40M",
+                  "segments": [
+                    {
+                      "departure": {
+                        "iataCode": "LGW",
+                        "terminal": "N",
+                        "at": "2026-05-18T09:25:00"
+                      },
+                      "arrival": {
+                        "iataCode": "ZRH",
+                        "at": "2026-05-18T12:05:00"
+                      },
+                      "carrierCode": "LX",
+                      "number": "431",
+                      "aircraft": {
+                        "code": "E90"
+                      },
+                      "operating": {
+                        "carrierCode": "2L"
+                      },
+                      "duration": "PT1H40M",
+                      "id": "121",
+                      "numberOfStops": 0,
+                      "blacklistedInEU": false
+                    }
+                  ]
+                }
+              ],
+              "price": {
+                "currency": "EUR",
+                "total": "418.01",
+                "base": "270.00",
+                "fees": [
+                  {
+                    "amount": "0.00",
+                    "type": "SUPPLIER",
+                    "amount_itinerary_currency": "0.00"
+                  },
+                  {
+                    "amount": "0.00",
+                    "type": "TICKETING",
+                    "amount_itinerary_currency": "0.00"
+                  }
+                ],
+                "grandTotal": "418.01",
+                "total_itinerary_currency": "363.31",
+                "base_itinerary_currency": "234.67",
+                "grandTotal_itinerary_currency": "363.31"
+              },
+              "pricingOptions": {
+                "fareType": [
+                  "PUBLISHED"
+                ],
+                "includedCheckedBagsOnly": true
+              },
+              "validatingAirlineCodes": [
+                "LX"
+              ],
+              "travelerPricings": [
+                {
+                  "travelerId": "1",
+                  "fareOption": "STANDARD",
+                  "travelerType": "ADULT",
+                  "price": {
+                    "currency": "EUR",
+                    "total": "418.01",
+                    "base": "270.00",
+                    "total_itinerary_currency": "363.31",
+                    "base_itinerary_currency": "234.67"
+                  },
+                  "fareDetailsBySegment": [
+                    {
+                      "segmentId": "59",
+                      "cabin": "ECONOMY",
+                      "fareBasis": "LEUCLSP0",
+                      "class": "L",
+                      "includedCheckedBags": {
+                        "quantity": 1
+                      },
+                      "includedCabinBags": {
+                        "quantity": 1
+                      }
+                    },
+                    {
+                      "segmentId": "121",
+                      "cabin": "ECONOMY",
+                      "fareBasis": "WEUCLSP0",
+                      "class": "W",
+                      "includedCheckedBags": {
+                        "quantity": 1
+                      },
+                      "includedCabinBags": {
+                        "quantity": 1
+                      }
+                    }
+                  ]
+                }
+              ],
+              "flight_kind": "round_trip",
+              "round_trip_pair_id": "f2de515b-5faf-48f0-8115-a6995970a633",
+              "_ranking": {
+                "score": 44.06,
+                "stops": 0,
+                "price": 363.31,
+                "duration_minutes": 200,
+                "eligible": true,
+                "ineligibility_reason": "",
+                "currency": "GBP"
+              }
+            },
+            {
+              "type": "flight-offer",
+              "id": "122",
+              "source": "GDS",
+              "instantTicketingRequired": false,
+              "nonHomogeneous": false,
+              "oneWay": false,
+              "isUpsellOffer": false,
+              "lastTicketingDate": "2026-04-02",
+              "lastTicketingDateTime": "2026-04-02",
+              "numberOfBookableSeats": 9,
+              "itineraries": [
+                {
+                  "duration": "PT1H40M",
+                  "segments": [
+                    {
+                      "departure": {
+                        "iataCode": "ZRH",
+                        "at": "2026-05-12T17:10:00"
+                      },
+                      "arrival": {
+                        "iataCode": "LGW",
+                        "terminal": "N",
+                        "at": "2026-05-12T17:50:00"
+                      },
+                      "carrierCode": "LX",
+                      "number": "432",
+                      "aircraft": {
+                        "code": "E95"
+                      },
+                      "operating": {
+                        "carrierCode": "2L"
+                      },
+                      "duration": "PT1H40M",
+                      "id": "58",
+                      "numberOfStops": 0,
+                      "blacklistedInEU": false
+                    }
+                  ]
+                },
+                {
+                  "duration": "PT1H40M",
+                  "segments": [
+                    {
+                      "departure": {
+                        "iataCode": "LHR",
+                        "terminal": "2",
+                        "at": "2026-05-18T06:00:00"
+                      },
+                      "arrival": {
+                        "iataCode": "ZRH",
+                        "at": "2026-05-18T08:40:00"
+                      },
+                      "carrierCode": "LX",
+                      "number": "345",
+                      "aircraft": {
+                        "code": "223"
+                      },
+                      "operating": {
+                        "carrierCode": "BT"
+                      },
+                      "duration": "PT1H40M",
+                      "id": "119",
+                      "numberOfStops": 0,
+                      "blacklistedInEU": false
+                    }
+                  ]
+                }
+              ],
+              "price": {
+                "currency": "EUR",
+                "total": "428.65",
+                "base": "288.00",
+                "fees": [
+                  {
+                    "amount": "0.00",
+                    "type": "SUPPLIER",
+                    "amount_itinerary_currency": "0.00"
+                  },
+                  {
+                    "amount": "0.00",
+                    "type": "TICKETING",
+                    "amount_itinerary_currency": "0.00"
+                  }
+                ],
+                "grandTotal": "428.65",
+                "total_itinerary_currency": "372.56",
+                "base_itinerary_currency": "250.31",
+                "grandTotal_itinerary_currency": "372.56"
+              },
+              "pricingOptions": {
+                "fareType": [
+                  "PUBLISHED"
+                ],
+                "includedCheckedBagsOnly": true
+              },
+              "validatingAirlineCodes": [
+                "LX"
+              ],
+              "travelerPricings": [
+                {
+                  "travelerId": "1",
+                  "fareOption": "STANDARD",
+                  "travelerType": "ADULT",
+                  "price": {
+                    "currency": "EUR",
+                    "total": "428.65",
+                    "base": "288.00",
+                    "total_itinerary_currency": "372.56",
+                    "base_itinerary_currency": "250.31"
+                  },
+                  "fareDetailsBySegment": [
+                    {
+                      "segmentId": "58",
+                      "cabin": "ECONOMY",
+                      "fareBasis": "SEUCLSP0",
+                      "class": "S",
+                      "includedCheckedBags": {
+                        "quantity": 1
+                      },
+                      "includedCabinBags": {
+                        "quantity": 1
+                      }
+                    },
+                    {
+                      "segmentId": "119",
+                      "cabin": "ECONOMY",
+                      "fareBasis": "SEUCLSP0",
+                      "class": "S",
+                      "includedCheckedBags": {
+                        "quantity": 1
+                      },
+                      "includedCabinBags": {
+                        "quantity": 1
+                      }
+                    }
+                  ]
+                }
+              ],
+              "flight_kind": "round_trip",
+              "round_trip_pair_id": "72fbc89d-0216-4b34-897f-cf8b757e4796",
+              "_ranking": {
+                "score": 39.2,
+                "stops": 0,
+                "price": 372.56,
+                "duration_minutes": 200,
+                "eligible": true,
+                "ineligibility_reason": "",
+                "currency": "GBP"
+              }
+            },
+            {
+              "type": "flight-offer",
+              "id": "131",
+              "source": "GDS",
+              "instantTicketingRequired": false,
+              "nonHomogeneous": false,
+              "oneWay": false,
+              "isUpsellOffer": false,
+              "lastTicketingDate": "2026-03-31",
+              "lastTicketingDateTime": "2026-03-31",
+              "numberOfBookableSeats": 9,
+              "itineraries": [
+                {
+                  "duration": "PT1H40M",
+                  "segments": [
+                    {
+                      "departure": {
+                        "iataCode": "ZRH",
+                        "at": "2026-05-12T11:55:00"
+                      },
+                      "arrival": {
+                        "iataCode": "LCY",
+                        "at": "2026-05-12T12:35:00"
+                      },
+                      "carrierCode": "LX",
+                      "number": "456",
+                      "aircraft": {
+                        "code": "290"
+                      },
+                      "operating": {
+                        "carrierCode": "2L"
+                      },
+                      "duration": "PT1H40M",
+                      "id": "56",
+                      "numberOfStops": 0,
+                      "blacklistedInEU": false
+                    }
+                  ]
+                },
+                {
+                  "duration": "PT1H40M",
+                  "segments": [
+                    {
+                      "departure": {
+                        "iataCode": "LCY",
+                        "at": "2026-05-18T13:10:00"
+                      },
+                      "arrival": {
+                        "iataCode": "ZRH",
+                        "at": "2026-05-18T15:50:00"
+                      },
+                      "carrierCode": "LX",
+                      "number": "457",
+                      "aircraft": {
+                        "code": "290"
+                      },
+                      "operating": {
+                        "carrierCode": "2L"
+                      },
+                      "duration": "PT1H40M",
+                      "id": "122",
+                      "numberOfStops": 0,
+                      "blacklistedInEU": false
+                    }
+                  ]
+                }
+              ],
+              "price": {
+                "currency": "EUR",
+                "total": "429.07",
+                "base": "270.00",
+                "fees": [
+                  {
+                    "amount": "0.00",
+                    "type": "SUPPLIER",
+                    "amount_itinerary_currency": "0.00"
+                  },
+                  {
+                    "amount": "0.00",
+                    "type": "TICKETING",
+                    "amount_itinerary_currency": "0.00"
+                  }
+                ],
+                "grandTotal": "429.07",
+                "total_itinerary_currency": "372.92",
+                "base_itinerary_currency": "234.67",
+                "grandTotal_itinerary_currency": "372.92"
+              },
+              "pricingOptions": {
+                "fareType": [
+                  "PUBLISHED"
+                ],
+                "includedCheckedBagsOnly": true
+              },
+              "validatingAirlineCodes": [
+                "LX"
+              ],
+              "travelerPricings": [
+                {
+                  "travelerId": "1",
+                  "fareOption": "STANDARD",
+                  "travelerType": "ADULT",
+                  "price": {
+                    "currency": "EUR",
+                    "total": "429.07",
+                    "base": "270.00",
+                    "total_itinerary_currency": "372.92",
+                    "base_itinerary_currency": "234.67"
+                  },
+                  "fareDetailsBySegment": [
+                    {
+                      "segmentId": "56",
+                      "cabin": "ECONOMY",
+                      "fareBasis": "LEUCLSP0",
+                      "class": "L",
+                      "includedCheckedBags": {
+                        "quantity": 1
+                      },
+                      "includedCabinBags": {
+                        "quantity": 1
+                      }
+                    },
+                    {
+                      "segmentId": "122",
+                      "cabin": "ECONOMY",
+                      "fareBasis": "WEUCLSP0",
+                      "class": "W",
+                      "includedCheckedBags": {
+                        "quantity": 1
+                      },
+                      "includedCabinBags": {
+                        "quantity": 1
+                      }
+                    }
+                  ]
+                }
+              ],
+              "flight_kind": "round_trip",
+              "round_trip_pair_id": "cbfdd33c-dbea-4ce7-a6de-0dc3c3eec857",
+              "_ranking": {
+                "score": 39.01,
+                "stops": 0,
+                "price": 372.92,
+                "duration_minutes": 200,
+                "eligible": true,
+                "ineligibility_reason": "",
+                "currency": "GBP"
+              }
+            },
+            {
+              "type": "flight-offer",
+              "id": "132",
+              "source": "GDS",
+              "instantTicketingRequired": false,
+              "nonHomogeneous": false,
+              "oneWay": false,
+              "isUpsellOffer": false,
+              "lastTicketingDate": "2026-03-31",
+              "lastTicketingDateTime": "2026-03-31",
+              "numberOfBookableSeats": 9,
+              "itineraries": [
+                {
+                  "duration": "PT1H40M",
+                  "segments": [
+                    {
+                      "departure": {
+                        "iataCode": "ZRH",
+                        "at": "2026-05-12T16:50:00"
+                      },
+                      "arrival": {
+                        "iataCode": "LCY",
+                        "at": "2026-05-12T17:30:00"
+                      },
+                      "carrierCode": "LX",
+                      "number": "464",
+                      "aircraft": {
+                        "code": "290"
+                      },
+                      "operating": {
+                        "carrierCode": "2L"
+                      },
+                      "duration": "PT1H40M",
+                      "id": "57",
+                      "numberOfStops": 0,
+                      "blacklistedInEU": false
+                    }
+                  ]
+                },
+                {
+                  "duration": "PT1H40M",
+                  "segments": [
+                    {
+                      "departure": {
+                        "iataCode": "LCY",
+                        "at": "2026-05-18T13:10:00"
+                      },
+                      "arrival": {
+                        "iataCode": "ZRH",
+                        "at": "2026-05-18T15:50:00"
+                      },
+                      "carrierCode": "LX",
+                      "number": "457",
+                      "aircraft": {
+                        "code": "290"
+                      },
+                      "operating": {
+                        "carrierCode": "2L"
+                      },
+                      "duration": "PT1H40M",
+                      "id": "122",
+                      "numberOfStops": 0,
+                      "blacklistedInEU": false
+                    }
+                  ]
+                }
+              ],
+              "price": {
+                "currency": "EUR",
+                "total": "429.07",
+                "base": "270.00",
+                "fees": [
+                  {
+                    "amount": "0.00",
+                    "type": "SUPPLIER",
+                    "amount_itinerary_currency": "0.00"
+                  },
+                  {
+                    "amount": "0.00",
+                    "type": "TICKETING",
+                    "amount_itinerary_currency": "0.00"
+                  }
+                ],
+                "grandTotal": "429.07",
+                "total_itinerary_currency": "372.92",
+                "base_itinerary_currency": "234.67",
+                "grandTotal_itinerary_currency": "372.92"
+              },
+              "pricingOptions": {
+                "fareType": [
+                  "PUBLISHED"
+                ],
+                "includedCheckedBagsOnly": true
+              },
+              "validatingAirlineCodes": [
+                "LX"
+              ],
+              "travelerPricings": [
+                {
+                  "travelerId": "1",
+                  "fareOption": "STANDARD",
+                  "travelerType": "ADULT",
+                  "price": {
+                    "currency": "EUR",
+                    "total": "429.07",
+                    "base": "270.00",
+                    "total_itinerary_currency": "372.92",
+                    "base_itinerary_currency": "234.67"
+                  },
+                  "fareDetailsBySegment": [
+                    {
+                      "segmentId": "57",
+                      "cabin": "ECONOMY",
+                      "fareBasis": "LEUCLSP0",
+                      "class": "L",
+                      "includedCheckedBags": {
+                        "quantity": 1
+                      },
+                      "includedCabinBags": {
+                        "quantity": 1
+                      }
+                    },
+                    {
+                      "segmentId": "122",
+                      "cabin": "ECONOMY",
+                      "fareBasis": "WEUCLSP0",
+                      "class": "W",
+                      "includedCheckedBags": {
+                        "quantity": 1
+                      },
+                      "includedCabinBags": {
+                        "quantity": 1
+                      }
+                    }
+                  ]
+                }
+              ],
+              "flight_kind": "round_trip",
+              "round_trip_pair_id": "fb0f4317-8f14-454b-8494-703e30bd0d50",
+              "_ranking": {
+                "score": 39.01,
+                "stops": 0,
+                "price": 372.92,
+                "duration_minutes": 200,
+                "eligible": true,
+                "ineligibility_reason": "",
+                "currency": "GBP"
+              }
+            },
+            {
+              "type": "flight-offer",
+              "id": "133",
+              "source": "GDS",
+              "instantTicketingRequired": false,
+              "nonHomogeneous": false,
+              "oneWay": false,
+              "isUpsellOffer": false,
+              "lastTicketingDate": "2026-03-31",
+              "lastTicketingDateTime": "2026-03-31",
+              "numberOfBookableSeats": 9,
+              "itineraries": [
+                {
+                  "duration": "PT1H40M",
+                  "segments": [
+                    {
+                      "departure": {
+                        "iataCode": "ZRH",
+                        "at": "2026-05-12T18:00:00"
+                      },
+                      "arrival": {
+                        "iataCode": "LCY",
+                        "at": "2026-05-12T18:40:00"
+                      },
+                      "carrierCode": "LX",
+                      "number": "466",
+                      "aircraft": {
+                        "code": "290"
+                      },
+                      "operating": {
+                        "carrierCode": "2L"
+                      },
+                      "duration": "PT1H40M",
+                      "id": "59",
+                      "numberOfStops": 0,
+                      "blacklistedInEU": false
+                    }
+                  ]
+                },
+                {
+                  "duration": "PT1H40M",
+                  "segments": [
+                    {
+                      "departure": {
+                        "iataCode": "LCY",
+                        "at": "2026-05-18T13:10:00"
+                      },
+                      "arrival": {
+                        "iataCode": "ZRH",
+                        "at": "2026-05-18T15:50:00"
+                      },
+                      "carrierCode": "LX",
+                      "number": "457",
+                      "aircraft": {
+                        "code": "290"
+                      },
+                      "operating": {
+                        "carrierCode": "2L"
+                      },
+                      "duration": "PT1H40M",
+                      "id": "122",
+                      "numberOfStops": 0,
+                      "blacklistedInEU": false
+                    }
+                  ]
+                }
+              ],
+              "price": {
+                "currency": "EUR",
+                "total": "429.07",
+                "base": "270.00",
+                "fees": [
+                  {
+                    "amount": "0.00",
+                    "type": "SUPPLIER",
+                    "amount_itinerary_currency": "0.00"
+                  },
+                  {
+                    "amount": "0.00",
+                    "type": "TICKETING",
+                    "amount_itinerary_currency": "0.00"
+                  }
+                ],
+                "grandTotal": "429.07",
+                "total_itinerary_currency": "372.92",
+                "base_itinerary_currency": "234.67",
+                "grandTotal_itinerary_currency": "372.92"
+              },
+              "pricingOptions": {
+                "fareType": [
+                  "PUBLISHED"
+                ],
+                "includedCheckedBagsOnly": true
+              },
+              "validatingAirlineCodes": [
+                "LX"
+              ],
+              "travelerPricings": [
+                {
+                  "travelerId": "1",
+                  "fareOption": "STANDARD",
+                  "travelerType": "ADULT",
+                  "price": {
+                    "currency": "EUR",
+                    "total": "429.07",
+                    "base": "270.00",
+                    "total_itinerary_currency": "372.92",
+                    "base_itinerary_currency": "234.67"
+                  },
+                  "fareDetailsBySegment": [
+                    {
+                      "segmentId": "59",
+                      "cabin": "ECONOMY",
+                      "fareBasis": "LEUCLSP0",
+                      "class": "L",
+                      "includedCheckedBags": {
+                        "quantity": 1
+                      },
+                      "includedCabinBags": {
+                        "quantity": 1
+                      }
+                    },
+                    {
+                      "segmentId": "122",
+                      "cabin": "ECONOMY",
+                      "fareBasis": "WEUCLSP0",
+                      "class": "W",
+                      "includedCheckedBags": {
+                        "quantity": 1
+                      },
+                      "includedCabinBags": {
+                        "quantity": 1
+                      }
+                    }
+                  ]
+                }
+              ],
+              "flight_kind": "round_trip",
+              "round_trip_pair_id": "4d96895f-69a1-47ce-83e5-749c58229f75",
+              "_ranking": {
+                "score": 39.01,
+                "stops": 0,
+                "price": 372.92,
+                "duration_minutes": 200,
+                "eligible": true,
+                "ineligibility_reason": "",
+                "currency": "GBP"
+              }
+            },
+            {
+              "type": "flight-offer",
+              "id": "112",
+              "source": "GDS",
+              "instantTicketingRequired": false,
+              "nonHomogeneous": false,
+              "oneWay": false,
+              "isUpsellOffer": false,
+              "lastTicketingDate": "2026-03-31",
+              "lastTicketingDateTime": "2026-03-31",
+              "numberOfBookableSeats": 9,
+              "itineraries": [
+                {
+                  "duration": "PT1H40M",
+                  "segments": [
+                    {
+                      "departure": {
+                        "iataCode": "ZRH",
+                        "at": "2026-05-12T11:55:00"
+                      },
+                      "arrival": {
+                        "iataCode": "LCY",
+                        "at": "2026-05-12T12:35:00"
+                      },
+                      "carrierCode": "LX",
+                      "number": "456",
+                      "aircraft": {
+                        "code": "290"
+                      },
+                      "operating": {
+                        "carrierCode": "2L"
+                      },
+                      "duration": "PT1H40M",
+                      "id": "56",
+                      "numberOfStops": 0,
+                      "blacklistedInEU": false
+                    }
+                  ]
+                },
+                {
+                  "duration": "PT1H40M",
+                  "segments": [
+                    {
+                      "departure": {
+                        "iataCode": "LHR",
+                        "terminal": "2",
+                        "at": "2026-05-18T20:05:00"
+                      },
+                      "arrival": {
+                        "iataCode": "ZRH",
+                        "at": "2026-05-18T22:45:00"
+                      },
+                      "carrierCode": "LX",
+                      "number": "339",
+                      "aircraft": {
+                        "code": "32N"
+                      },
+                      "operating": {
+                        "carrierCode": "LX"
+                      },
+                      "duration": "PT1H40M",
+                      "id": "124",
+                      "numberOfStops": 0,
+                      "blacklistedInEU": false
+                    }
+                  ]
+                }
+              ],
+              "price": {
+                "currency": "EUR",
+                "total": "418.76",
+                "base": "270.00",
+                "fees": [
+                  {
+                    "amount": "0.00",
+                    "type": "SUPPLIER",
+                    "amount_itinerary_currency": "0.00"
+                  },
+                  {
+                    "amount": "0.00",
+                    "type": "TICKETING",
+                    "amount_itinerary_currency": "0.00"
+                  }
+                ],
+                "grandTotal": "418.76",
+                "total_itinerary_currency": "363.96",
+                "base_itinerary_currency": "234.67",
+                "grandTotal_itinerary_currency": "363.96"
+              },
+              "pricingOptions": {
+                "fareType": [
+                  "PUBLISHED"
+                ],
+                "includedCheckedBagsOnly": true
+              },
+              "validatingAirlineCodes": [
+                "LX"
+              ],
+              "travelerPricings": [
+                {
+                  "travelerId": "1",
+                  "fareOption": "STANDARD",
+                  "travelerType": "ADULT",
+                  "price": {
+                    "currency": "EUR",
+                    "total": "418.76",
+                    "base": "270.00",
+                    "total_itinerary_currency": "363.96",
+                    "base_itinerary_currency": "234.67"
+                  },
+                  "fareDetailsBySegment": [
+                    {
+                      "segmentId": "56",
+                      "cabin": "ECONOMY",
+                      "fareBasis": "LEUCLSP0",
+                      "class": "L",
+                      "includedCheckedBags": {
+                        "quantity": 1
+                      },
+                      "includedCabinBags": {
+                        "quantity": 1
+                      }
+                    },
+                    {
+                      "segmentId": "124",
+                      "cabin": "ECONOMY",
+                      "fareBasis": "WEUCLSP0",
+                      "class": "W",
+                      "includedCheckedBags": {
+                        "quantity": 1
+                      },
+                      "includedCabinBags": {
+                        "quantity": 1
+                      }
+                    }
+                  ]
+                }
+              ],
+              "flight_kind": "round_trip",
+              "round_trip_pair_id": "a63ce90a-43d3-4d70-bba5-1c4d6096d5a5",
+              "_ranking": {
+                "score": 38.84,
+                "stops": 0,
+                "price": 363.96,
+                "duration_minutes": 200,
+                "eligible": true,
+                "ineligibility_reason": "",
+                "currency": "GBP"
+              }
+            },
+            {
+              "type": "flight-offer",
+              "id": "113",
+              "source": "GDS",
+              "instantTicketingRequired": false,
+              "nonHomogeneous": false,
+              "oneWay": false,
+              "isUpsellOffer": false,
+              "lastTicketingDate": "2026-03-31",
+              "lastTicketingDateTime": "2026-03-31",
+              "numberOfBookableSeats": 9,
+              "itineraries": [
+                {
+                  "duration": "PT1H40M",
+                  "segments": [
+                    {
+                      "departure": {
+                        "iataCode": "ZRH",
+                        "at": "2026-05-12T16:50:00"
+                      },
+                      "arrival": {
+                        "iataCode": "LCY",
+                        "at": "2026-05-12T17:30:00"
+                      },
+                      "carrierCode": "LX",
+                      "number": "464",
+                      "aircraft": {
+                        "code": "290"
+                      },
+                      "operating": {
+                        "carrierCode": "2L"
+                      },
+                      "duration": "PT1H40M",
+                      "id": "57",
+                      "numberOfStops": 0,
+                      "blacklistedInEU": false
+                    }
+                  ]
+                },
+                {
+                  "duration": "PT1H40M",
+                  "segments": [
+                    {
+                      "departure": {
+                        "iataCode": "LHR",
+                        "terminal": "2",
+                        "at": "2026-05-18T20:05:00"
+                      },
+                      "arrival": {
+                        "iataCode": "ZRH",
+                        "at": "2026-05-18T22:45:00"
+                      },
+                      "carrierCode": "LX",
+                      "number": "339",
+                      "aircraft": {
+                        "code": "32N"
+                      },
+                      "operating": {
+                        "carrierCode": "LX"
+                      },
+                      "duration": "PT1H40M",
+                      "id": "124",
+                      "numberOfStops": 0,
+                      "blacklistedInEU": false
+                    }
+                  ]
+                }
+              ],
+              "price": {
+                "currency": "EUR",
+                "total": "418.76",
+                "base": "270.00",
+                "fees": [
+                  {
+                    "amount": "0.00",
+                    "type": "SUPPLIER",
+                    "amount_itinerary_currency": "0.00"
+                  },
+                  {
+                    "amount": "0.00",
+                    "type": "TICKETING",
+                    "amount_itinerary_currency": "0.00"
+                  }
+                ],
+                "grandTotal": "418.76",
+                "total_itinerary_currency": "363.96",
+                "base_itinerary_currency": "234.67",
+                "grandTotal_itinerary_currency": "363.96"
+              },
+              "pricingOptions": {
+                "fareType": [
+                  "PUBLISHED"
+                ],
+                "includedCheckedBagsOnly": true
+              },
+              "validatingAirlineCodes": [
+                "LX"
+              ],
+              "travelerPricings": [
+                {
+                  "travelerId": "1",
+                  "fareOption": "STANDARD",
+                  "travelerType": "ADULT",
+                  "price": {
+                    "currency": "EUR",
+                    "total": "418.76",
+                    "base": "270.00",
+                    "total_itinerary_currency": "363.96",
+                    "base_itinerary_currency": "234.67"
+                  },
+                  "fareDetailsBySegment": [
+                    {
+                      "segmentId": "57",
+                      "cabin": "ECONOMY",
+                      "fareBasis": "LEUCLSP0",
+                      "class": "L",
+                      "includedCheckedBags": {
+                        "quantity": 1
+                      },
+                      "includedCabinBags": {
+                        "quantity": 1
+                      }
+                    },
+                    {
+                      "segmentId": "124",
+                      "cabin": "ECONOMY",
+                      "fareBasis": "WEUCLSP0",
+                      "class": "W",
+                      "includedCheckedBags": {
+                        "quantity": 1
+                      },
+                      "includedCabinBags": {
+                        "quantity": 1
+                      }
+                    }
+                  ]
+                }
+              ],
+              "flight_kind": "round_trip",
+              "round_trip_pair_id": "0941237b-d77b-4f8d-8d94-5d2e8d0fd006",
+              "_ranking": {
+                "score": 38.84,
+                "stops": 0,
+                "price": 363.96,
+                "duration_minutes": 200,
+                "eligible": true,
+                "ineligibility_reason": "",
+                "currency": "GBP"
+              }
+            },
+            {
+              "type": "flight-offer",
+              "id": "114",
+              "source": "GDS",
+              "instantTicketingRequired": false,
+              "nonHomogeneous": false,
+              "oneWay": false,
+              "isUpsellOffer": false,
+              "lastTicketingDate": "2026-03-31",
+              "lastTicketingDateTime": "2026-03-31",
+              "numberOfBookableSeats": 9,
+              "itineraries": [
+                {
+                  "duration": "PT1H40M",
+                  "segments": [
+                    {
+                      "departure": {
+                        "iataCode": "ZRH",
+                        "at": "2026-05-12T18:00:00"
+                      },
+                      "arrival": {
+                        "iataCode": "LCY",
+                        "at": "2026-05-12T18:40:00"
+                      },
+                      "carrierCode": "LX",
+                      "number": "466",
+                      "aircraft": {
+                        "code": "290"
+                      },
+                      "operating": {
+                        "carrierCode": "2L"
+                      },
+                      "duration": "PT1H40M",
+                      "id": "59",
+                      "numberOfStops": 0,
+                      "blacklistedInEU": false
+                    }
+                  ]
+                },
+                {
+                  "duration": "PT1H40M",
+                  "segments": [
+                    {
+                      "departure": {
+                        "iataCode": "LHR",
+                        "terminal": "2",
+                        "at": "2026-05-18T20:05:00"
+                      },
+                      "arrival": {
+                        "iataCode": "ZRH",
+                        "at": "2026-05-18T22:45:00"
+                      },
+                      "carrierCode": "LX",
+                      "number": "339",
+                      "aircraft": {
+                        "code": "32N"
+                      },
+                      "operating": {
+                        "carrierCode": "LX"
+                      },
+                      "duration": "PT1H40M",
+                      "id": "124",
+                      "numberOfStops": 0,
+                      "blacklistedInEU": false
+                    }
+                  ]
+                }
+              ],
+              "price": {
+                "currency": "EUR",
+                "total": "418.76",
+                "base": "270.00",
+                "fees": [
+                  {
+                    "amount": "0.00",
+                    "type": "SUPPLIER",
+                    "amount_itinerary_currency": "0.00"
+                  },
+                  {
+                    "amount": "0.00",
+                    "type": "TICKETING",
+                    "amount_itinerary_currency": "0.00"
+                  }
+                ],
+                "grandTotal": "418.76",
+                "total_itinerary_currency": "363.96",
+                "base_itinerary_currency": "234.67",
+                "grandTotal_itinerary_currency": "363.96"
+              },
+              "pricingOptions": {
+                "fareType": [
+                  "PUBLISHED"
+                ],
+                "includedCheckedBagsOnly": true
+              },
+              "validatingAirlineCodes": [
+                "LX"
+              ],
+              "travelerPricings": [
+                {
+                  "travelerId": "1",
+                  "fareOption": "STANDARD",
+                  "travelerType": "ADULT",
+                  "price": {
+                    "currency": "EUR",
+                    "total": "418.76",
+                    "base": "270.00",
+                    "total_itinerary_currency": "363.96",
+                    "base_itinerary_currency": "234.67"
+                  },
+                  "fareDetailsBySegment": [
+                    {
+                      "segmentId": "59",
+                      "cabin": "ECONOMY",
+                      "fareBasis": "LEUCLSP0",
+                      "class": "L",
+                      "includedCheckedBags": {
+                        "quantity": 1
+                      },
+                      "includedCabinBags": {
+                        "quantity": 1
+                      }
+                    },
+                    {
+                      "segmentId": "124",
+                      "cabin": "ECONOMY",
+                      "fareBasis": "WEUCLSP0",
+                      "class": "W",
+                      "includedCheckedBags": {
+                        "quantity": 1
+                      },
+                      "includedCabinBags": {
+                        "quantity": 1
+                      }
+                    }
+                  ]
+                }
+              ],
+              "flight_kind": "round_trip",
+              "round_trip_pair_id": "11c6e7e4-e063-4e91-9e08-f4be62465739",
+              "_ranking": {
+                "score": 38.84,
+                "stops": 0,
+                "price": 363.96,
+                "duration_minutes": 200,
+                "eligible": true,
+                "ineligibility_reason": "",
+                "currency": "GBP"
+              }
+            },
+            {
+              "type": "flight-offer",
+              "id": "135",
+              "source": "GDS",
+              "instantTicketingRequired": false,
+              "nonHomogeneous": false,
+              "oneWay": false,
+              "isUpsellOffer": false,
+              "lastTicketingDate": "2026-04-02",
+              "lastTicketingDateTime": "2026-04-02",
+              "numberOfBookableSeats": 9,
+              "itineraries": [
+                {
+                  "duration": "PT1H40M",
+                  "segments": [
+                    {
+                      "departure": {
+                        "iataCode": "ZRH",
+                        "at": "2026-05-12T08:00:00"
+                      },
+                      "arrival": {
+                        "iataCode": "LCY",
+                        "at": "2026-05-12T08:40:00"
+                      },
+                      "carrierCode": "LX",
+                      "number": "460",
+                      "aircraft": {
+                        "code": "295"
+                      },
+                      "operating": {
+                        "carrierCode": "2L"
+                      },
+                      "duration": "PT1H40M",
+                      "id": "55",
+                      "numberOfStops": 0,
+                      "blacklistedInEU": false
+                    }
+                  ]
+                },
+                {
+                  "duration": "PT1H40M",
+                  "segments": [
+                    {
+                      "departure": {
+                        "iataCode": "LHR",
+                        "terminal": "2",
+                        "at": "2026-05-18T06:00:00"
+                      },
+                      "arrival": {
+                        "iataCode": "ZRH",
+                        "at": "2026-05-18T08:40:00"
+                      },
+                      "carrierCode": "LX",
+                      "number": "345",
+                      "aircraft": {
+                        "code": "223"
+                      },
+                      "operating": {
+                        "carrierCode": "BT"
+                      },
+                      "duration": "PT1H40M",
+                      "id": "119",
+                      "numberOfStops": 0,
+                      "blacklistedInEU": false
+                    }
+                  ]
+                }
+              ],
+              "price": {
+                "currency": "EUR",
+                "total": "435.67",
+                "base": "288.00",
+                "fees": [
+                  {
+                    "amount": "0.00",
+                    "type": "SUPPLIER",
+                    "amount_itinerary_currency": "0.00"
+                  },
+                  {
+                    "amount": "0.00",
+                    "type": "TICKETING",
+                    "amount_itinerary_currency": "0.00"
+                  }
+                ],
+                "grandTotal": "435.67",
+                "total_itinerary_currency": "378.66",
+                "base_itinerary_currency": "250.31",
+                "grandTotal_itinerary_currency": "378.66"
+              },
+              "pricingOptions": {
+                "fareType": [
+                  "PUBLISHED"
+                ],
+                "includedCheckedBagsOnly": true
+              },
+              "validatingAirlineCodes": [
+                "LX"
+              ],
+              "travelerPricings": [
+                {
+                  "travelerId": "1",
+                  "fareOption": "STANDARD",
+                  "travelerType": "ADULT",
+                  "price": {
+                    "currency": "EUR",
+                    "total": "435.67",
+                    "base": "288.00",
+                    "total_itinerary_currency": "378.66",
+                    "base_itinerary_currency": "250.31"
+                  },
+                  "fareDetailsBySegment": [
+                    {
+                      "segmentId": "55",
+                      "cabin": "ECONOMY",
+                      "fareBasis": "SEUCLSP0",
+                      "class": "S",
+                      "includedCheckedBags": {
+                        "quantity": 1
+                      },
+                      "includedCabinBags": {
+                        "quantity": 1
+                      }
+                    },
+                    {
+                      "segmentId": "119",
+                      "cabin": "ECONOMY",
+                      "fareBasis": "SEUCLSP0",
+                      "class": "S",
+                      "includedCheckedBags": {
+                        "quantity": 1
+                      },
+                      "includedCabinBags": {
+                        "quantity": 1
+                      }
+                    }
+                  ]
+                }
+              ],
+              "flight_kind": "round_trip",
+              "round_trip_pair_id": "ff2c254e-8df9-4e5e-90af-497e7dd49d71",
+              "_ranking": {
+                "score": 36,
+                "stops": 0,
+                "price": 378.66,
+                "duration_minutes": 200,
+                "eligible": true,
+                "ineligibility_reason": "",
+                "currency": "GBP"
+              }
+            }
+          ]
+        }
+      ],
+      "hotels": [],
+      "summary": {
+        "itinerary_start_date": "2026-05-12",
+        "itinerary_end_date": "2026-05-18",
+        "total_duration_days": 6,
+        "itinerary_currency": "GBP"
+      },
+      "itinerary_id": "8a23f1cf-6038-40bd-905d-e03eaeaefd63",
+      "prompt_id": "resp_06729c188aaa78540069cade869bfc8194b496b0e7f06d2452"
+    },
+    "prompt_id": "resp_06729c188aaa78540069cade869bfc8194b496b0e7f06d2452"
+  }

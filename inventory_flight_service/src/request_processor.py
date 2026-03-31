@@ -3,6 +3,7 @@ import copy
 import json
 import logging
 import re
+import uuid
 from collections import defaultdict
 from typing import Any, Awaitable, Callable
 
@@ -100,31 +101,6 @@ def _date_part(dt_str: str) -> str:
     return dt_str[:10] if len(dt_str) >= 10 else dt_str
 
 
-def _halve_numeric_price_strings(price_dict: dict[str, Any]) -> None:
-    """Halve common Amadeus price fields in-place (round-trip → per-leg share)."""
-    for k in ("grandTotal", "total", "base"):
-        v = price_dict.get(k)
-        if isinstance(v, str) and v.strip():
-            try:
-                x = float(v)
-                price_dict[k] = f"{x / 2.0:.2f}"
-            except ValueError:
-                pass
-        elif isinstance(v, (int, float)):
-            price_dict[k] = round(float(v) / 2.0, 2)
-
-
-def _halve_prices_in_offer(option: dict[str, Any]) -> None:
-    p = option.get("price")
-    if isinstance(p, dict):
-        _halve_numeric_price_strings(p)
-    tps = option.get("travelerPricings")
-    if isinstance(tps, list):
-        for tp in tps:
-            if isinstance(tp, dict) and isinstance(tp.get("price"), dict):
-                _halve_numeric_price_strings(tp["price"])
-
-
 def _segment_dep_iata(seg: dict[str, Any]) -> str:
     dep = seg.get("departure")
     if isinstance(dep, dict):
@@ -153,54 +129,94 @@ def _split_segments_for_roundtrip(
     return segments[:j], segments[j:]
 
 
-def _split_roundtrip_offer_to_legs(
+def _segment_dep_at(seg: dict[str, Any]) -> str:
+    dep = seg.get("departure")
+    if isinstance(dep, dict):
+        at = dep.get("at")
+        if isinstance(at, str) and at.strip():
+            return at.strip()
+    return ""
+
+
+def _segment_arr_at(seg: dict[str, Any]) -> str:
+    arr = seg.get("arrival")
+    if isinstance(arr, dict):
+        at = arr.get("at")
+        if isinstance(at, str) and at.strip():
+            return at.strip()
+    return ""
+
+
+def _round_trip_outbound_return_segments(
     option: dict[str, Any],
     *,
     return_from: str,
-) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
-    """
-    Split an Amadeus round-trip offer into outbound-only and return-only options.
-    Prefers two itineraries; falls back to splitting segments in a single itinerary.
-    Prices are halved per leg so downstream totals do not double-count RT fare.
-    """
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]] | None:
+    """Outbound and return segment lists for a full round-trip offer (two itineraries or one)."""
     itins = option.get("itineraries")
     if not isinstance(itins, list) or not itins:
-        return None, None
-
+        return None
     if len(itins) >= 2:
-        out_itin = itins[0]
-        ret_itin = itins[1]
-        if not isinstance(out_itin, dict) or not isinstance(ret_itin, dict):
-            return None, None
-        out_opt = copy.deepcopy(option)
-        out_opt["itineraries"] = [copy.deepcopy(out_itin)]
-        ret_opt = copy.deepcopy(option)
-        ret_opt["itineraries"] = [copy.deepcopy(ret_itin)]
-        _halve_prices_in_offer(out_opt)
-        _halve_prices_in_offer(ret_opt)
-        return out_opt, ret_opt
-
+        o0 = itins[0]
+        o1 = itins[1]
+        if not isinstance(o0, dict) or not isinstance(o1, dict):
+            return None
+        out_s = o0.get("segments")
+        ret_s = o1.get("segments")
+        if not isinstance(out_s, list) or not isinstance(ret_s, list) or not out_s or not ret_s:
+            return None
+        return out_s, ret_s
     first = itins[0]
     if not isinstance(first, dict):
-        return None, None
+        return None
     segs = first.get("segments")
     if not isinstance(segs, list) or len(segs) < 2:
-        return None, None
+        return None
     split = _split_segments_for_roundtrip(segs, return_from=return_from)
     if split is None:
-        return None, None
+        return None
     out_segs, ret_segs = split
-    out_itin = copy.deepcopy(first)
-    out_itin["segments"] = list(out_segs)
-    ret_itin = copy.deepcopy(first)
-    ret_itin["segments"] = list(ret_segs)
-    out_opt = copy.deepcopy(option)
-    out_opt["itineraries"] = [out_itin]
-    ret_opt = copy.deepcopy(option)
-    ret_opt["itineraries"] = [ret_itin]
-    _halve_prices_in_offer(out_opt)
-    _halve_prices_in_offer(ret_opt)
-    return out_opt, ret_opt
+    if not out_segs or not ret_segs:
+        return None
+    return out_segs, ret_segs
+
+
+def _tag_roundtrip_offer_full(opt: dict[str, Any]) -> None:
+    """Mark a full Amadeus round-trip offer for downstream (itinerary composer)."""
+    opt["flight_kind"] = "round_trip"
+    opt["round_trip_pair_id"] = str(uuid.uuid4())
+
+
+def _append_roundtrip_full_to_groups(
+    groups: dict[tuple[str, str, str, str], list[dict[str, Any]]],
+    group_depart_dt: dict[tuple[str, str, str, str], str],
+    group_arrive_dt: dict[tuple[str, str, str, str], str],
+    group_rt_meta: dict[tuple[str, str, str, str], dict[str, str]],
+    origin_o: str,
+    dest_o: str,
+    return_from: str,
+    return_to: str,
+    opt: dict[str, Any],
+) -> None:
+    split = _round_trip_outbound_return_segments(opt, return_from=return_from)
+    if split is None:
+        return
+    out_segs, ret_segs = split
+    out_dep = _segment_dep_at(out_segs[0])
+    ret_dep = _segment_dep_at(ret_segs[0])
+    ret_arr = _segment_arr_at(ret_segs[-1])
+    key = (origin_o, dest_o, _date_part(out_dep), _date_part(ret_dep))
+    groups[key].append(opt)
+    if key not in group_depart_dt and out_dep:
+        group_depart_dt[key] = _date_part(out_dep)
+        group_arrive_dt[key] = _date_part(ret_arr)
+    if key not in group_rt_meta:
+        group_rt_meta[key] = {
+            "return_from": return_from.strip().upper(),
+            "return_to": return_to.strip().upper(),
+            "flight_kind": "round_trip",
+            "return_depart_date": _date_part(ret_dep),
+        }
 
 
 def _append_option_to_groups(
@@ -395,6 +411,7 @@ async def process_incoming_message(
     groups: dict[GroupKey, list[dict[str, Any]]] = defaultdict(list)
     group_depart_dt: dict[GroupKey, str] = {}
     group_arrive_dt: dict[GroupKey, str] = {}
+    group_rt_meta: dict[GroupKey, dict[str, str]] = {}
 
     for translated, result in zip(flight_requests, processed_results):
         if isinstance(result, Exception):
@@ -430,31 +447,24 @@ async def process_incoming_message(
             for opt in options:
                 if not isinstance(opt, dict):
                     continue
-                out_opt, ret_opt = _split_roundtrip_offer_to_legs(
-                    opt,
-                    return_from=origin_r,
-                )
-                if out_opt is None or ret_opt is None:
+                opt_full = copy.deepcopy(opt)
+                if _round_trip_outbound_return_segments(opt_full, return_from=origin_r) is None:
                     logger.warning(
-                        "Could not split round-trip offer into legs; skipping (offer id=%s)",
+                        "Could not parse round-trip offer segments; skipping (offer id=%s)",
                         opt.get("id"),
                     )
                     continue
-                _append_option_to_groups(
+                _tag_roundtrip_offer_full(opt_full)
+                _append_roundtrip_full_to_groups(
                     groups,
                     group_depart_dt,
                     group_arrive_dt,
+                    group_rt_meta,
                     origin_o,
                     dest_o,
-                    out_opt,
-                )
-                _append_option_to_groups(
-                    groups,
-                    group_depart_dt,
-                    group_arrive_dt,
                     origin_r,
                     dest_r,
-                    ret_opt,
+                    opt_full,
                 )
             continue
 
@@ -474,15 +484,17 @@ async def process_incoming_message(
     for key in sorted(groups.keys(), key=lambda k: (k[2], k[3], k[0], k[1])):
         origin, destination, _, _ = key
         opts = groups[key]
-        results["flights"].append(
-            {
-                "depart_date": group_depart_dt.get(key, ""),
-                "arrive_date": group_arrive_dt.get(key, ""),
-                "from": origin,
-                "to": destination,
-                "options": opts,
-            }
-        )
+        entry: dict[str, Any] = {
+            "depart_date": group_depart_dt.get(key, ""),
+            "arrive_date": group_arrive_dt.get(key, ""),
+            "from": origin,
+            "to": destination,
+            "options": opts,
+        }
+        meta = group_rt_meta.get(key)
+        if meta:
+            entry.update(meta)
+        results["flights"].append(entry)
 
     logger.info(
         "Processed inventory flight message with %d translated requests (%d flight requests), %d legs",

@@ -305,6 +305,174 @@ class ComposeItineraryTest(unittest.IsolatedAsyncioTestCase):
         out = await compose_itinerary({"id": "x"}, exchange_rate_latest_url="")
         self.assertEqual(out["itineraries"], [])
 
+    async def test_multi_itinerary_round_trip_flight_only(self) -> None:
+        """Full Amadeus offer with two itineraries: one flight group, no hotel."""
+        legs = [
+            {"from": "ZRH", "to": "LAX", "depart_dates": ["2026-06-01"]},
+            {"from": "LAX", "to": "ZRH", "depart_dates": ["2026-06-15"]},
+        ]
+        rt_offer: dict[str, Any] = {
+            "type": "flight-offer",
+            "id": "rt-1",
+            "price": {"currency": "USD", "grandTotal": "900", "total": "900"},
+            "itineraries": [
+                {
+                    "segments": [
+                        {
+                            "departure": {"iataCode": "ZRH", "at": "2026-06-01T10:00:00"},
+                            "arrival": {"iataCode": "LAX", "at": "2026-06-01T22:00:00"},
+                        },
+                    ],
+                },
+                {
+                    "segments": [
+                        {
+                            "departure": {"iataCode": "LAX", "at": "2026-06-15T10:00:00"},
+                            "arrival": {"iataCode": "ZRH", "at": "2026-06-15T22:00:00"},
+                        },
+                    ],
+                },
+            ],
+        }
+        payload = _structured_payload(
+            legs=legs,
+            flights=[
+                {
+                    "depart_date": "2026-06-01",
+                    "arrive_date": "2026-06-15",
+                    "from": "ZRH",
+                    "to": "LAX",
+                    "options": [rt_offer],
+                },
+            ],
+            hotels=[],
+        )
+        out = await compose_itinerary(payload, exchange_rate_latest_url="")
+        its = out["itineraries"]
+        self.assertEqual(len(its), 1)
+        self.assertEqual(len(its[0]["flights"]), 1)
+        self.assertEqual(len(its[0]["flights"][0]["options"][0]["itineraries"]), 2)
+        self.assertEqual(its[0]["hotels"], [])
+
+    async def test_multi_itinerary_rt_hotel_between_itineraries(self) -> None:
+        """
+        Hotel stay between itinerary 1 and 2: itin1 last arrival date = check-in,
+        itin2 first departure date = check-out (same city as gap endpoints).
+        """
+        legs = [
+            {"from": "ZRH", "to": "LAX", "depart_dates": ["2026-06-01"]},
+            {"from": "LAX", "to": "ZRH", "depart_dates": ["2026-06-15"]},
+        ]
+        rt_offer: dict[str, Any] = {
+            "type": "flight-offer",
+            "id": "rt-1",
+            "price": {"currency": "USD", "grandTotal": "900", "total": "900"},
+            "itineraries": [
+                {
+                    "segments": [
+                        {
+                            "departure": {"iataCode": "ZRH", "at": "2026-06-01T10:00:00"},
+                            "arrival": {"iataCode": "LAX", "at": "2026-06-01T22:00:00"},
+                        },
+                    ],
+                },
+                {
+                    "segments": [
+                        {
+                            "departure": {"iataCode": "LAX", "at": "2026-06-15T10:00:00"},
+                            "arrival": {"iataCode": "ZRH", "at": "2026-06-15T22:00:00"},
+                        },
+                    ],
+                },
+            ],
+        }
+        payload = _structured_payload(
+            legs=legs,
+            flights=[
+                {
+                    "depart_date": "2026-06-01",
+                    "arrive_date": "2026-06-15",
+                    "from": "ZRH",
+                    "to": "LAX",
+                    "options": [rt_offer],
+                },
+            ],
+            hotels=[
+                _hotel_group(
+                    city_code="LAX",
+                    check_in="2026-06-01",
+                    check_out="2026-06-15",
+                    total="200",
+                ),
+            ],
+        )
+        out = await compose_itinerary(payload, exchange_rate_latest_url="")
+        its = out["itineraries"]
+        self.assertGreaterEqual(len(its), 1)
+        matched = [it for it in its if len(it.get("hotels", [])) == 1 and len(it.get("flights", [])) == 1]
+        self.assertEqual(len(matched), 1)
+        it = matched[0]
+        self.assertEqual(it["hotels"][0]["city_code"], "LAX")
+        self.assertEqual(len(it["flights"][0]["options"][0]["itineraries"]), 2)
+
+    async def test_multi_itinerary_london_metro_different_airports_hotel_lon(self) -> None:
+        """
+        Outbound arrives LCY, return departs LHR — hotel coded LON must still match the gap
+        when check-in/out dates align with segment boundaries.
+        """
+        legs = [
+            {"from": "ZRH", "to": "LON", "depart_dates": ["2026-05-15"]},
+            {"from": "LON", "to": "ZRH", "depart_dates": ["2026-05-18"]},
+        ]
+        rt_offer: dict[str, Any] = {
+            "type": "flight-offer",
+            "id": "rt-lon",
+            "price": {"currency": "EUR", "grandTotal": "397.30", "total": "397.30"},
+            "itineraries": [
+                {
+                    "segments": [
+                        {
+                            "departure": {"iataCode": "ZRH", "at": "2026-05-15T08:00:00"},
+                            "arrival": {"iataCode": "LCY", "at": "2026-05-15T08:40:00"},
+                        },
+                    ],
+                },
+                {
+                    "segments": [
+                        {
+                            "departure": {"iataCode": "LHR", "at": "2026-05-18T06:00:00"},
+                            "arrival": {"iataCode": "ZRH", "at": "2026-05-18T08:40:00"},
+                        },
+                    ],
+                },
+            ],
+        }
+        payload = _structured_payload(
+            legs=legs,
+            flights=[
+                {
+                    "depart_date": "2026-05-15",
+                    "arrive_date": "2026-05-18",
+                    "from": "ZRH",
+                    "to": "LON",
+                    "options": [rt_offer],
+                },
+            ],
+            hotels=[
+                _hotel_group(
+                    city_code="LON",
+                    check_in="2026-05-15",
+                    check_out="2026-05-18",
+                    total="350",
+                ),
+            ],
+        )
+        out = await compose_itinerary(payload, exchange_rate_latest_url="")
+        its = out["itineraries"]
+        with_hotel = [it for it in its if len(it.get("hotels", [])) == 1]
+        self.assertEqual(len(with_hotel), 1)
+        self.assertEqual(with_hotel[0]["hotels"][0]["city_code"], "LON")
+
 
 if __name__ == "__main__":
     unittest.main()

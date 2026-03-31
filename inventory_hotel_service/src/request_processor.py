@@ -164,6 +164,123 @@ def _extract_stays(structured_request: dict[str, Any]) -> list[dict[str, Any]]:
     return [x for x in stays if isinstance(x, dict)]
 
 
+def _date_part(dt_str: str) -> str:
+    s = str(dt_str).strip()
+    return s[:10] if len(s) >= 10 else s
+
+
+def _seg_dep_iata(seg: dict[str, Any]) -> str:
+    dep = seg.get("departure")
+    if isinstance(dep, dict):
+        code = dep.get("iataCode")
+        if isinstance(code, str) and code.strip():
+            return code.strip().upper()
+    return ""
+
+
+def _seg_arr_iata(seg: dict[str, Any]) -> str:
+    arr = seg.get("arrival")
+    if isinstance(arr, dict):
+        code = arr.get("iataCode")
+        if isinstance(code, str) and code.strip():
+            return code.strip().upper()
+    return ""
+
+
+def _seg_dep_at(seg: dict[str, Any]) -> str:
+    dep = seg.get("departure")
+    if isinstance(dep, dict):
+        at = dep.get("at")
+        if isinstance(at, str) and at.strip():
+            return at.strip()
+    return ""
+
+
+def _seg_arr_at(seg: dict[str, Any]) -> str:
+    arr = seg.get("arrival")
+    if isinstance(arr, dict):
+        at = arr.get("at")
+        if isinstance(at, str) and at.strip():
+            return at.strip()
+    return ""
+
+
+# Same-city / metro aliases as itinerary_composer (hotel stays keyed by e.g. LON).
+_METRO_AIRPORT_GROUPS: tuple[frozenset[str], ...] = (
+    frozenset({"LHR", "LCY", "LGW", "STN", "LTN", "LON", "SEN"}),
+    frozenset({"JFK", "LGA", "EWR", "SWF", "NYC"}),
+    frozenset({"CDG", "ORY", "BVA", "PAR"}),
+    frozenset({"NRT", "HND", "TYO"}),
+    frozenset({"SFO", "OAK", "SJC"}),
+)
+
+
+def _accumulate_city_date_for_stays(
+    bucket: dict[str, set[str]],
+    city: str,
+    d: str,
+) -> None:
+    city_u = city.upper().strip()
+    if not city_u or not d:
+        return
+    bucket.setdefault(city_u, set()).add(d)
+    for group in _METRO_AIRPORT_GROUPS:
+        if city_u in group:
+            for alias in group:
+                bucket.setdefault(alias, set()).add(d)
+            break
+
+
+def _flight_group_has_multi_itinerary_offer(fg: dict[str, Any]) -> bool:
+    if str(fg.get("flight_kind", "")).strip().lower() == "round_trip":
+        return True
+    for o in fg.get("options", []) or []:
+        if not isinstance(o, dict):
+            continue
+        itins = o.get("itineraries")
+        if isinstance(itins, list) and len(itins) >= 2:
+            return True
+    return False
+
+
+def _accumulate_gap_dates_from_multi_itinerary_offers(
+    fg: dict[str, Any],
+    arrive_dates_by_dest: dict[str, set[str]],
+    depart_dates_by_origin: dict[str, set[str]],
+) -> None:
+    """
+    For full round-trip offers (2+ itineraries), group-level from/to/dates do not describe
+    the destination stay window. Use last arrival of itinerary 1 and first departure of
+    itinerary 2 so stays (e.g. city LON) get correct check-in / check-out dates.
+    """
+    for opt in fg.get("options", []) or []:
+        if not isinstance(opt, dict):
+            continue
+        itins = opt.get("itineraries")
+        if not isinstance(itins, list) or len(itins) < 2:
+            continue
+        it0 = itins[0]
+        it1 = itins[1]
+        if not isinstance(it0, dict) or not isinstance(it1, dict):
+            continue
+        segs0 = it0.get("segments")
+        segs1 = it1.get("segments")
+        if not isinstance(segs0, list) or not segs0 or not isinstance(segs1, list) or not segs1:
+            continue
+        last0 = segs0[-1]
+        first1 = segs1[0]
+        arr_ap = _seg_arr_iata(last0)
+        dep_ap = _seg_dep_iata(first1)
+        arr_dt = _seg_arr_at(last0)
+        dep_dt = _seg_dep_at(first1)
+        if not arr_ap or not dep_ap or not arr_dt or not dep_dt:
+            continue
+        d_arr = _date_part(arr_dt)
+        d_dep = _date_part(dep_dt)
+        _accumulate_city_date_for_stays(arrive_dates_by_dest, arr_ap, d_arr)
+        _accumulate_city_date_for_stays(depart_dates_by_origin, dep_ap, d_dep)
+
+
 def _build_stays_from_flight_groups(
     flight_groups: list[dict[str, Any]],
     stays: list[dict[str, Any]],
@@ -174,6 +291,11 @@ def _build_stays_from_flight_groups(
     depart_dates_by_origin: dict[str, set[str]] = defaultdict(set)
 
     for fg in flight_groups:
+        if _flight_group_has_multi_itinerary_offer(fg):
+            _accumulate_gap_dates_from_multi_itinerary_offers(
+                fg, arrive_dates_by_dest, depart_dates_by_origin
+            )
+            continue
         to_code = str(fg.get("to", "")).strip().upper()
         from_code = str(fg.get("from", "")).strip().upper()
         arrive_date = str(fg.get("arrive_date", "")).strip()
@@ -416,13 +538,6 @@ async def process_incoming_message(
         stays,
         currency,
         travelers,
-    )
-    await emit_debug_message(
-        debug_publisher,
-        request_id,
-        "Prepared hotel list requests",
-        level="debug",
-        payload={"stays_for_hotels": stays_for_hotels},
     )
     cache: dict[str, list[dict[str, Any]]] = {}
     HotelGroupKey = tuple[str, str, str]
