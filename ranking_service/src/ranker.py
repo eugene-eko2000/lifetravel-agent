@@ -712,7 +712,12 @@ def _rank_hotels_for_date(
 def rank_single_trip(trip: dict[str, Any]) -> dict[str, Any]:
     """Rank flight and hotel options inside a single trip."""
     if not isinstance(trip, dict):
-        return {"flights": [], "hotels": [], "flight_dictionaries": {}}
+        return {
+            "flights": [],
+            "hotels": [],
+            "flight_dictionaries": {},
+            "locations_dictionary": {},
+        }
 
     flight_constraints: dict[str, Any] = {}
     hotel_constraints: dict[str, Any] = {}
@@ -738,10 +743,19 @@ def rank_single_trip(trip: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(dicts, dict):
         dicts = {}
 
+    locs = trip.get("locations_dictionary")
+    if not isinstance(locs, dict):
+        locs = {}
+    locations_out: dict[str, str] = {}
+    for k, v in locs.items():
+        if isinstance(k, str) and k.strip() and isinstance(v, str):
+            locations_out[k.strip().upper()] = v
+
     result = {
         "flights": ranked_flights,
         "hotels": ranked_hotels,
         "flight_dictionaries": dicts,
+        "locations_dictionary": locations_out,
     }
     if "summary" in trip:
         result["summary"] = trip["summary"]
@@ -813,7 +827,12 @@ def rank_provider_response(provider_response: dict[str, Any]) -> dict[str, Any]:
     payloads can vary by endpoint and version.
     """
     if not isinstance(provider_response, dict):
-        return {"flights": [], "hotels": {}, "flight_dictionaries": {}}
+        return {
+            "flights": [],
+            "hotels": {},
+            "flight_dictionaries": {},
+            "locations_dictionary": {},
+        }
 
     constraints = provider_response.get("constraints")
     if not isinstance(constraints, dict):
@@ -856,8 +875,16 @@ def rank_provider_response(provider_response: dict[str, Any]) -> dict[str, Any]:
     dicts = provider_response.get("flight_dictionaries")
     if not isinstance(dicts, dict):
         dicts = {}
+    locs_raw = provider_response.get("locations_dictionary")
+    if not isinstance(locs_raw, dict):
+        locs_raw = {}
+    locations_out: dict[str, str] = {}
+    for k, v in locs_raw.items():
+        if isinstance(k, str) and k.strip() and isinstance(v, str):
+            locations_out[k.strip().upper()] = v
     result["flights"] = ranked_flights
     result["flight_dictionaries"] = dicts
+    result["locations_dictionary"] = locations_out
     result["hotels"] = ranked_hotels
     flight_count_out = (
         sum(

@@ -307,6 +307,7 @@ GOLDEN_RANKED_PROVIDER_RESPONSE = {
         },
     ],
     "flight_dictionaries": {},
+    "locations_dictionary": {},
     "hotels": {
         "2026-04-19": [
             {
@@ -546,6 +547,7 @@ class RankerTest(unittest.TestCase):
         ranked = rank_provider_response({"flights": "bad", "hotels": "bad"})
         self.assertEqual(ranked["flights"], [])
         self.assertEqual(ranked["flight_dictionaries"], {})
+        self.assertEqual(ranked["locations_dictionary"], {})
         self.assertEqual(ranked["hotels"], {})
 
     def test_rank_single_trip_with_grouped_format(self) -> None:
@@ -585,6 +587,7 @@ class RankerTest(unittest.TestCase):
         self.assertIn("flights", ranked)
         self.assertIn("hotels", ranked)
         self.assertEqual(ranked["flight_dictionaries"], {})
+        self.assertEqual(ranked["locations_dictionary"], {})
         self.assertEqual(len(ranked["flights"]), 2)
         self.assertEqual(len(ranked["hotels"]), 2)
 
@@ -635,11 +638,24 @@ class RankerTest(unittest.TestCase):
             }
         )
         self.assertEqual(ranked["flight_dictionaries"], dicts)
+        self.assertEqual(ranked["locations_dictionary"], {})
+
+    def test_rank_single_trip_passes_through_locations_dictionary(self) -> None:
+        locs = {"ZRH": "Zurich", "del": "New Delhi"}
+        ranked = rank_single_trip(
+            {
+                "flights": [],
+                "hotels": [],
+                "locations_dictionary": locs,
+            }
+        )
+        self.assertEqual(ranked["locations_dictionary"], {"ZRH": "Zurich", "DEL": "New Delhi"})
 
     def test_rank_single_trip_empty(self) -> None:
         ranked = rank_single_trip({"flights": [], "hotels": []})
         self.assertEqual(ranked["flights"], [])
         self.assertEqual(ranked["flight_dictionaries"], {})
+        self.assertEqual(ranked["locations_dictionary"], {})
         self.assertEqual(ranked["hotels"], [])
 
     def test_rank_single_trip_passes_through_prompt_id(self) -> None:

@@ -77,14 +77,18 @@ def _structured_payload(
     hotels: list[dict[str, Any]],
     request_id: str = "compose-test-1",
     llm_prompt_id: str | None = None,
+    stays: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
+    trip_inner: dict[str, Any] = {
+        "timezone": "UTC",
+        "travelers": 1,
+        "legs": legs,
+    }
+    if stays is not None:
+        trip_inner["stays"] = stays
     sr: dict[str, Any] = {
         "output": {
-            "trip": {
-                "timezone": "UTC",
-                "travelers": 1,
-                "legs": legs,
-            },
+            "trip": trip_inner,
             "budgets": {
                 "flights": {"amount": 5000, "currency": "USD", "scope": "total_trip"},
                 "hotels": {"amount": 500, "currency": "USD", "scope": "per_night"},
@@ -143,6 +147,57 @@ class ComposeTripTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(it["flights"][1]["to"], "CCC")
         self.assertEqual(it["hotels"], [])
         self.assertEqual(it["summary"]["trip_currency"], "USD")
+
+    async def test_locations_dictionary_from_structured_request(self) -> None:
+        """Leg from/to locations and stay city labels are copied onto each composed trip."""
+        payload = _structured_payload(
+            legs=[
+                {
+                    "from": "AAA",
+                    "to": "BBB",
+                    "depart_dates": ["2026-06-01"],
+                    "from_location": "Alpha City",
+                    "to_location": "Bravo City",
+                },
+                {
+                    "from": "BBB",
+                    "to": "CCC",
+                    "depart_dates": ["2026-06-02"],
+                    "from_location": "Bravo City",
+                    "to_location": "Charlie City",
+                },
+            ],
+            stays=[
+                {"city_code": "BBB", "city": "Bravo Town", "duration": 2},
+            ],
+            flights=[
+                _flight_group(
+                    from_="AAA",
+                    to="BBB",
+                    depart_date="2026-06-01",
+                    arrive_date="2026-06-01",
+                ),
+                _flight_group(
+                    from_="BBB",
+                    to="CCC",
+                    depart_date="2026-06-02",
+                    arrive_date="2026-06-02",
+                ),
+            ],
+            hotels=[],
+        )
+        out = await compose_trip(payload, exchange_rate_latest_url="")
+        its = out.get("trips", [])
+        self.assertEqual(len(its), 1)
+        loc = its[0].get("locations_dictionary")
+        self.assertEqual(
+            loc,
+            {
+                "AAA": "Alpha City",
+                "BBB": "Bravo Town",
+                "CCC": "Charlie City",
+            },
+        )
 
     async def test_hybrid_flight_hotel_flight_single_stay(self) -> None:
         """Hotel at (city, arrival date): flight → hotel → next flight."""

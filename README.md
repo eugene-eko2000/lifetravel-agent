@@ -79,8 +79,22 @@ chosen to align with those durations between adjacent legs.
                 "type": "object",
                 "required": ["from", "to", "depart_dates"],
                 "properties": {
-                  "from": { "type": "string" },
-                  "to": { "type": "string" },
+                  "from": {
+                    "type": "string",
+                    "description": "IATA city or metropolitan area code for origin (used by inventory)."
+                  },
+                  "to": {
+                    "type": "string",
+                    "description": "IATA city or metropolitan area code for destination (used by inventory)."
+                  },
+                  "from_location": {
+                    "type": "string",
+                    "description": "Optional human-readable origin label; complements `from`."
+                  },
+                  "to_location": {
+                    "type": "string",
+                    "description": "Optional human-readable destination label; complements `to`."
+                  },
                   "depart_dates": {
                     "type": "array",
                     "items": { "type": "string" },
@@ -154,6 +168,9 @@ chosen to align with those durations between adjacent legs.
 
 Output produced by `inventory_flight_service.request_processor.process_incoming_message(...)`.
 Flights are grouped by `(depart_date, arrive_date, from, to)` — one group per unique combination.
+`flight_dictionaries` (when present) is merged from Amadeus flight-offers `data.dictionaries` across
+all fetches for the request (e.g. `locations`, `carriers`, `aircraft`) so clients can resolve codes
+referenced in offers.
 In RabbitMQ transport, this object is wrapped as:
 `{ "id": "...", "structured_request": {...}, "prompt_id": "...", "provider_flight_response": <TripFlightResponse> }`
 (`prompt_id` optional; echoed from `structured_request.prompt_id` / query_router).
@@ -182,6 +199,11 @@ In RabbitMQ transport, this object is wrapped as:
           }
         }
       }
+    },
+    "flight_dictionaries": {
+      "type": "object",
+      "description": "Merged Amadeus flight shopping dictionaries for this request; omitted when empty.",
+      "additionalProperties": true
     }
   },
   "additionalProperties": false
@@ -192,6 +214,8 @@ In RabbitMQ transport, this object is wrapped as:
 
 Output produced by `inventory_hotel_service.request_processor.process_incoming_message(...)`.
 It preserves incoming grouped flights and adds hotel options grouped by stay window.
+When the incoming flight message included `provider_flight_response.flight_dictionaries`, the same
+object is copied onto `provider_response.flight_dictionaries`.
 In RabbitMQ transport, this object is wrapped as:
 `{ "id": "...", "structured_request": {...}, "prompt_id": "...", "provider_response": <TripInventoryResponse> }`
 (`prompt_id` optional).
@@ -203,6 +227,11 @@ In RabbitMQ transport, this object is wrapped as:
   "type": "object",
   "required": ["flights", "hotels"],
   "properties": {
+    "flight_dictionaries": {
+      "type": "object",
+      "description": "Pass-through from `provider_flight_response.flight_dictionaries` when present; merged Amadeus dictionaries for decoding flight offers.",
+      "additionalProperties": true
+    },
     "flights": {
       "type": "array",
       "description": "Source input from provider_flight_response.flights.",
@@ -247,6 +276,10 @@ Each message carries a single trip (not a list) together with its index and the
 total count so the frontend can track progress.
 
 **Composition rules:** If `provider_response.hotels` is **empty**, trips use **flights only**: consecutive flights `A` then `B` are allowed when `A.to == B.from` and `A.arrive_date <= B.depart_date` (date-only), from trip start airport to trip end airport. If `hotels` is **non-empty**, composition is **hybrid** per intermediate stop: where there is hotel inventory for **(arrival city, arrival date)**, the chain uses **flight → hotel → flight** (next flight departs on hotel check-out from that city). Where there is **no** hotel for that stop, the chain continues with **flight → flight** using the same date/location edge rule as flight-only. Each trip is capped at 500 variants.
+`provider_response.flight_dictionaries` (when present) is copied onto each composed `trip.flight_dictionaries`.
+`trip.locations_dictionary` maps IATA codes to human-readable labels from the structured request:
+each leg contributes `from` → `from_location` and `to` → `to_location`; each stay contributes
+`city_code` → `city` (stays overwrite a code if it was already set from a leg).
 
 In RabbitMQ transport:
 `{ "id": "...", "trip_index": 0, "trip_count": N, "trip": <Trip>, "prompt_id": "..." }`
@@ -265,12 +298,22 @@ In RabbitMQ transport:
     "trip_count": { "type": "integer", "description": "Total number of trips for this request." },
     "trip": {
       "type": "object",
-      "required": ["trip_id", "flights", "hotels", "summary"],
+      "required": ["trip_id", "flights", "hotels", "summary", "locations_dictionary"],
       "properties": {
         "trip_id": { "type": "string", "format": "uuid", "description": "Unique id for this composed trip instance." },
         "prompt_id": {
           "type": "string",
           "description": "OpenAI Responses id from the LLM structuring turn; use as previous_response_id for follow-up turns. Same nesting as trip correlation fields."
+        },
+        "flight_dictionaries": {
+          "type": "object",
+          "description": "Merged Amadeus flight dictionaries for this pipeline request; copied from `provider_response` when present.",
+          "additionalProperties": true
+        },
+        "locations_dictionary": {
+          "type": "object",
+          "description": "IATA code → display string from structured_request `trip.legs` (from/to locations) and `trip.stays` (city_code → city); empty object when none.",
+          "additionalProperties": { "type": "string" }
         },
         "flights": {
           "type": "array",
@@ -358,6 +401,7 @@ In RabbitMQ transport (routing key `trip:empty`):
 
 Published by `ranking_service` for **each** trip individually.
 Flight and hotel options inside the trip are scored and sorted by score descending.
+`locations_dictionary` is passed through from the composed trip (keys normalized to uppercase).
 
 In RabbitMQ transport:
 `{ "id": "...", "trip_index": 0, "trip_count": N, "ranked_trip": <RankedTrip>, "prompt_id": "..." }`
@@ -376,11 +420,21 @@ In RabbitMQ transport:
     "trip_count": { "type": "integer", "description": "Total number of trips for this request." },
     "ranked_trip": {
       "type": "object",
-      "required": ["trip_id", "flights", "hotels", "summary"],
-      "description": "Same shape as ComposedTripMessage.trip but each option has a _ranking annotation.",
+      "required": ["trip_id", "flights", "hotels", "summary", "flight_dictionaries", "locations_dictionary"],
+      "description": "Same shape as ComposedTripMessage.trip but each option has a _ranking annotation; `flight_dictionaries` and `locations_dictionary` are always present (empty object when none).",
       "properties": {
         "trip_id": { "type": "string", "format": "uuid", "description": "Passed through from composed trip." },
         "prompt_id": { "type": "string", "description": "Passed through from composed trip; OpenAI structuring turn id." },
+        "flight_dictionaries": {
+          "type": "object",
+          "description": "Merged Amadeus flight dictionaries; passed through from composed trip (empty object when none).",
+          "additionalProperties": true
+        },
+        "locations_dictionary": {
+          "type": "object",
+          "description": "IATA code → display string from structured request; keys normalized to uppercase.",
+          "additionalProperties": { "type": "string" }
+        },
         "flights": { "type": "array", "items": { "type": "object" } },
         "hotels": { "type": "array", "items": { "type": "object" } },
         "summary": {

@@ -714,6 +714,50 @@ def _extract_trip_endpoints(payload: dict[str, Any]) -> tuple[str, str]:
     return str(first_leg.get("from", "")), str(last_leg.get("to", ""))
 
 
+def _build_locations_dictionary(payload: dict[str, Any]) -> dict[str, str]:
+    """
+    Map IATA codes to human-readable labels from structured_request trip.legs and trip.stays:
+    each leg contributes from -> from_location and to -> to_location; each stay contributes
+    city_code -> city. Stays are applied after legs (same key updates to the stay label).
+    """
+    out: dict[str, str] = {}
+    sr = payload.get("structured_request")
+    if not isinstance(sr, dict):
+        return out
+    output = sr.get("output", sr)
+    if not isinstance(output, dict):
+        return out
+    trip = output.get("trip")
+    if not isinstance(trip, dict):
+        return out
+
+    legs = trip.get("legs")
+    if isinstance(legs, list):
+        for leg in legs:
+            if not isinstance(leg, dict):
+                continue
+            from_code = str(leg.get("from", "")).strip().upper()
+            to_code = str(leg.get("to", "")).strip().upper()
+            from_loc = leg.get("from_location")
+            to_loc = leg.get("to_location")
+            if from_code and isinstance(from_loc, str) and from_loc.strip():
+                out[from_code] = from_loc.strip()
+            if to_code and isinstance(to_loc, str) and to_loc.strip():
+                out[to_code] = to_loc.strip()
+
+    stays = trip.get("stays")
+    if isinstance(stays, list):
+        for stay in stays:
+            if not isinstance(stay, dict):
+                continue
+            cc = str(stay.get("city_code", "")).strip().upper()
+            city = stay.get("city")
+            if cc and isinstance(city, str) and city.strip():
+                out[cc] = city.strip()
+
+    return out
+
+
 async def compose_trip(
     payload: dict[str, Any],
     *,
@@ -773,6 +817,7 @@ async def compose_trip(
     trip_currency = _extract_trip_currency(payload)
     prompt_id = _extract_prompt_id(payload)
     usd_rates = await _fetch_usd_rates(exchange_rate_latest_url)
+    locations_dictionary = _build_locations_dictionary(payload)
     trip_dicts: dict[str, Any] | None = None
     d0 = provider_response.get("flight_dictionaries")
     if isinstance(d0, dict) and d0:
@@ -780,6 +825,7 @@ async def compose_trip(
     for it in trips:
         if trip_dicts is not None:
             it["flight_dictionaries"] = copy.deepcopy(trip_dicts)
+        it["locations_dictionary"] = copy.deepcopy(locations_dictionary)
         it["summary"] = _compute_summary(it, trip_currency)
         it["trip_currency"] = trip_currency.upper()
         if prompt_id:

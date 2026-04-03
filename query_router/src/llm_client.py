@@ -22,8 +22,22 @@ VALID_STRUCTURED_REQUEST_SCHEMA = {
             "type": "object",
             "required": ["from", "to", "depart_dates"],
             "properties": {
-              "from": {"type": "string"},
-              "to": {"type": "string"},
+              "from": {
+                "type": "string",
+                "description": "IATA city or metropolitan area code for origin (inventory uses this).",
+              },
+              "to": {
+                "type": "string",
+                "description": "IATA city or metropolitan area code for destination (inventory uses this).",
+              },
+              "from_location": {
+                "type": "string",
+                "description": "Human-readable origin label (e.g. city or region name); complements `from`.",
+              },
+              "to_location": {
+                "type": "string",
+                "description": "Human-readable destination label; complements `to`.",
+              },
               "depart_dates": {
                 "type": "array",
                 "items": {"type": "string"},
@@ -115,6 +129,9 @@ The structured output should be a JSON object that matches the following schema:
 {VALID_STRUCTURED_REQUEST_SCHEMA}.
 
 For flights, the from and to fields should be the IATA code of the city metropolitan area.
+Also set from_location and to_location on each leg to human-readable place names (or the same
+labels the user used) so downstream UIs can show friendly text alongside codes; omit only if
+redundant.
 Each leg must include depart_dates: an array of one or more candidate departure dates (YYYY-MM-DD);
 inventory will search flights for each date and merge options.
 For hotels, the city_code field should be the IATA code of the city metropolitan area.
@@ -155,8 +172,9 @@ if the user specifies only the city name or code.
 
 If the user query misses an info for filling in required fields,
 the output should contain a text reply that asks the user to provide the missing information.
-Example: missing dates for the flight haul, missing cities / locations for the hotel stays.
-In that case the missing info output should be a JSON object that matches the following schema:
+Example: missing dates for the flight haul, missing original location, cities / locations for
+the hotel stays. In that case the missing info output should be a JSON object that matches the
+following schema:
 {MISSING_INFO_SCHEMA}.
 """
 
