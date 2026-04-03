@@ -1,5 +1,6 @@
 import json
 import logging
+from typing import Any
 
 import aio_pika
 from aio_pika import ExchangeType
@@ -86,13 +87,17 @@ async def run_inventory_subscriber() -> None:
                             status_publisher=_status_publisher,
                         )
 
+                        pfr: dict[str, Any] = {
+                            "flights": results.get("flights", []),
+                        }
+                        d = results.get("flight_dictionaries")
+                        if isinstance(d, dict) and d:
+                            pfr["flight_dictionaries"] = d
                         outgoing_payload = {
                             "id": request_id,
                             "structured_request": incoming_payload.get("structured_request"),
                             "prompt_id": incoming_payload.get("prompt_id"),
-                            "provider_flight_response": {
-                                "flights": results.get("flights", []),
-                            },
+                            "provider_flight_response": pfr,
                         }
                         await publish_provider_response(
                             exchange=exchange,

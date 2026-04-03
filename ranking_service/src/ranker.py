@@ -712,7 +712,7 @@ def _rank_hotels_for_date(
 def rank_single_trip(trip: dict[str, Any]) -> dict[str, Any]:
     """Rank flight and hotel options inside a single trip."""
     if not isinstance(trip, dict):
-        return {"flights": [], "hotels": []}
+        return {"flights": [], "hotels": [], "flight_dictionaries": {}}
 
     flight_constraints: dict[str, Any] = {}
     hotel_constraints: dict[str, Any] = {}
@@ -734,9 +734,14 @@ def rank_single_trip(trip: dict[str, Any]) -> dict[str, Any]:
         hotel_groups, hotel_constraints, currency_label=currency_label
     )
 
+    dicts = trip.get("flight_dictionaries")
+    if not isinstance(dicts, dict):
+        dicts = {}
+
     result = {
         "flights": ranked_flights,
         "hotels": ranked_hotels,
+        "flight_dictionaries": dicts,
     }
     if "summary" in trip:
         result["summary"] = trip["summary"]
@@ -808,7 +813,7 @@ def rank_provider_response(provider_response: dict[str, Any]) -> dict[str, Any]:
     payloads can vary by endpoint and version.
     """
     if not isinstance(provider_response, dict):
-        return {"flights": [], "hotels": {}}
+        return {"flights": [], "hotels": {}, "flight_dictionaries": {}}
 
     constraints = provider_response.get("constraints")
     if not isinstance(constraints, dict):
@@ -848,7 +853,11 @@ def rank_provider_response(provider_response: dict[str, Any]) -> dict[str, Any]:
             ranked_hotels[str(date_key)] = _rank_hotels_for_date(offers, hotel_constraints)
 
     result = dict(provider_response)
+    dicts = provider_response.get("flight_dictionaries")
+    if not isinstance(dicts, dict):
+        dicts = {}
     result["flights"] = ranked_flights
+    result["flight_dictionaries"] = dicts
     result["hotels"] = ranked_hotels
     flight_count_out = (
         sum(

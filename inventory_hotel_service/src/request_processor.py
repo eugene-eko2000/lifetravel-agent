@@ -1,4 +1,5 @@
 import asyncio
+import copy
 import json
 import logging
 import math
@@ -589,4 +590,10 @@ async def process_incoming_message(
         len(source_flights),
         len(hotels_out),
     )
-    return {"flights": source_flights, "hotels": hotels_out}
+    out: dict[str, Any] = {"flights": source_flights, "hotels": hotels_out}
+    pfr = payload.get("provider_flight_response")
+    if isinstance(pfr, dict):
+        d = pfr.get("flight_dictionaries")
+        if isinstance(d, dict) and d:
+            out["flight_dictionaries"] = copy.deepcopy(d)
+    return out

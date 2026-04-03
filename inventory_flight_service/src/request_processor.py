@@ -323,6 +323,37 @@ def _filter_and_limit_flight_offers(
     return out
 
 
+def _extract_amadeus_dictionaries(raw: Any) -> dict[str, Any]:
+    """
+    Amadeus flight offers search returns dictionaries next to `data`, or under `data` in some shapes.
+    """
+    if not isinstance(raw, dict):
+        return {}
+    d = raw.get("dictionaries")
+    if isinstance(d, dict):
+        return d
+    data = raw.get("data")
+    if isinstance(data, dict):
+        inner = data.get("dictionaries")
+        if isinstance(inner, dict):
+            return inner
+    return {}
+
+
+def _merge_amadeus_dictionaries(
+    base: dict[str, Any],
+    incoming: dict[str, Any],
+) -> dict[str, Any]:
+    """Shallow-merge top-level dictionary keys; merge nested dict values by key union."""
+    out = dict(base)
+    for k, v in incoming.items():
+        if k in out and isinstance(out[k], dict) and isinstance(v, dict):
+            out[k] = {**out[k], **v}
+        else:
+            out[k] = v
+    return out
+
+
 def _extract_structured_request(payload: dict[str, Any]) -> dict[str, Any]:
     structured_request = payload.get("structured_request")
     if not isinstance(structured_request, dict):
@@ -341,7 +372,7 @@ async def _process_translated_request(
     translated: dict[str, Any],
     request_id: str | None = None,
     debug_publisher: DebugPublisher | None = None,
-) -> Any:
+) -> tuple[Any, dict[str, Any]]:
     request_type = translated.get("type")
 
     if request_type in ("flight", "flight_roundtrip"):
@@ -362,15 +393,17 @@ async def _process_translated_request(
                 },
             )
             raise
+        raw_response: Any = result
+        extracted = _extract_amadeus_dictionaries(raw_response)
         if isinstance(result, dict):
             result = _filter_and_limit_flight_offers(
                 result,
                 cfg.max_flight_options_per_fetch,
             )
-        return result
+        return result, extracted
 
     logger.warning("Unknown translated request type: %s", request_type)
-    return None
+    return None, {}
 
 
 async def process_incoming_message(
@@ -387,6 +420,7 @@ async def process_incoming_message(
     results: dict[str, Any] = {
         "flights": [],
     }
+    merged_flight_dictionaries: dict[str, Any] = {}
     flight_requests = [
         x for x in translated_requests if x.get("type") in ("flight", "flight_roundtrip")
     ]
@@ -413,12 +447,12 @@ async def process_incoming_message(
     group_arrive_dt: dict[GroupKey, str] = {}
     group_rt_meta: dict[GroupKey, dict[str, str]] = {}
 
-    for translated, result in zip(flight_requests, processed_results):
-        if isinstance(result, Exception):
+    for translated, proc_item in zip(flight_requests, processed_results):
+        if isinstance(proc_item, Exception):
             logger.exception(
                 "Failed to process translated request: %s",
                 translated,
-                exc_info=result,
+                exc_info=proc_item,
             )
             await _emit_debug_message(
                 debug_publisher,
@@ -427,10 +461,15 @@ async def process_incoming_message(
                 level="error",
                 payload={
                     "translated": translated,
-                    "error": str(result),
+                    "error": str(proc_item),
                 },
             )
             continue
+
+        result, dict_chunk = proc_item
+        merged_flight_dictionaries = _merge_amadeus_dictionaries(
+            merged_flight_dictionaries, dict_chunk
+        )
 
         if translated.get("type") not in ("flight", "flight_roundtrip"):
             continue
@@ -495,6 +534,9 @@ async def process_incoming_message(
         if meta:
             entry.update(meta)
         results["flights"].append(entry)
+
+    if merged_flight_dictionaries:
+        results["flight_dictionaries"] = merged_flight_dictionaries
 
     logger.info(
         "Processed inventory flight message with %d translated requests (%d flight requests), %d legs",

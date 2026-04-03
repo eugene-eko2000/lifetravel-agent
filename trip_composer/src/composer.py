@@ -773,7 +773,13 @@ async def compose_trip(
     trip_currency = _extract_trip_currency(payload)
     prompt_id = _extract_prompt_id(payload)
     usd_rates = await _fetch_usd_rates(exchange_rate_latest_url)
+    trip_dicts: dict[str, Any] | None = None
+    d0 = provider_response.get("flight_dictionaries")
+    if isinstance(d0, dict) and d0:
+        trip_dicts = copy.deepcopy(d0)
     for it in trips:
+        if trip_dicts is not None:
+            it["flight_dictionaries"] = copy.deepcopy(trip_dicts)
         it["summary"] = _compute_summary(it, trip_currency)
         it["trip_currency"] = trip_currency.upper()
         if prompt_id:
