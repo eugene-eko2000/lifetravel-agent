@@ -169,6 +169,7 @@ If the user specifies explicitly that hotels aren't needed, stays array should r
 If the user specifies a certain location, not only a city, please find a lat / lng
 for this location and put it into the location_latlng field. Leave the location_latlng empty
 if the user specifies only the city name or code.
+In any case, put a city name into the "city" field, don't include an extra location name.
 
 If the user query misses an info for filling in required fields,
 the output should contain a text reply that asks the user to provide the missing information.
