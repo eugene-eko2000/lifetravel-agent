@@ -73,6 +73,20 @@ chosen to align with those durations between adjacent legs.
               "items": { "type": "string" },
               "description": "Optional IATA airline codes; flight inventory passes them to Amadeus as included carriers when non-empty."
             },
+            "cabin_preferences": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "economy_light",
+                  "economy_standard",
+                  "economy_flex",
+                  "business",
+                  "first"
+                ]
+              },
+              "description": "Optional cabin / fare preferences when the user specifies them; omit when not specified."
+            },
             "legs": {
               "type": "array",
               "items": {

@@ -72,7 +72,21 @@ VALID_STRUCTURED_REQUEST_SCHEMA = {
           "type": "array",
           "items": {"type": "string", "minLength": 2, "maxLength": 3},
           "description": "Optional IATA airline codes (e.g. LH, LX); flight inventory restricts Amadeus offers to these carriers when non-empty."
-        }
+        },
+        "cabin_preferences": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "economy_light",
+              "economy_standard",
+              "economy_flex",
+              "business",
+              "first",
+            ],
+          },
+          "description": "Optional cabin / fare-family preferences when the user specifies them (e.g. economy vs business). Omit or use an empty array when not specified.",
+        },
       }
     },
     "budgets": {
@@ -138,6 +152,11 @@ For hotels, the city_code field should be the IATA code of the city metropolitan
 
 If the user prefers specific airlines, set trip.airline_preferences to an array of IATA airline codes
 (two letters, e.g. LH, BA, QR). Omit airline_preferences or use an empty array when not specified.
+
+If the user specifies cabin or fare class preferences (economy variants, business, first), set
+trip.cabin_preferences to one or more of: economy_light, economy_standard, economy_flex, business, first.
+Map colloquial terms (e.g. "basic economy", "coach", "premium economy" if treated as flex) to the closest
+values; omit cabin_preferences or use an empty array when not specified.
 
 The user can specify beginning and end dates range in a free form. In this case consider multiple departure
 dates within a given range.
