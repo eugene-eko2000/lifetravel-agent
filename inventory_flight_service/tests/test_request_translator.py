@@ -196,5 +196,87 @@ class AirlinePreferencesTranslatorTest(unittest.TestCase):
         )
 
 
+class CabinPreferencesTranslatorTest(unittest.TestCase):
+    def test_cabin_restrictions_one_way_business(self) -> None:
+        cfg = Cfg.from_env()
+        trip = {
+            "trip": {
+                "travelers": 1,
+                "cabin_preferences": ["business"],
+                "legs": [
+                    {"from": "ZRH", "to": "LHR", "depart_dates": ["2026-06-01"]},
+                ],
+            },
+        }
+        translated = translate_trip_request_to_amadeus_requests(trip, cfg)
+        self.assertEqual(len(translated), 1)
+        ff = translated[0]["payload"]["searchCriteria"]["flightFilters"]
+        self.assertIn("cabinRestrictions", ff)
+        self.assertEqual(
+            ff["cabinRestrictions"],
+            [
+                {
+                    "cabin": "BUSINESS",
+                    "coverage": "MOST_SEGMENTS",
+                    "originDestinationIds": ["1"],
+                }
+            ],
+        )
+
+    def test_cabin_economy_variants_map_to_economy_deduped(self) -> None:
+        cfg = Cfg.from_env()
+        trip = {
+            "trip": {
+                "travelers": 1,
+                "cabin_preferences": ["economy_light", "economy_standard"],
+                "legs": [
+                    {"from": "ZRH", "to": "LHR", "depart_dates": ["2026-06-01"]},
+                ],
+            },
+        }
+        translated = translate_trip_request_to_amadeus_requests(trip, cfg)
+        cr = translated[0]["payload"]["searchCriteria"]["flightFilters"][
+            "cabinRestrictions"
+        ]
+        self.assertEqual(len(cr), 1)
+        self.assertEqual(cr[0]["cabin"], "ECONOMY")
+
+    def test_cabin_and_airline_combined(self) -> None:
+        cfg = Cfg.from_env()
+        trip = {
+            "trip": {
+                "travelers": 1,
+                "airline_preferences": ["LX"],
+                "cabin_preferences": ["first"],
+                "legs": [
+                    {"from": "ZRH", "to": "LHR", "depart_dates": ["2026-06-01"]},
+                ],
+            },
+        }
+        translated = translate_trip_request_to_amadeus_requests(trip, cfg)
+        ff = translated[0]["payload"]["searchCriteria"]["flightFilters"]
+        self.assertEqual(ff["carrierRestrictions"]["includedCarrierCodes"], ["LX"])
+        self.assertEqual(ff["cabinRestrictions"][0]["cabin"], "FIRST")
+
+    def test_roundtrip_cabin_uses_both_origin_destination_ids(self) -> None:
+        cfg = Cfg.from_env()
+        trip = {
+            "trip": {
+                "travelers": 1,
+                "cabin_preferences": ["economy_standard"],
+                "legs": [
+                    {"from": "ZRH", "to": "LAX", "depart_dates": ["2026-06-01"]},
+                    {"from": "LAX", "to": "ZRH", "depart_dates": ["2026-06-10"]},
+                ],
+            },
+        }
+        translated = translate_trip_request_to_amadeus_requests(trip, cfg)
+        self.assertEqual(len(translated), 1)
+        cr = translated[0]["payload"]["searchCriteria"]["flightFilters"][
+            "cabinRestrictions"
+        ]
+        self.assertEqual(cr[0]["originDestinationIds"], ["1", "2"])
+
+
 if __name__ == "__main__":
     unittest.main()

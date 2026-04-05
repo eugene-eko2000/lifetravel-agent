@@ -3,6 +3,36 @@ from typing import Any
 from cfg import Cfg
 
 
+# Structured LLM output (trip.cabin_preferences) → Amadeus Flight Offers Search
+# cabin enum: ECONOMY, PREMIUM_ECONOMY, BUSINESS, FIRST
+_CABIN_PREF_TO_AMADEUS: dict[str, str] = {
+    "economy_light": "ECONOMY",
+    "economy_standard": "ECONOMY",
+    "economy_flex": "ECONOMY",
+    "business": "BUSINESS",
+    "first": "FIRST",
+}
+
+
+def _normalize_cabin_preferences(trip: dict[str, Any]) -> list[str]:
+    """
+    Map trip.cabin_preferences to Amadeus cabin codes (deduplicated, stable order).
+    """
+    raw = trip.get("cabin_preferences")
+    if not isinstance(raw, list):
+        return []
+    seen: set[str] = set()
+    out: list[str] = []
+    for x in raw:
+        key = str(x).strip().lower()
+        code = _CABIN_PREF_TO_AMADEUS.get(key)
+        if code is None or code in seen:
+            continue
+        seen.add(code)
+        out.append(code)
+    return out
+
+
 def _normalize_airline_preferences(trip: dict[str, Any]) -> list[str]:
     """
     IATA airline codes for Amadeus carrierRestrictions.includedCarrierCodes (max 99).
@@ -22,15 +52,46 @@ def _normalize_airline_preferences(trip: dict[str, Any]) -> list[str]:
     return out[:99]
 
 
-def _build_search_criteria(airline_codes: list[str]) -> dict[str, Any]:
-    """Amadeus Flight Offers Search searchCriteria; optional carrier whitelist."""
-    criteria: dict[str, Any] = {"maxFlightOffers": 250}
-    if airline_codes:
-        criteria["flightFilters"] = {
-            "carrierRestrictions": {
-                "includedCarrierCodes": airline_codes,
-            }
+def _cabin_restrictions_for_origin_destinations(
+    amadeus_cabins: list[str],
+    origin_destination_ids: list[str],
+) -> list[dict[str, Any]]:
+    """One CabinRestriction per distinct cabin; same OD ids as the request body."""
+    ods = [str(x) for x in origin_destination_ids if str(x).strip()]
+    if not ods:
+        return []
+    return [
+        {
+            "cabin": cabin,
+            "coverage": "MOST_SEGMENTS",
+            "originDestinationIds": ods,
         }
+        for cabin in amadeus_cabins
+    ]
+
+
+def _build_search_criteria(
+    airline_codes: list[str],
+    amadeus_cabins: list[str],
+    origin_destination_ids: list[str],
+) -> dict[str, Any]:
+    """
+    Amadeus Flight Offers Search searchCriteria.
+    Optional carrier whitelist and/or cabin restrictions (per Amadeus Flight Offers Search v2).
+    """
+    criteria: dict[str, Any] = {"maxFlightOffers": 250}
+    flight_filters: dict[str, Any] = {}
+    if airline_codes:
+        flight_filters["carrierRestrictions"] = {
+            "includedCarrierCodes": airline_codes,
+        }
+    if amadeus_cabins:
+        flight_filters["cabinRestrictions"] = _cabin_restrictions_for_origin_destinations(
+            amadeus_cabins,
+            origin_destination_ids,
+        )
+    if flight_filters:
+        criteria["flightFilters"] = flight_filters
     return criteria
 
 
@@ -161,7 +222,9 @@ def _build_flight_requests(trip_request: dict[str, Any]) -> list[dict[str, Any]]
     legs = trip.get("legs", [])
     travelers = _build_travelers(trip_request)
     airline_prefs = _normalize_airline_preferences(trip)
-    search_criteria = _build_search_criteria(airline_prefs)
+    cabin_prefs = _normalize_cabin_preferences(trip)
+    search_criteria_one = _build_search_criteria(airline_prefs, cabin_prefs, ["1"])
+    search_criteria_rt = _build_search_criteria(airline_prefs, cabin_prefs, ["1", "2"])
 
     requests: list[dict[str, Any]] = []
     i = 0
@@ -214,7 +277,7 @@ def _build_flight_requests(trip_request: dict[str, Any]) -> list[dict[str, Any]]
                                 travelers,
                                 outbound_date,
                                 return_date,
-                                search_criteria,
+                                search_criteria_rt,
                             ),
                         }
                     )
@@ -239,7 +302,7 @@ def _build_flight_requests(trip_request: dict[str, Any]) -> list[dict[str, Any]]
                     "from": origin,
                     "to": destination,
                     "payload": _build_flight_request_for_leg(
-                        leg, index, travelers, depart_date, search_criteria
+                        leg, index, travelers, depart_date, search_criteria_one
                     ),
                 }
             )
@@ -261,6 +324,10 @@ def translate_trip_request_to_amadeus_requests(
 
     When trip.airline_preferences is a non-empty array of IATA airline codes,
     each request includes searchCriteria.flightFilters.carrierRestrictions.includedCarrierCodes.
+
+    When trip.cabin_preferences is set (economy_*, business, first), each request includes
+    searchCriteria.flightFilters.cabinRestrictions for the corresponding Amadeus cabin codes
+    (ECONOMY / BUSINESS / FIRST), scoped to the request's originDestination ids.
     """
     _ = cfg
     return _build_flight_requests(trip_request)

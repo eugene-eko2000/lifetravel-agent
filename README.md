@@ -44,6 +44,8 @@ from adjacent flight legs (`arrival` of leg N to `departure` of leg N+1) in
 `inventory_hotel_service`.
 Each stay includes `duration` (number of stay days), and flight departure dates are
 chosen to align with those durations between adjacent legs.
+When `trip.cabin_preferences` is non-empty, `inventory_flight_service` adds Amadeus Flight Offers Search
+`searchCriteria.flightFilters.cabinRestrictions` (alongside airline carrier filters when set).
 
 ```json
 {
@@ -85,7 +87,7 @@ chosen to align with those durations between adjacent legs.
                   "first"
                 ]
               },
-              "description": "Optional cabin / fare preferences when the user specifies them; omit when not specified."
+              "description": "Optional cabin preferences; `inventory_flight_service` maps them to Amadeus `cabinRestrictions` (economy_* → ECONOMY, business → BUSINESS, first → FIRST)."
             },
             "legs": {
               "type": "array",
