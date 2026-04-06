@@ -863,6 +863,92 @@ def _hotel_distance(offer: dict[str, Any]) -> float:
     return float("inf")
 
 
+def _hotel_geo_coords(offer: dict[str, Any]) -> tuple[float, float] | None:
+    """Amadeus hotel search often includes latitude/longitude on the hotel object."""
+    hotel = offer.get("hotel")
+    if not isinstance(hotel, dict):
+        return None
+    lat = hotel.get("latitude")
+    lng = hotel.get("longitude")
+    if isinstance(lat, bool) or isinstance(lng, bool):
+        return None
+    if isinstance(lat, (int, float)) and isinstance(lng, (int, float)):
+        if math.isfinite(float(lat)) and math.isfinite(float(lng)):
+            return (float(lat), float(lng))
+    return None
+
+
+def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Great-circle distance on Earth (km)."""
+    r = 6371.0
+    p1 = math.radians(lat1)
+    p2 = math.radians(lat2)
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = math.sin(dlat / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dlon / 2) ** 2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(max(0.0, 1.0 - a)))
+    return r * c
+
+
+def _stay_reference_latlng_for_city(
+    structured_request: dict[str, Any] | None,
+    city_code: str,
+) -> tuple[float, float] | None:
+    """
+    If structured_request.output.trip.stays has a stay with matching city_code and
+    non-empty location_latlng, return (lat, lng). First matching stay wins.
+    """
+    if not isinstance(structured_request, dict) or not str(city_code).strip():
+        return None
+    output = structured_request.get("output", structured_request)
+    if not isinstance(output, dict):
+        return None
+    trip = output.get("trip")
+    if not isinstance(trip, dict):
+        return None
+    stays = trip.get("stays")
+    if not isinstance(stays, list):
+        return None
+    want = str(city_code).strip().upper()
+    for stay in stays:
+        if not isinstance(stay, dict):
+            continue
+        if str(stay.get("city_code", "")).strip().upper() != want:
+            continue
+        ll = stay.get("location_latlng")
+        if not isinstance(ll, dict):
+            return None
+        lat = ll.get("lat")
+        lng = ll.get("lng")
+        if isinstance(lat, bool) or isinstance(lng, bool):
+            return None
+        if isinstance(lat, (int, float)) and isinstance(lng, (int, float)):
+            if math.isfinite(float(lat)) and math.isfinite(float(lng)):
+                return (float(lat), float(lng))
+        return None
+    return None
+
+
+def _ranking_distance_for_hotel(
+    offer: dict[str, Any],
+    reference_latlng: tuple[float, float] | None,
+) -> float:
+    """
+    Prefer haversine distance (km) from structured stay location_latlng to hotel coords;
+    otherwise Amadeus distance.value (typically km from search center).
+    """
+    if reference_latlng is not None:
+        geo = _hotel_geo_coords(offer)
+        if geo is not None:
+            return _haversine_km(
+                reference_latlng[0],
+                reference_latlng[1],
+                geo[0],
+                geo[1],
+            )
+    return _hotel_distance(offer)
+
+
 def _hotel_rating(offer: dict[str, Any]) -> float:
     hotel = offer.get("hotel")
     if not isinstance(hotel, dict):
@@ -903,6 +989,19 @@ def _hotel_amenities_match(offer: dict[str, Any], must_have: list[str]) -> float
     return matched / max(1, len(required))
 
 
+def _reference_latlng_from_constraints(constraints: dict[str, Any]) -> tuple[float, float] | None:
+    raw = constraints.get("reference_latlng")
+    if not isinstance(raw, (list, tuple)) or len(raw) != 2:
+        return None
+    a, b = raw[0], raw[1]
+    if isinstance(a, bool) or isinstance(b, bool):
+        return None
+    if isinstance(a, (int, float)) and isinstance(b, (int, float)):
+        if math.isfinite(float(a)) and math.isfinite(float(b)):
+            return (float(a), float(b))
+    return None
+
+
 def _rank_hotels_for_date(
     offers: list[dict[str, Any]],
     constraints: dict[str, Any],
@@ -917,6 +1016,7 @@ def _rank_hotels_for_date(
     min_star = _safe_float(constraints.get("min_star_rating"), 0.0)
     must_have = constraints.get("must_have_amenities")
     must_have_list = must_have if isinstance(must_have, list) else []
+    ref_latlng = _reference_latlng_from_constraints(constraints)
 
     eligible: list[dict[str, Any]] = []
     for offer in offers:
@@ -932,7 +1032,7 @@ def _rank_hotels_for_date(
         rec = {
             "offer": offer,
             "ppn": ppn,
-            "distance": _hotel_distance(offer),
+            "distance": _ranking_distance_for_hotel(offer, ref_latlng),
             "rating": rating,
             "cancel": _hotel_cancellation_norm(offer),
             "amen": amen_match,
@@ -959,14 +1059,20 @@ def _rank_hotels_for_date(
     cancel_norm = _normalize([x["cancel"] for x in eligible], higher_better=True)
     amen_norm = _normalize([x["amen"] for x in eligible], higher_better=True)
 
+    # When trip.stays[].location_latlng was used, distance is semantically important — weight it higher.
+    if ref_latlng is not None:
+        w_ppn, w_dist, w_rating, w_cancel, w_amen = (0.23, 0.32, 0.20, 0.15, 0.10)
+    else:
+        w_ppn, w_dist, w_rating, w_cancel, w_amen = (0.35, 0.20, 0.20, 0.15, 0.10)
+
     scored: list[dict[str, Any]] = []
     for i, rec in enumerate(eligible):
         score = 100.0 * (
-            0.35 * ppn_norm[i]
-            + 0.20 * dist_norm[i]
-            + 0.20 * rating_norm[i]
-            + 0.15 * cancel_norm[i]
-            + 0.10 * amen_norm[i]
+            w_ppn * ppn_norm[i]
+            + w_dist * dist_norm[i]
+            + w_rating * rating_norm[i]
+            + w_cancel * cancel_norm[i]
+            + w_amen * amen_norm[i]
         )
 
         if budget > 0 and rec["ppn"] > budget:
@@ -1039,7 +1145,10 @@ def rank_single_trip(
         flight_groups, flight_constraints, currency_label=currency_label
     )
     ranked_hotels = _rank_hotel_stays(
-        hotel_groups, hotel_constraints, currency_label=currency_label
+        hotel_groups,
+        hotel_constraints,
+        structured_request=structured_request,
+        currency_label=currency_label,
     )
 
     flights_limit, hotels_limit = _structured_output_options_limits(structured_request)
@@ -1102,6 +1211,7 @@ def _rank_hotel_stays(
     hotels_input: list[dict[str, Any]],
     hotel_constraints: dict[str, Any],
     *,
+    structured_request: dict[str, Any] | None = None,
     currency_label: str = "",
 ) -> list[dict[str, Any]]:
     ranked_stays: list[dict[str, Any]] = []
@@ -1113,11 +1223,15 @@ def _rank_hotel_stays(
         if not isinstance(options_raw, list):
             continue
         options = [x for x in options_raw if isinstance(x, dict)]
+        hc = dict(hotel_constraints)
+        ref = _stay_reference_latlng_for_city(structured_request, city_code)
+        if ref is not None:
+            hc["reference_latlng"] = ref
         stay: dict[str, Any] = {
             "check_in": check_in,
             "check_out": check_out,
             "options": _rank_hotels_for_date(
-                options, hotel_constraints, currency_label=currency_label
+                options, hc, currency_label=currency_label
             ),
         }
         if city_code:
@@ -1171,10 +1285,13 @@ def rank_provider_response(provider_response: dict[str, Any]) -> dict[str, Any]:
         ranked_flights = _rank_flights(flights_input, flight_constraints)
         ranked_flights = _truncate_flat_flight_offers(ranked_flights, flights_limit)
 
+    sr_for_hotels = sr_raw if isinstance(sr_raw, dict) else None
+
     if isinstance(hotels_raw, list):
         ranked_hotels = _rank_hotel_stays(
             [x for x in hotels_raw if isinstance(x, dict)],
             hotel_constraints,
+            structured_request=sr_for_hotels,
         )
         ranked_hotels = _truncate_hotel_stay_options(ranked_hotels, hotels_limit)
     else:
@@ -1184,7 +1301,16 @@ def rank_provider_response(provider_response: dict[str, Any]) -> dict[str, Any]:
             if not isinstance(date_offers, list):
                 continue
             offers = [x for x in date_offers if isinstance(x, dict)]
-            ranked_hotels[str(date_key)] = _rank_hotels_for_date(offers, hotel_constraints)
+            city_code = ""
+            if offers:
+                h0 = offers[0].get("hotel") if isinstance(offers[0], dict) else None
+                if isinstance(h0, dict):
+                    city_code = str(h0.get("cityCode") or h0.get("city_code") or "")
+            hc = dict(hotel_constraints)
+            ref = _stay_reference_latlng_for_city(sr_for_hotels, city_code)
+            if ref is not None:
+                hc["reference_latlng"] = ref
+            ranked_hotels[str(date_key)] = _rank_hotels_for_date(offers, hc)
         ranked_hotels = _truncate_hotels_by_date(ranked_hotels, hotels_limit)
 
     result = dict(provider_response)

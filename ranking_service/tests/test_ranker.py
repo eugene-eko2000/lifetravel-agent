@@ -507,6 +507,81 @@ class RankerTest(unittest.TestCase):
         """Python's min(hi, nan) can return hi; never treat NaN as in-range."""
         self.assertEqual(_clamp(float("nan"), 0.0, 100.0), 0.0)
 
+    def test_hotel_ranking_prefers_closer_hotel_when_stay_has_location_latlng(self) -> None:
+        """Structured stay.location_latlng + hotel lat/lng drives distance in scoring."""
+        ref_lat, ref_lng = 28.6139, 77.209
+        near = {
+            "available": True,
+            "hotel": {
+                "hotelId": "near-h",
+                "cityCode": "DEL",
+                "latitude": 28.6145,
+                "longitude": 77.2095,
+                "rating": "4.0",
+                "distance": {"value": 99.0},
+            },
+            "offers": [
+                {
+                    "checkInDate": "2026-04-19",
+                    "checkOutDate": "2026-04-21",
+                    "price": {
+                        "total": "200.00",
+                        "total_trip_currency": "200.00",
+                    },
+                    "policies": {"cancellation": {"type": "PARTIAL_STAY"}},
+                }
+            ],
+        }
+        far = {
+            "available": True,
+            "hotel": {
+                "hotelId": "far-h",
+                "cityCode": "DEL",
+                "latitude": 28.72,
+                "longitude": 77.38,
+                "rating": "4.0",
+                "distance": {"value": 0.1},
+            },
+            "offers": [
+                {
+                    "checkInDate": "2026-04-19",
+                    "checkOutDate": "2026-04-21",
+                    "price": {
+                        "total": "200.00",
+                        "total_trip_currency": "200.00",
+                    },
+                    "policies": {"cancellation": {"type": "PARTIAL_STAY"}},
+                }
+            ],
+        }
+        structured_request = {
+            "output": {
+                "trip": {
+                    "stays": [
+                        {
+                            "city_code": "DEL",
+                            "duration": 2,
+                            "location_latlng": {"lat": ref_lat, "lng": ref_lng},
+                        }
+                    ]
+                }
+            }
+        }
+        trip = {
+            "flights": [],
+            "hotels": [
+                {
+                    "city_code": "DEL",
+                    "check_in": "2026-04-19",
+                    "check_out": "2026-04-21",
+                    "options": [far, near],
+                }
+            ],
+        }
+        ranked = rank_single_trip(trip, structured_request=structured_request)
+        ordered = [o["hotel"]["hotelId"] for o in ranked["hotels"][0]["options"]]
+        self.assertEqual(ordered[0], "near-h")
+
     def test_hotel_ranking_varies_by_price_when_distance_missing(self) -> None:
         """Missing distance is +inf for all; must not collapse scores to 100 via NaN clamp bug."""
         offers = [
