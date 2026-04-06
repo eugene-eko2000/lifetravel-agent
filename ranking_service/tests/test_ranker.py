@@ -11,6 +11,7 @@ from ranker import (
     _flight_price,
     _hotel_total_price,
     _normalize,
+    _rank_flights,
     _rank_hotels_for_date,
     rank_provider_response,
     rank_single_trip,
@@ -838,6 +839,140 @@ class RankerTest(unittest.TestCase):
         option_scores = [opt["_ranking"]["score"] for opt in options]
         self.assertEqual(option_scores, sorted(option_scores, reverse=True))
         self.assertEqual(option_scores, [100.0, 85.71, 13.25])
+
+    def test_rank_single_trip_truncates_options_using_flights_and_hotels_number(self) -> None:
+        flight_group = {
+            "depart_date": "2026-04-19",
+            "arrive_date": "2026-04-19",
+            "from": "VIE",
+            "to": "DEL",
+            "options": INPUT_PROVIDER_RESPONSE["flights"][0]["data"]
+            + INPUT_PROVIDER_RESPONSE["flights"][1]["data"],
+        }
+        hotel_group = {
+            "city_code": "DEL",
+            "check_in": "2026-04-19",
+            "check_out": "2026-04-21",
+            "options": INPUT_PROVIDER_RESPONSE["hotels"]["2026-04-19"],
+        }
+        trip = {
+            "flights": [flight_group],
+            "hotels": [hotel_group],
+        }
+        structured_request = {
+            "output": {
+                "flights_number": 1,
+                "hotels_number": 2,
+            },
+        }
+        ranked = rank_single_trip(trip, structured_request=structured_request)
+        self.assertEqual(len(ranked["flights"][0]["options"]), 1)
+        self.assertEqual(len(ranked["hotels"][0]["options"]), 2)
+
+    def _flight_offer_with_segment_bags(
+        self,
+        offer_id: str,
+        bag_quantities: list[int],
+        *,
+        cabin: str = "ECONOMY",
+        carrier: str = "LH",
+    ) -> dict:
+        segments: list[dict] = []
+        fare_rows: list[dict] = []
+        for i, qty in enumerate(bag_quantities):
+            sid = f"{offer_id}-seg-{i}"
+            segments.append(
+                {
+                    "id": sid,
+                    "carrierCode": carrier,
+                    "departure": {"at": "2026-04-19T09:00:00"},
+                    "arrival": {"at": "2026-04-19T13:00:00"},
+                }
+            )
+            fare_rows.append(
+                {
+                    "segmentId": sid,
+                    "cabin": cabin,
+                    "includedCheckedBags": {"quantity": qty},
+                }
+            )
+        return {
+            "id": offer_id,
+            "type": "flight-offer",
+            "price": {"grandTotal": "300.00"},
+            "pricingOptions": {"refundableFare": True},
+            "itineraries": [{"duration": "PT4H", "segments": segments}],
+            "travelerPricings": [{"fareDetailsBySegment": fare_rows}],
+        }
+
+    def test_baggage_preference_penalizes_per_segment_mismatch(self) -> None:
+        good = self._flight_offer_with_segment_bags("good", [2, 2])
+        bad = self._flight_offer_with_segment_bags("bad", [0, 2])
+        flight_group = {
+            "depart_date": "2026-04-19",
+            "arrive_date": "2026-04-19",
+            "from": "VIE",
+            "to": "DEL",
+            "options": [bad, good],
+        }
+        trip = {
+            "baggage_preference": {"num_checked_bags": 2},
+            "flights": [flight_group],
+            "hotels": [],
+        }
+        ranked = rank_single_trip(trip)
+        opts = ranked["flights"][0]["options"]
+        self.assertEqual(opts[0]["id"], "good")
+        self.assertGreater(opts[0]["_ranking"]["score"], opts[1]["_ranking"]["score"])
+
+    def test_cabin_and_airline_preferences_boost_matching_offers(self) -> None:
+        eco = self._flight_offer_with_segment_bags("eco", [1], cabin="ECONOMY", carrier="LH")
+        biz = self._flight_offer_with_segment_bags("biz", [1], cabin="BUSINESS", carrier="LX")
+        flight_group = {
+            "depart_date": "2026-04-19",
+            "arrive_date": "2026-04-19",
+            "from": "VIE",
+            "to": "DEL",
+            "options": [biz, eco],
+        }
+        trip = {
+            "cabin_preferences": ["economy"],
+            "airline_preferences": ["LH"],
+            "flights": [flight_group],
+            "hotels": [],
+        }
+        ranked = rank_single_trip(trip)
+        opts = ranked["flights"][0]["options"]
+        self.assertEqual(opts[0]["id"], "eco")
+        self.assertGreater(opts[0]["_ranking"]["score"], opts[1]["_ranking"]["score"])
+
+    def test_flight_preferences_merge_from_nested_trip(self) -> None:
+        good = self._flight_offer_with_segment_bags("g2", [2])
+        bad = self._flight_offer_with_segment_bags("b2", [0])
+        flight_group = {
+            "depart_date": "2026-04-19",
+            "arrive_date": "2026-04-19",
+            "from": "VIE",
+            "to": "DEL",
+            "options": [bad, good],
+        }
+        trip = {
+            "trip": {"baggage_preference": {"num_checked_bags": 2}},
+            "flights": [flight_group],
+            "hotels": [],
+        }
+        ranked = rank_single_trip(trip)
+        opts = ranked["flights"][0]["options"]
+        self.assertEqual(opts[0]["id"], "g2")
+
+    def test_rank_flights_accepts_baggage_via_constraints_dict(self) -> None:
+        a = self._flight_offer_with_segment_bags("a", [2])
+        b = self._flight_offer_with_segment_bags("b", [0])
+        ranked = _rank_flights(
+            [{"data": [b, a]}],
+            {"baggage_preference": {"num_checked_bags": 2}},
+        )
+        self.assertEqual(ranked[0]["id"], "a")
 
 
 if __name__ == "__main__":

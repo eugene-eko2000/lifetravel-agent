@@ -34,7 +34,9 @@ async def _process_message(incoming: aio_pika.abc.AbstractIncomingMessage, excha
                 },
             )
 
-            ranked_trip = rank_single_trip(trip)
+            sr = payload.get("structured_request")
+            structured_request = sr if isinstance(sr, dict) else None
+            ranked_trip = rank_single_trip(trip, structured_request=structured_request)
             outgoing_payload: dict[str, Any] = {
                 "id": payload.get("id"),
                 "trip_index": payload.get("trip_index"),

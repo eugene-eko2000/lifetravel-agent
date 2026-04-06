@@ -2,14 +2,6 @@ import os
 from dataclasses import dataclass
 
 
-def _parse_max_flight_options_per_fetch() -> int:
-    raw = os.getenv("MAX_FLIGHT_OPTIONS_PER_FETCH", "20").strip()
-    try:
-        return max(0, int(raw))
-    except ValueError:
-        return 20
-
-
 def _parse_amadeus_interval_between_queries() -> float | None:
     """Minimum seconds between Amadeus HTTP calls in this service; unset => no limit."""
     raw = os.getenv("AMADEUS_INTERVAL_BETWEEN_QUERIES", "").strip()
@@ -41,7 +33,6 @@ class Cfg:
     amadeus_token_url: str
     amadeus_client_id: str
     amadeus_client_secret: str
-    max_flight_options_per_fetch: int
 
     @classmethod
     def from_env(cls) -> "Cfg":
@@ -84,7 +75,6 @@ class Cfg:
             ),
             amadeus_client_id=os.getenv("AMADEUS_CLIENT_ID", ""),
             amadeus_client_secret=os.getenv("AMADEUS_CLIENT_SECRET", ""),
-            max_flight_options_per_fetch=_parse_max_flight_options_per_fetch(),
         )
 
     @property

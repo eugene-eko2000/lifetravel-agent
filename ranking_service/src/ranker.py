@@ -7,6 +7,106 @@ from typing import Any
 
 EPS = 1e-9
 
+DEFAULT_RANKED_OPTIONS_LIMIT = 20
+
+
+def _parse_options_limit(raw: Any, *, default: int = DEFAULT_RANKED_OPTIONS_LIMIT) -> int:
+    """Structured output uses minimum 1; invalid or missing values fall back to default."""
+    if isinstance(raw, bool):
+        return default
+    if isinstance(raw, int):
+        return raw if raw >= 1 else default
+    if isinstance(raw, float) and math.isfinite(raw):
+        i = int(raw)
+        return i if i >= 1 else default
+    return default
+
+
+def _structured_output_options_limits(
+    structured_request: dict[str, Any] | None,
+) -> tuple[int, int]:
+    """
+    Read output.flights_number and output.hotels_number from the structured request
+    (query_router LLM envelope). Defaults to DEFAULT_RANKED_OPTIONS_LIMIT when absent.
+    """
+    d = DEFAULT_RANKED_OPTIONS_LIMIT
+    if not isinstance(structured_request, dict):
+        return d, d
+    output = structured_request.get("output", structured_request)
+    if not isinstance(output, dict):
+        return d, d
+    flights_l = (
+        _parse_options_limit(output.get("flights_number"))
+        if "flights_number" in output
+        else d
+    )
+    hotels_l = (
+        _parse_options_limit(output.get("hotels_number"))
+        if "hotels_number" in output
+        else d
+    )
+    return flights_l, hotels_l
+
+
+def _truncate_flight_group_options(
+    groups: list[dict[str, Any]],
+    limit: int,
+) -> list[dict[str, Any]]:
+    if limit < 1:
+        return groups
+    out: list[dict[str, Any]] = []
+    for g in groups:
+        if not isinstance(g, dict):
+            continue
+        ng = dict(g)
+        opts = ng.get("options")
+        if isinstance(opts, list):
+            ng["options"] = opts[:limit]
+        out.append(ng)
+    return out
+
+
+def _truncate_flat_flight_offers(
+    offers: list[dict[str, Any]],
+    limit: int,
+) -> list[dict[str, Any]]:
+    if limit < 1:
+        return offers
+    return offers[:limit]
+
+
+def _truncate_hotel_stay_options(
+    stays: list[dict[str, Any]],
+    limit: int,
+) -> list[dict[str, Any]]:
+    if limit < 1:
+        return stays
+    out: list[dict[str, Any]] = []
+    for s in stays:
+        if not isinstance(s, dict):
+            continue
+        ns = dict(s)
+        opts = ns.get("options")
+        if isinstance(opts, list):
+            ns["options"] = opts[:limit]
+        out.append(ns)
+    return out
+
+
+def _truncate_hotels_by_date(
+    hotels_map: dict[str, Any],
+    limit: int,
+) -> dict[str, Any]:
+    if limit < 1:
+        return hotels_map
+    out: dict[str, Any] = {}
+    for k, v in hotels_map.items():
+        if isinstance(v, list):
+            out[str(k)] = v[:limit]
+        else:
+            out[str(k)] = v
+    return out
+
 
 def _safe_float(value: Any, default: float = 0.0) -> float:
     try:
@@ -341,17 +441,200 @@ def _flight_departure_minute(offer: dict[str, Any]) -> int | None:
     return first_dep.hour * 60 + first_dep.minute
 
 
-def _flight_time_band(minute_of_day: int | None) -> str:
-    if minute_of_day is None:
-        return "unknown"
-    hour = minute_of_day // 60
-    if 5 <= hour < 12:
-        return "morning"
-    if 12 <= hour < 17:
-        return "afternoon"
-    if 17 <= hour < 22:
-        return "evening"
-    return "night"
+_CABIN_PREF_TO_AMADEUS: dict[str, str] = {
+    "economy": "ECONOMY",
+    "business": "BUSINESS",
+    "first": "FIRST",
+}
+
+
+def _normalize_cabin_preference_set(raw: Any) -> set[str] | None:
+    if not isinstance(raw, list) or not raw:
+        return None
+    out: set[str] = set()
+    for x in raw:
+        if isinstance(x, str):
+            key = x.strip().lower()
+            am = _CABIN_PREF_TO_AMADEUS.get(key)
+            if am:
+                out.add(am)
+    return out or None
+
+
+def _normalize_airline_preference_set(raw: Any) -> set[str] | None:
+    if not isinstance(raw, list) or not raw:
+        return None
+    out: set[str] = set()
+    for x in raw:
+        if isinstance(x, str) and x.strip():
+            out.add(x.strip().upper())
+    return out or None
+
+
+def _desired_checked_bags_from_constraints(constraints: dict[str, Any]) -> int | None:
+    bp = constraints.get("baggage_preference")
+    if not isinstance(bp, dict):
+        return None
+    n = bp.get("num_checked_bags")
+    if isinstance(n, bool):
+        return None
+    if isinstance(n, int):
+        return max(0, n)
+    if isinstance(n, float) and math.isfinite(n):
+        return max(0, int(n))
+    return None
+
+
+def _merge_trip_flight_preferences(trip: dict[str, Any], base: dict[str, Any]) -> dict[str, Any]:
+    """Overlay trip-level flight preferences onto ranking constraints (trip or trip.trip)."""
+    out = dict(base)
+    sources: list[dict[str, Any]] = [trip]
+    inner = trip.get("trip")
+    if isinstance(inner, dict):
+        sources.append(inner)
+    pref_keys = (
+        "cabin_preferences",
+        "airline_preferences",
+        "baggage_preference",
+    )
+    for src in sources:
+        for key in pref_keys:
+            if key not in out and key in src:
+                out[key] = src[key]
+    return out
+
+
+def _fare_details_by_segment_id(offer: dict[str, Any]) -> dict[str, tuple[str | None, int | None]]:
+    """
+    Map Amadeus segmentId -> (cabin upper, included checked bag quantity or None if unknown).
+    """
+    out: dict[str, tuple[str | None, int | None]] = {}
+    tps = offer.get("travelerPricings")
+    if not isinstance(tps, list) or not tps:
+        return out
+    first = tps[0]
+    if not isinstance(first, dict):
+        return out
+    rows = first.get("fareDetailsBySegment")
+    if not isinstance(rows, list):
+        return out
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        sid = row.get("segmentId")
+        if sid is None:
+            continue
+        sid_s = str(sid).strip()
+        if not sid_s:
+            continue
+        cab_raw = row.get("cabin")
+        cabin = str(cab_raw).strip().upper() if isinstance(cab_raw, str) and cab_raw.strip() else None
+        bags_raw = row.get("includedCheckedBags")
+        qty: int | None = None
+        if isinstance(bags_raw, dict):
+            q = bags_raw.get("quantity")
+            if isinstance(q, int):
+                qty = max(0, q)
+            elif isinstance(q, float) and math.isfinite(q):
+                qty = max(0, int(q))
+        out[sid_s] = (cabin, qty)
+    return out
+
+
+def _flatten_segment_preference_metrics(
+    offer: dict[str, Any],
+) -> list[tuple[str, str | None, int | None]]:
+    """
+    Per segment in itinerary order: (marketing carrier, cabin from fare details or None, bags or None).
+    """
+    fd_map = _fare_details_by_segment_id(offer)
+    itineraries = offer.get("itineraries")
+    if not isinstance(itineraries, list):
+        return []
+    flat_fd = offer.get("travelerPricings")
+    fd_list: list[dict[str, Any]] = []
+    if isinstance(flat_fd, list) and flat_fd:
+        tp0 = flat_fd[0]
+        if isinstance(tp0, dict):
+            fds = tp0.get("fareDetailsBySegment")
+            if isinstance(fds, list):
+                fd_list = [x for x in fds if isinstance(x, dict)]
+
+    metrics: list[tuple[str, str | None, int | None]] = []
+    fd_idx = 0
+    for itin in itineraries:
+        if not isinstance(itin, dict):
+            continue
+        segments = itin.get("segments")
+        if not isinstance(segments, list):
+            continue
+        for seg in segments:
+            if not isinstance(seg, dict):
+                continue
+            cc = str(seg.get("carrierCode", "UNK")).strip().upper() or "UNK"
+            sid = seg.get("id")
+            sid_s = str(sid).strip() if sid is not None else ""
+            cabin: str | None = None
+            bags: int | None = None
+            if sid_s and sid_s in fd_map:
+                cabin, bags = fd_map[sid_s]
+            elif fd_idx < len(fd_list):
+                row = fd_list[fd_idx]
+                fd_idx += 1
+                cr = row.get("cabin")
+                if isinstance(cr, str) and cr.strip():
+                    cabin = cr.strip().upper()
+                br = row.get("includedCheckedBags")
+                if isinstance(br, dict):
+                    q = br.get("quantity")
+                    if isinstance(q, int):
+                        bags = max(0, q)
+                    elif isinstance(q, float) and math.isfinite(q):
+                        bags = max(0, int(q))
+            metrics.append((cc, cabin, bags))
+    return metrics
+
+
+def _preference_score_adjustments(
+    offer: dict[str, Any],
+    *,
+    cabin_prefs: set[str] | None,
+    airline_prefs: set[str] | None,
+    desired_bags: int | None,
+) -> tuple[float, float, float]:
+    """
+    Returns (cabin_bonus, airline_bonus, baggage_penalty) to add to raw score.
+    Baggage_penalty is positive (subtracted from score later).
+    """
+    segs = _flatten_segment_preference_metrics(offer)
+    if not segs:
+        return 0.0, 0.0, 0.0
+
+    cabin_bonus = 0.0
+    if cabin_prefs:
+        matches = 0
+        for _cc, cab, _bags in segs:
+            if cab is not None and cab in cabin_prefs:
+                matches += 1
+        cabin_bonus = 5.0 * (matches / len(segs))
+
+    airline_bonus = 0.0
+    if airline_prefs:
+        matches = 0
+        for cc, _cab, _bags in segs:
+            if cc in airline_prefs:
+                matches += 1
+        airline_bonus = 5.0 * (matches / len(segs))
+
+    baggage_penalty = 0.0
+    if desired_bags is not None:
+        total_diff = 0.0
+        for _cc, _cab, bags in segs:
+            actual = 0 if bags is None else float(bags)
+            total_diff += abs(float(desired_bags) - actual)
+        baggage_penalty = min(40.0, 4.0 * total_diff)
+
+    return cabin_bonus, airline_bonus, baggage_penalty
 
 
 def _flight_flex_norm(offer: dict[str, Any]) -> float:
@@ -386,6 +669,10 @@ def _rank_flights(
     dep_start, dep_end = 7 * 60, 19 * 60
     arr_start, arr_end = 8 * 60, 20 * 60
     leg_date_constraints = _extract_leg_date_constraints(constraints)
+
+    cabin_prefs = _normalize_cabin_preference_set(constraints.get("cabin_preferences"))
+    airline_prefs = _normalize_airline_preference_set(constraints.get("airline_preferences"))
+    desired_bags = _desired_checked_bags_from_constraints(constraints)
 
     eligible: list[dict[str, Any]] = []
     for offer in offers:
@@ -490,6 +777,14 @@ def _rank_flights(
         if budget_cap > 0 and rec["price"] > budget_cap:
             over_budget_penalty = _clamp((rec["price"] - budget_cap) / budget_cap, 0.0, 1.0)
             score -= 20.0 * over_budget_penalty
+
+        cab_b, air_b, bag_p = _preference_score_adjustments(
+            rec["offer"],
+            cabin_prefs=cabin_prefs,
+            airline_prefs=airline_prefs,
+            desired_bags=desired_bags,
+        )
+        score += cab_b + air_b - bag_p
 
         rec_scored = {
             "offer": rec["offer"],
@@ -709,8 +1004,16 @@ def _rank_hotels_for_date(
     return ranked
 
 
-def rank_single_trip(trip: dict[str, Any]) -> dict[str, Any]:
-    """Rank flight and hotel options inside a single trip."""
+def rank_single_trip(
+    trip: dict[str, Any],
+    *,
+    structured_request: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Rank flight and hotel options inside a single trip.
+
+    Option caps (flights_number / hotels_number) are taken from ``structured_request.output``
+    when provided (RabbitMQ path from trip composer); otherwise defaults apply.
+    """
     if not isinstance(trip, dict):
         return {
             "flights": [],
@@ -719,7 +1022,7 @@ def rank_single_trip(trip: dict[str, Any]) -> dict[str, Any]:
             "locations_dictionary": {},
         }
 
-    flight_constraints: dict[str, Any] = {}
+    flight_constraints = _merge_trip_flight_preferences(trip, {})
     hotel_constraints: dict[str, Any] = {}
 
     currency_label = ""
@@ -738,6 +1041,10 @@ def rank_single_trip(trip: dict[str, Any]) -> dict[str, Any]:
     ranked_hotels = _rank_hotel_stays(
         hotel_groups, hotel_constraints, currency_label=currency_label
     )
+
+    flights_limit, hotels_limit = _structured_output_options_limits(structured_request)
+    ranked_flights = _truncate_flight_group_options(ranked_flights, flights_limit)
+    ranked_hotels = _truncate_hotel_stay_options(ranked_hotels, hotels_limit)
 
     dicts = trip.get("flight_dictionaries")
     if not isinstance(dicts, dict):
@@ -844,6 +1151,11 @@ def rank_provider_response(provider_response: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(hotel_constraints, dict):
         hotel_constraints = {}
 
+    sr_raw = provider_response.get("structured_request")
+    flights_limit, hotels_limit = _structured_output_options_limits(
+        sr_raw if isinstance(sr_raw, dict) else None
+    )
+
     flights_raw = provider_response.get("flights")
     hotels_raw = provider_response.get("hotels")
     flights_input = flights_raw if isinstance(flights_raw, list) else []
@@ -854,14 +1166,17 @@ def rank_provider_response(provider_response: dict[str, Any]) -> dict[str, Any]:
 
     if has_grouped_flights:
         ranked_flights = _rank_flight_groups(flights_input, flight_constraints)
+        ranked_flights = _truncate_flight_group_options(ranked_flights, flights_limit)
     else:
         ranked_flights = _rank_flights(flights_input, flight_constraints)
+        ranked_flights = _truncate_flat_flight_offers(ranked_flights, flights_limit)
 
     if isinstance(hotels_raw, list):
         ranked_hotels = _rank_hotel_stays(
             [x for x in hotels_raw if isinstance(x, dict)],
             hotel_constraints,
         )
+        ranked_hotels = _truncate_hotel_stay_options(ranked_hotels, hotels_limit)
     else:
         hotels_input = hotels_raw if isinstance(hotels_raw, dict) else {}
         ranked_hotels = {}
@@ -870,6 +1185,7 @@ def rank_provider_response(provider_response: dict[str, Any]) -> dict[str, Any]:
                 continue
             offers = [x for x in date_offers if isinstance(x, dict)]
             ranked_hotels[str(date_key)] = _rank_hotels_for_date(offers, hotel_constraints)
+        ranked_hotels = _truncate_hotels_by_date(ranked_hotels, hotels_limit)
 
     result = dict(provider_response)
     dicts = provider_response.get("flight_dictionaries")

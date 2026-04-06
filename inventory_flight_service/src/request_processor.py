@@ -2,7 +2,6 @@ import asyncio
 import copy
 import json
 import logging
-import re
 import uuid
 from collections import defaultdict
 from typing import Any, Awaitable, Callable
@@ -236,93 +235,6 @@ def _append_option_to_groups(
         group_arrive_dt[key] = _date_part(arr_dt)
 
 
-def _offer_connection_count(offer: dict[str, Any]) -> int:
-    """Total connection count across all trips (segments minus one per leg)."""
-    itins = offer.get("itineraries")
-    if not isinstance(itins, list):
-        return 0
-    n = 0
-    for itin in itins:
-        if not isinstance(itin, dict):
-            continue
-        segs = itin.get("segments")
-        if not isinstance(segs, list):
-            continue
-        n += max(0, len(segs) - 1)
-    return n
-
-
-def _iso8601_duration_to_seconds(value: str) -> float:
-    """Parse Amadeus trip duration (ISO-8601, e.g. PT5H30M, P1DT2H) to seconds."""
-    if not isinstance(value, str) or not value.strip():
-        return 0.0
-    v = value.strip().upper()
-    if not v.startswith("P"):
-        return 0.0
-    if "T" in v:
-        date_part, time_part = v[1:].split("T", 1)
-    else:
-        date_part, time_part = v[1:], ""
-    total = 0.0
-    dm = re.search(r"(\d+)D", date_part)
-    if dm:
-        total += int(dm.group(1)) * 86400.0
-    for m in re.finditer(r"(\d+(?:\.\d+)?)H", time_part):
-        total += float(m.group(1)) * 3600.0
-    for m in re.finditer(r"(\d+(?:\.\d+)?)M", time_part):
-        total += float(m.group(1)) * 60.0
-    for m in re.finditer(r"(\d+(?:\.\d+)?)S", time_part):
-        total += float(m.group(1))
-    return total
-
-
-def _offer_total_duration_seconds(offer: dict[str, Any]) -> float:
-    """Sum of per-trip duration fields (Amadeus)."""
-    itins = offer.get("itineraries")
-    if not isinstance(itins, list):
-        return 0.0
-    total = 0.0
-    for itin in itins:
-        if not isinstance(itin, dict):
-            continue
-        d = itin.get("duration")
-        if isinstance(d, str):
-            total += _iso8601_duration_to_seconds(d)
-    return total
-
-
-def _filter_and_limit_flight_offers(
-    response: dict[str, Any],
-    max_options: int,
-) -> dict[str, Any]:
-    """
-    Sort offers by ascending connection count, then total flight time; keep the first
-    max_options entries (Amadeus `data` list).
-    """
-    if not isinstance(response, dict):
-        return response
-    data = response.get("data")
-    if not isinstance(data, list) or not data:
-        return response
-    cap = max(0, int(max_options))
-    if cap == 0:
-        out = dict(response)
-        out["data"] = []
-        return out
-    valid = [x for x in data if isinstance(x, dict)]
-    if not valid:
-        return response
-    valid.sort(
-        key=lambda o: (
-            _offer_connection_count(o),
-            _offer_total_duration_seconds(o),
-        )
-    )
-    out = dict(response)
-    out["data"] = valid[:cap]
-    return out
-
-
 def _extract_amadeus_dictionaries(raw: Any) -> dict[str, Any]:
     """
     Amadeus flight offers search returns dictionaries next to `data`, or under `data` in some shapes.
@@ -368,7 +280,6 @@ def _extract_structured_request(payload: dict[str, Any]) -> dict[str, Any]:
 
 async def _process_translated_request(
     sender: AmadeusSender,
-    cfg: Cfg,
     translated: dict[str, Any],
     request_id: str | None = None,
     debug_publisher: DebugPublisher | None = None,
@@ -395,11 +306,6 @@ async def _process_translated_request(
             raise
         raw_response: Any = result
         extracted = _extract_amadeus_dictionaries(raw_response)
-        if isinstance(result, dict):
-            result = _filter_and_limit_flight_offers(
-                result,
-                cfg.max_flight_options_per_fetch,
-            )
         return result, extracted
 
     logger.warning("Unknown translated request type: %s", request_type)
@@ -430,7 +336,6 @@ async def process_incoming_message(
         try:
             return await _process_translated_request(
                 sender,
-                cfg,
                 translated,
                 request_id=request_id,
                 debug_publisher=debug_publisher,

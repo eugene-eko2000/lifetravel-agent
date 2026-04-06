@@ -115,6 +115,18 @@ VALID_STRUCTURED_REQUEST_SCHEMA = {
         }
       }
     },
+    "flights_number": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 20,
+      "description": "Target maximum number of flight options to consider per leg or group; omit to use default 20.",
+    },
+    "hotels_number": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 20,
+      "description": "Target maximum number of hotel options to consider per stay; omit to use default 20.",
+    },
     "assumptions": {
       "type": "array",
       "items": {"type": "string"}
@@ -165,6 +177,9 @@ omit cabin_preferences or use an empty array when not specified.
 If the user specifies how many checked bags they need, set trip.baggage_preference.num_checked_bags to a
 non-negative integer (0 = carry-on only / no checked bags, 1+ = at least that many checked bags per traveler).
 Omit baggage_preference when not specified.
+
+Optional: set output.flights_number and output.hotels_number (positive integers; default 20 each) when the user
+asks for a specific cap on how many flight or hotel options to work with; otherwise omit both to use 20.
 
 The user can specify beginning and end dates range in a free form. In this case consider multiple departure
 dates within a given range.

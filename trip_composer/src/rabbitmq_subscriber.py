@@ -1,3 +1,4 @@
+import copy
 import json
 import logging
 from typing import Any
@@ -108,6 +109,9 @@ async def _handle_message(
             "trip_count": len(trips),
             "trip": trip,
         }
+        sr_in = payload.get("structured_request")
+        if isinstance(sr_in, dict):
+            composed_payload["structured_request"] = copy.deepcopy(sr_in)
         pid = trip.get("prompt_id")
         if isinstance(pid, str) and pid.strip():
             composed_payload["prompt_id"] = pid.strip()

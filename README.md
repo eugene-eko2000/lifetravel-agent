@@ -171,6 +171,18 @@ When `trip.baggage_preference.num_checked_bags` is set, shopping requests includ
             }
           }
         },
+        "flights_number": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 20,
+          "description": "Target maximum number of flight options to consider per leg or group; omit for default 20."
+        },
+        "hotels_number": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 20,
+          "description": "Target maximum number of hotel options to consider per stay; omit for default 20."
+        },
         "assumptions": {
           "type": "array",
           "items": { "type": "string" }
@@ -305,8 +317,10 @@ each leg contributes `from` → `from_location` and `to` → `to_location`; each
 `city_code` → `city` (stays overwrite a code if it was already set from a leg).
 
 In RabbitMQ transport:
-`{ "id": "...", "trip_index": 0, "trip_count": N, "trip": <Trip>, "prompt_id": "..." }`
-(`prompt_id` optional; duplicate of `trip.prompt_id` when present).
+`{ "id": "...", "trip_index": 0, "trip_count": N, "trip": <Trip>, "prompt_id": "...", "structured_request": <StructuredRequest> }`
+(`prompt_id` optional; duplicate of `trip.prompt_id` when present. `structured_request` is a deep copy of the
+query_router envelope so `ranking_service` can read `output.flights_number` / `output.hotels_number` and other
+output fields without duplicating them on `trip`.)
 
 ```json
 {
@@ -316,6 +330,10 @@ In RabbitMQ transport:
   "required": ["id", "trip_index", "trip_count", "trip"],
   "properties": {
     "id": { "type": "string", "description": "Request correlation id." },
+    "structured_request": {
+      "type": "object",
+      "description": "Echo of the structuring LLM payload from the inventory message; used by ranking for output.flights_number / output.hotels_number caps."
+    },
     "prompt_id": { "type": "string", "description": "Optional duplicate of trip.prompt_id for envelope consumers." },
     "trip_index": { "type": "integer", "description": "Zero-based index of this trip." },
     "trip_count": { "type": "integer", "description": "Total number of trips for this request." },

@@ -758,6 +758,24 @@ def _build_locations_dictionary(payload: dict[str, Any]) -> dict[str, str]:
     return out
 
 
+def _extract_flight_preferences_for_ranking(payload: dict[str, Any]) -> dict[str, Any]:
+    """Copy trip-level flight preference fields from structured_request for downstream ranking."""
+    sr = payload.get("structured_request")
+    if not isinstance(sr, dict):
+        return {}
+    output = sr.get("output", sr)
+    if not isinstance(output, dict):
+        return {}
+    trip = output.get("trip")
+    if not isinstance(trip, dict):
+        return {}
+    out: dict[str, Any] = {}
+    for key in ("cabin_preferences", "airline_preferences", "baggage_preference"):
+        if key in trip:
+            out[key] = copy.deepcopy(trip[key])
+    return out
+
+
 async def compose_trip(
     payload: dict[str, Any],
     *,
@@ -818,11 +836,15 @@ async def compose_trip(
     prompt_id = _extract_prompt_id(payload)
     usd_rates = await _fetch_usd_rates(exchange_rate_latest_url)
     locations_dictionary = _build_locations_dictionary(payload)
+    flight_prefs = _extract_flight_preferences_for_ranking(payload)
     trip_dicts: dict[str, Any] | None = None
     d0 = provider_response.get("flight_dictionaries")
     if isinstance(d0, dict) and d0:
         trip_dicts = copy.deepcopy(d0)
     for it in trips:
+        if flight_prefs:
+            for k, v in flight_prefs.items():
+                it[k] = v
         if trip_dicts is not None:
             it["flight_dictionaries"] = copy.deepcopy(trip_dicts)
         it["locations_dictionary"] = copy.deepcopy(locations_dictionary)
