@@ -223,12 +223,12 @@ class CabinPreferencesTranslatorTest(unittest.TestCase):
             ],
         )
 
-    def test_cabin_economy_variants_map_to_economy_deduped(self) -> None:
+    def test_cabin_economy_deduped(self) -> None:
         cfg = Cfg.from_env()
         trip = {
             "trip": {
                 "travelers": 1,
-                "cabin_preferences": ["economy_light", "economy_standard"],
+                "cabin_preferences": ["economy", "economy"],
                 "legs": [
                     {"from": "ZRH", "to": "LHR", "depart_dates": ["2026-06-01"]},
                 ],
@@ -263,7 +263,7 @@ class CabinPreferencesTranslatorTest(unittest.TestCase):
         trip = {
             "trip": {
                 "travelers": 1,
-                "cabin_preferences": ["economy_standard"],
+                "cabin_preferences": ["economy"],
                 "legs": [
                     {"from": "ZRH", "to": "LAX", "depart_dates": ["2026-06-01"]},
                     {"from": "LAX", "to": "ZRH", "depart_dates": ["2026-06-10"]},

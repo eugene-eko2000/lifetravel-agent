@@ -77,15 +77,20 @@ VALID_STRUCTURED_REQUEST_SCHEMA = {
           "type": "array",
           "items": {
             "type": "string",
-            "enum": [
-              "economy_light",
-              "economy_standard",
-              "economy_flex",
-              "business",
-              "first",
-            ],
+            "enum": ["economy", "business", "first"],
           },
-          "description": "Optional cabin / fare-family preferences when the user specifies them (e.g. economy vs business). Omit or use an empty array when not specified.",
+          "description": "Optional cabin preferences when the user specifies class of service. Omit or use an empty array when not specified.",
+        },
+        "baggage_preference": {
+          "type": "object",
+          "properties": {
+            "num_checked_bags": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Desired number of checked bags per traveler; passed to flight inventory for Amadeus search criteria.",
+            }
+          },
+          "description": "Optional baggage needs when the user specifies checked luggage; omit when not specified.",
         },
       }
     },
@@ -153,10 +158,13 @@ For hotels, the city_code field should be the IATA code of the city metropolitan
 If the user prefers specific airlines, set trip.airline_preferences to an array of IATA airline codes
 (two letters, e.g. LH, BA, QR). Omit airline_preferences or use an empty array when not specified.
 
-If the user specifies cabin or fare class preferences (economy variants, business, first), set
-trip.cabin_preferences to one or more of: economy_light, economy_standard, economy_flex, business, first.
-Map colloquial terms (e.g. "basic economy", "coach", "premium economy" if treated as flex) to the closest
-values; omit cabin_preferences or use an empty array when not specified.
+If the user specifies cabin or fare class preferences, set trip.cabin_preferences to one or more of:
+economy, business, first. Map colloquial terms (e.g. "coach", "premium economy") to the closest value;
+omit cabin_preferences or use an empty array when not specified.
+
+If the user specifies how many checked bags they need, set trip.baggage_preference.num_checked_bags to a
+non-negative integer (0 = carry-on only / no checked bags, 1+ = at least that many checked bags per traveler).
+Omit baggage_preference when not specified.
 
 The user can specify beginning and end dates range in a free form. In this case consider multiple departure
 dates within a given range.
@@ -170,6 +178,8 @@ The flight legs requests should consider different arrival dates variants for ea
 Each following leg should have multiple departure dates options. The 1st leg is to have
 one departure date equal to the trip start date. the second one should have two departure dates,
 the third one three departure dates, etc.
+
+Consider "economy saver", "economy light" in the prompt as economy with zero checked bags.
 
 Example:
 First flight leg has departure date 2026-05-01.

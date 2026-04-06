@@ -3,12 +3,9 @@ from typing import Any
 from cfg import Cfg
 
 
-# Structured LLM output (trip.cabin_preferences) → Amadeus Flight Offers Search
-# cabin enum: ECONOMY, PREMIUM_ECONOMY, BUSINESS, FIRST
+# Structured LLM output (trip.cabin_preferences) → Amadeus Flight Offers Search cabin enum
 _CABIN_PREF_TO_AMADEUS: dict[str, str] = {
-    "economy_light": "ECONOMY",
-    "economy_standard": "ECONOMY",
-    "economy_flex": "ECONOMY",
+    "economy": "ECONOMY",
     "business": "BUSINESS",
     "first": "FIRST",
 }
@@ -325,7 +322,7 @@ def translate_trip_request_to_amadeus_requests(
     When trip.airline_preferences is a non-empty array of IATA airline codes,
     each request includes searchCriteria.flightFilters.carrierRestrictions.includedCarrierCodes.
 
-    When trip.cabin_preferences is set (economy_*, business, first), each request includes
+    When trip.cabin_preferences is set (economy, business, first), each request includes
     searchCriteria.flightFilters.cabinRestrictions for the corresponding Amadeus cabin codes
     (ECONOMY / BUSINESS / FIRST), scoped to the request's originDestination ids.
     """

@@ -46,6 +46,8 @@ Each stay includes `duration` (number of stay days), and flight departure dates 
 chosen to align with those durations between adjacent legs.
 When `trip.cabin_preferences` is non-empty, `inventory_flight_service` adds Amadeus Flight Offers Search
 `searchCriteria.flightFilters.cabinRestrictions` (alongside airline carrier filters when set).
+When `trip.baggage_preference.num_checked_bags` is set, shopping requests include Amadeus
+`searchCriteria.pricingOptions` / `additionalInformation` for baggage-aware search (exact bag count is not a native Amadeus search field).
 
 ```json
 {
@@ -79,15 +81,20 @@ When `trip.cabin_preferences` is non-empty, `inventory_flight_service` adds Amad
               "type": "array",
               "items": {
                 "type": "string",
-                "enum": [
-                  "economy_light",
-                  "economy_standard",
-                  "economy_flex",
-                  "business",
-                  "first"
-                ]
+                "enum": ["economy", "business", "first"]
               },
-              "description": "Optional cabin preferences; `inventory_flight_service` maps them to Amadeus `cabinRestrictions` (economy_* → ECONOMY, business → BUSINESS, first → FIRST)."
+              "description": "Optional cabin preferences; `inventory_flight_service` maps them to Amadeus `cabinRestrictions` (ECONOMY / BUSINESS / FIRST)."
+            },
+            "baggage_preference": {
+              "type": "object",
+              "properties": {
+                "num_checked_bags": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Checked bags per traveler; drives Amadeus search criteria for baggage (see inventory_flight_service)."
+                }
+              },
+              "description": "Optional; omit when not specified."
             },
             "legs": {
               "type": "array",
