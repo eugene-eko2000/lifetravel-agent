@@ -1,4 +1,5 @@
 .env*
 
 # TLS keys for local nginx (keep out of git)
-nginx/ssl/*.pem
+nginx/ssl/*.crt
+nginx/ssl/*.key
