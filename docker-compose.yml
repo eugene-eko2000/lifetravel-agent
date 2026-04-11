@@ -1,5 +1,5 @@
 # endpoint_api joins external network lifetravel_net for lifetravel-proxy nginx.
-# Create once: docker network create lifetravel_net
+# ./run_compose.sh creates this network if missing (override name with LIFETRAVEL_NET).
 
 services:
   # ── RabbitMQ ─────────────────────────────────────────────────────────────────

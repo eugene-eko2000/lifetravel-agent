@@ -71,4 +71,13 @@ if [[ "${RERUN}" == true ]]; then
   UP_ARGS+=(--force-recreate)
 fi
 
+# docker-compose.yml declares lifetravel_net as external (for host/proxy attachment); create if missing.
+LIFETRAVEL_NET="${LIFETRAVEL_NET:-lifetravel_net}"
+if ! docker network inspect "${LIFETRAVEL_NET}" >/dev/null 2>&1; then
+  echo "Creating external Docker network: ${LIFETRAVEL_NET}"
+  docker network create "${LIFETRAVEL_NET}"
+else
+  echo "Docker network present: ${LIFETRAVEL_NET}"
+fi
+
 docker compose -f "${COMPOSE_FILE}" "${UP_ARGS[@]}"
