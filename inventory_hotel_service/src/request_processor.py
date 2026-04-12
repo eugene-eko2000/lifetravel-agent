@@ -165,6 +165,52 @@ def _extract_stays(structured_request: dict[str, Any]) -> list[dict[str, Any]]:
     return [x for x in stays if isinstance(x, dict)]
 
 
+def _extract_trip_legs(trip: dict[str, Any] | None) -> list[dict[str, Any]]:
+    if not isinstance(trip, dict):
+        return []
+    raw = trip.get("legs")
+    if not isinstance(raw, list):
+        return []
+    return [x for x in raw if isinstance(x, dict)]
+
+
+def _leg_endpoints_for_flight_group(
+    legs: list[dict[str, Any]],
+    index: int,
+    fg: dict[str, Any],
+) -> tuple[str, str]:
+    """Prefer `trip.legs[index].from` / `.to` (city codes); fallback to flight group from/to."""
+    if index < len(legs):
+        leg = legs[index]
+        fc = str(leg.get("from", "")).strip().upper()
+        tc = str(leg.get("to", "")).strip().upper()
+        if fc and tc:
+            return (fc, tc)
+    return (
+        str(fg.get("from", "")).strip().upper(),
+        str(fg.get("to", "")).strip().upper(),
+    )
+
+
+def _gap_city_codes_from_legs_for_multi_trip(
+    legs: list[dict[str, Any]], fg_index: int
+) -> tuple[str | None, str | None]:
+    """
+    For a round-trip style group at `fg_index`: arrival into destination city (end of outbound)
+    and departure from that city (start of return). Prefer leg N `to` and leg N+1 `from`.
+    """
+    if len(legs) >= fg_index + 2:
+        a = str(legs[fg_index].get("to", "")).strip().upper()
+        d = str(legs[fg_index + 1].get("from", "")).strip().upper()
+        return (a or None, d or None)
+    if len(legs) > fg_index:
+        leg = legs[fg_index]
+        a = str(leg.get("to", "")).strip().upper()
+        d = str(leg.get("from", "")).strip().upper()
+        return (a or None, d or None)
+    return (None, None)
+
+
 def _date_part(dt_str: str) -> str:
     s = str(dt_str).strip()
     return s[:10] if len(s) >= 10 else s
@@ -206,30 +252,16 @@ def _seg_arr_at(seg: dict[str, Any]) -> str:
     return ""
 
 
-# Same-city / metro aliases as trip_composer (hotel stays keyed by e.g. LON).
-_METRO_AIRPORT_GROUPS: tuple[frozenset[str], ...] = (
-    frozenset({"LHR", "LCY", "LGW", "STN", "LTN", "LON", "SEN"}),
-    frozenset({"JFK", "LGA", "EWR", "SWF", "NYC"}),
-    frozenset({"CDG", "ORY", "BVA", "PAR"}),
-    frozenset({"NRT", "HND", "TYO"}),
-    frozenset({"SFO", "OAK", "SJC"}),
-)
-
-
 def _accumulate_city_date_for_stays(
     bucket: dict[str, set[str]],
     city: str,
     d: str,
 ) -> None:
+    """Record a date under a single city code (from structured trip.legs / stays)."""
     city_u = city.upper().strip()
     if not city_u or not d:
         return
     bucket.setdefault(city_u, set()).add(d)
-    for group in _METRO_AIRPORT_GROUPS:
-        if city_u in group:
-            for alias in group:
-                bucket.setdefault(alias, set()).add(d)
-            break
 
 
 def _flight_group_has_multi_trip_offer(fg: dict[str, Any]) -> bool:
@@ -248,11 +280,17 @@ def _accumulate_gap_dates_from_multi_trip_offers(
     fg: dict[str, Any],
     arrive_dates_by_dest: dict[str, set[str]],
     depart_dates_by_origin: dict[str, set[str]],
+    *,
+    arrive_city_code: str | None = None,
+    depart_city_code: str | None = None,
 ) -> None:
     """
     For full round-trip offers (2+ trips), group-level from/to/dates do not describe
     the destination stay window. Use last arrival of trip 1 and first departure of
     trip 2 so stays (e.g. city LON) get correct check-in / check-out dates.
+
+    When `arrive_city_code` / `depart_city_code` are set (from structured `trip.legs`),
+    bucket dates by those city codes instead of segment airport IATA codes.
     """
     for opt in fg.get("options", []) or []:
         if not isinstance(opt, dict):
@@ -278,8 +316,20 @@ def _accumulate_gap_dates_from_multi_trip_offers(
             continue
         d_arr = _date_part(arr_dt)
         d_dep = _date_part(dep_dt)
-        _accumulate_city_date_for_stays(arrive_dates_by_dest, arr_ap, d_arr)
-        _accumulate_city_date_for_stays(depart_dates_by_origin, dep_ap, d_dep)
+        arr_key = (
+            arrive_city_code.strip().upper()
+            if isinstance(arrive_city_code, str) and arrive_city_code.strip()
+            else arr_ap
+        )
+        dep_key = (
+            depart_city_code.strip().upper()
+            if isinstance(depart_city_code, str) and depart_city_code.strip()
+            else dep_ap
+        )
+        if not arr_key or not dep_key:
+            continue
+        _accumulate_city_date_for_stays(arrive_dates_by_dest, arr_key, d_arr)
+        _accumulate_city_date_for_stays(depart_dates_by_origin, dep_key, d_dep)
 
 
 def _build_stays_from_flight_groups(
@@ -287,24 +337,30 @@ def _build_stays_from_flight_groups(
     stays: list[dict[str, Any]],
     currency: str,
     travelers: int,
+    trip: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
+    legs = _extract_trip_legs(trip)
     arrive_dates_by_dest: dict[str, set[str]] = defaultdict(set)
     depart_dates_by_origin: dict[str, set[str]] = defaultdict(set)
 
-    for fg in flight_groups:
+    for i, fg in enumerate(flight_groups):
         if _flight_group_has_multi_trip_offer(fg):
+            arr_cc, dep_cc = _gap_city_codes_from_legs_for_multi_trip(legs, i)
             _accumulate_gap_dates_from_multi_trip_offers(
-                fg, arrive_dates_by_dest, depart_dates_by_origin
+                fg,
+                arrive_dates_by_dest,
+                depart_dates_by_origin,
+                arrive_city_code=arr_cc,
+                depart_city_code=dep_cc,
             )
             continue
-        to_code = str(fg.get("to", "")).strip().upper()
-        from_code = str(fg.get("from", "")).strip().upper()
+        from_code, to_code = _leg_endpoints_for_flight_group(legs, i, fg)
         arrive_date = str(fg.get("arrive_date", "")).strip()
         depart_date = str(fg.get("depart_date", "")).strip()
         if to_code and arrive_date:
-            arrive_dates_by_dest[to_code].add(arrive_date)
+            _accumulate_city_date_for_stays(arrive_dates_by_dest, to_code, arrive_date)
         if from_code and depart_date:
-            depart_dates_by_origin[from_code].add(depart_date)
+            _accumulate_city_date_for_stays(depart_dates_by_origin, from_code, depart_date)
 
     built: list[dict[str, Any]] = []
     for stay in stays:
@@ -539,6 +595,7 @@ async def process_incoming_message(
         stays,
         currency,
         travelers,
+        trip if isinstance(trip, dict) else None,
     )
     cache: dict[str, list[dict[str, Any]]] = {}
     HotelGroupKey = tuple[str, str, str]

@@ -821,6 +821,12 @@ async def compose_trip(
         hotels_by_city_checkin, flights_by_origin_date = _build_indexes(
             simple_fgs, hotel_groups,
         )
+        logger.info(
+            "Hotels by city check-in: %s",
+            hotels_by_city_checkin.keys(),
+        )
+        fg_out = simple_fgs + multi_fgs
+        logger.info("Flight groups: %s", [f"{fg['depart_date']} {fg['arrive_date']} {fg['from']} {fg['to']}" for fg in fg_out])
         trips = (
             _enumerate_hybrid_chains(
                 simple_fgs, hotels_by_city_checkin, flights_by_origin_date,
