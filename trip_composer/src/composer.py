@@ -1,4 +1,5 @@
 import copy
+import itertools
 import logging
 import uuid
 from collections import defaultdict
@@ -282,8 +283,21 @@ def _compute_summary(
     trip_end_date = ""
     total_days = 0
     if flights:
-        dep0 = flights[0].get("depart_date", "")
-        arr_last = flights[-1].get("arrive_date", "")
+        first_fg = flights[0]
+        last_fg = flights[-1]
+
+        first_legs = first_fg.get("itinerary_legs")
+        if isinstance(first_legs, list) and first_legs:
+            dep0 = first_legs[0].get("depart", "")
+        else:
+            dep0 = first_fg.get("depart_date", "")
+
+        last_legs = last_fg.get("itinerary_legs")
+        if isinstance(last_legs, list) and last_legs:
+            arr_last = last_legs[-1].get("arrive", "")
+        else:
+            arr_last = last_fg.get("arrive_date", "")
+
         if dep0:
             trip_start_date = _date_part(str(dep0))
         if arr_last:
@@ -296,17 +310,16 @@ def _compute_summary(
             except (ValueError, TypeError):
                 total_days = 0
 
-    ic = trip_currency.upper()
-
     return {
         "trip_start_date": trip_start_date,
         "trip_end_date": trip_end_date,
         "total_duration_days": total_days,
-        "trip_currency": ic,
+        "trip_currency": trip_currency.upper(),
     }
 
 
 def _build_indexes(
+    acc: dict[str, str],
     flight_groups: list[dict[str, Any]],
     hotel_groups: list[dict[str, Any]],
 ) -> tuple[
@@ -315,13 +328,21 @@ def _build_indexes(
 ]:
     hotels_by_city_checkin: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
     for hg in hotel_groups:
-        key = (hg.get("city_code", ""), hg.get("check_in", ""))
-        hotels_by_city_checkin[key].append(hg)
+        city = hg.get("city_code", "")
+        ci = hg.get("check_in", "")
+        hotels_by_city_checkin[(city, ci)].append(hg)
+        resolved = _resolve_city(acc, city)
+        if resolved and resolved != city:
+            hotels_by_city_checkin[(resolved, ci)].append(hg)
 
     flights_by_origin_date: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
     for fg in flight_groups:
-        key = (fg.get("from", ""), _date_part(fg.get("depart_date", "")))
-        flights_by_origin_date[key].append(fg)
+        origin = fg.get("from", "")
+        dt = _date_part(fg.get("depart_date", ""))
+        flights_by_origin_date[(origin, dt)].append(fg)
+        resolved = _resolve_city(acc, origin)
+        if resolved and resolved != origin:
+            flights_by_origin_date[(resolved, dt)].append(fg)
 
     return hotels_by_city_checkin, flights_by_origin_date
 
@@ -369,12 +390,36 @@ def _option_trip_count(opt: dict[str, Any]) -> int:
     return len(itins)
 
 
+def _itinerary_legs_from_option(opt: dict[str, Any]) -> list[dict[str, str]]:
+    """Build ``[{depart, arrive, from, to}, ...]`` — one entry per itinerary in the option."""
+    itins = opt.get("itineraries")
+    if not isinstance(itins, list):
+        return []
+    legs: list[dict[str, str]] = []
+    for itin in itins:
+        if not isinstance(itin, dict):
+            continue
+        segs = itin.get("segments")
+        if not isinstance(segs, list) or not segs:
+            continue
+        first_seg = segs[0]
+        last_seg = segs[-1]
+        legs.append({
+            "from": _segment_dep_iata(first_seg),
+            "to": _segment_arr_iata(last_seg),
+            "depart": _segment_dep_at(first_seg),
+            "arrive": _segment_arr_at(last_seg),
+        })
+    return legs
+
+
 def _partition_flight_groups(
     flight_groups: list[dict[str, Any]],
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """
     Split groups into single-trip options vs multi-trip (e.g. full RT from Amadeus).
     A group may appear in both lists with disjoint option sets.
+    Multi groups include ``itinerary_legs`` derived from the first multi-itinerary option.
     """
     simple: list[dict[str, Any]] = []
     multi: list[dict[str, Any]] = []
@@ -385,51 +430,73 @@ def _partition_flight_groups(
         if single_o:
             simple.append({**fg, "options": single_o})
         if multi_o:
-            multi.append({**fg, "options": multi_o})
+            row: dict[str, Any] = {**fg, "options": multi_o}
+            legs = _itinerary_legs_from_option(multi_o[0])
+            if legs:
+                row["itinerary_legs"] = legs
+            multi.append(row)
     return simple, multi
 
 
-# IATA airports that belong to the same city / metro for hotel↔flight gap matching.
-_METRO_AIRPORT_GROUPS: tuple[frozenset[str], ...] = (
-    frozenset({"LHR", "LCY", "LGW", "STN", "LTN", "LON", "SEN"}),
-    frozenset({"JFK", "LGA", "EWR", "SWF", "NYC"}),
-    frozenset({"CDG", "ORY", "BVA", "PAR"}),
-    frozenset({"NRT", "HND", "TYO"}),
-    frozenset({"SFO", "OAK", "SJC"}),
-)
+def _resolve_city(acc: dict[str, str], code: str) -> str:
+    """Resolve IATA airport code to city code via ``airport_city_codes``; fallback to code itself."""
+    c = str(code or "").strip().upper()
+    if not c:
+        return ""
+    return acc.get(c, c)
+
+
+def _merge_all_airport_city_codes(
+    flight_groups: list[dict[str, Any]],
+) -> dict[str, str]:
+    """Union of ``airport_city_codes`` from every flight group."""
+    merged: dict[str, str] = {}
+    for fg in flight_groups:
+        acc = fg.get("airport_city_codes")
+        if isinstance(acc, dict):
+            merged.update(acc)
+    return merged
+
+
+def _codes_same_city(
+    acc: dict[str, str],
+    code_a: str,
+    code_b: str,
+) -> bool:
+    """True if two IATA codes resolve to the same city via ``airport_city_codes``."""
+    a = _resolve_city(acc, code_a)
+    b = _resolve_city(acc, code_b)
+    if not a or not b:
+        return False
+    return a == b
 
 
 def _hotel_city_matches_gap_airports(
+    acc: dict[str, str],
     hotel_city: str,
     arrival_airport: str,
     departure_airport: str,
 ) -> bool:
     """
-    Hotel city_code may be a metro code (e.g. LON) while flight segments use
-    different airports (e.g. LCY inbound, LHR outbound). Accept if the hotel
-    city matches either gap endpoint airport, or all three sit in the same metro.
+    Hotel city_code matches the gap between two segments when the hotel city resolves
+    to the same city as both the arrival airport and the departure airport (via
+    ``airport_city_codes``). Falls back to direct code equality when no mapping exists.
     """
     hc = str(hotel_city or "").upper().strip()
     aa = str(arrival_airport or "").upper().strip()
     da = str(departure_airport or "").upper().strip()
     if not hc or not aa or not da:
         return False
-    if hc in (aa, da):
-        return True
-    for group in _METRO_AIRPORT_GROUPS:
-        if aa in group and da in group and hc in group:
-            return True
-    return False
+    return _codes_same_city(acc, hc, aa) and _codes_same_city(acc, hc, da)
 
 
 def _offer_matches_trip_endpoints(
+    acc: dict[str, str],
     opt: dict[str, Any],
     start_origin: str,
     end_destination: str,
 ) -> bool:
-    """First departure and last arrival IATA match trip start/end (case-insensitive)."""
-    so = str(start_origin or "").upper().strip()
-    ed = str(end_destination or "").upper().strip()
+    """First departure and last arrival city match trip start/end (via airport_city_codes)."""
     itins = opt.get("itineraries")
     if not isinstance(itins, list) or not itins:
         return False
@@ -443,34 +510,41 @@ def _offer_matches_trip_endpoints(
         return False
     dep0 = _segment_dep_iata(segs0[0])
     arr1 = _segment_arr_iata(segs1[-1])
-    return dep0 == so and arr1 == ed
+    return _codes_same_city(acc, dep0, start_origin) and _codes_same_city(acc, arr1, end_destination)
 
 
-def _hotel_fits_between_first_two_trips(
+def _hotel_fits_itinerary_gap(
+    acc: dict[str, str],
     hg: dict[str, Any],
     opt: dict[str, Any],
+    gap_index: int,
 ) -> bool:
     """
-    Hotel covers the stay between trip 1 and 2: last arrival of itin 1 matches
-    check-in (date + city); first departure of itin 2 matches check-out (date + city).
+    Hotel covers the stay between ``itineraries[gap_index]`` and
+    ``itineraries[gap_index + 1]``: last arrival of the earlier itinerary matches
+    check-in (date + city); first departure of the later itinerary matches
+    check-out (date + city).  City comparison uses ``airport_city_codes``.
     """
     itins = opt.get("itineraries")
-    if not isinstance(itins, list) or len(itins) < 2:
+    if not isinstance(itins, list) or len(itins) < gap_index + 2:
         return False
-    it0 = itins[0]
-    it1 = itins[1]
-    if not isinstance(it0, dict) or not isinstance(it1, dict):
+    it_before = itins[gap_index]
+    it_after = itins[gap_index + 1]
+    if not isinstance(it_before, dict) or not isinstance(it_after, dict):
         return False
-    segs0 = it0.get("segments")
-    segs1 = it1.get("segments")
-    if not isinstance(segs0, list) or not segs0 or not isinstance(segs1, list) or not segs1:
+    segs_before = it_before.get("segments")
+    segs_after = it_after.get("segments")
+    if (
+        not isinstance(segs_before, list) or not segs_before
+        or not isinstance(segs_after, list) or not segs_after
+    ):
         return False
-    last0 = segs0[-1]
-    first1 = segs1[0]
-    arr_ap = _segment_arr_iata(last0)
-    dep_ap = _segment_dep_iata(first1)
-    arr_dt = _segment_arr_at(last0)
-    dep_dt = _segment_dep_at(first1)
+    last_seg = segs_before[-1]
+    first_seg = segs_after[0]
+    arr_ap = _segment_arr_iata(last_seg)
+    dep_ap = _segment_dep_iata(first_seg)
+    arr_dt = _segment_arr_at(last_seg)
+    dep_dt = _segment_dep_at(first_seg)
     if not arr_dt or not dep_dt:
         return False
     hc = str(hg.get("city_code", "")).upper().strip()
@@ -478,12 +552,13 @@ def _hotel_fits_between_first_two_trips(
     co = str(hg.get("check_out", "")).strip()
     if not hc or not ci or not co:
         return False
-    if not _hotel_city_matches_gap_airports(hc, arr_ap, dep_ap):
+    if not _hotel_city_matches_gap_airports(acc, hc, arr_ap, dep_ap):
         return False
     return _date_part(arr_dt) == _date_part(ci) and _date_part(dep_dt) == _date_part(co)
 
 
 def _enumerate_multi_trip_flight_only(
+    acc: dict[str, str],
     multi_fgs: list[dict[str, Any]],
     start_origin: str,
     end_destination: str,
@@ -497,7 +572,7 @@ def _enumerate_multi_trip_flight_only(
             o for o in opts
             if isinstance(o, dict)
             and _option_trip_count(o) >= 2
-            and _offer_matches_trip_endpoints(o, start_origin, end_destination)
+            and _offer_matches_trip_endpoints(acc, o, start_origin, end_destination)
         ]
         if not fitted:
             continue
@@ -511,26 +586,58 @@ def _enumerate_multi_trip_flight_only(
 
 
 def _enumerate_multi_trip_with_hotels(
+    acc: dict[str, str],
     multi_fgs: list[dict[str, Any]],
     hotel_groups: list[dict[str, Any]],
     start_origin: str,
     end_destination: str,
 ) -> list[dict[str, Any]]:
-    """One flight group (full multi-trip offer) + hotels slotted between itin 1 and 2."""
+    """
+    One flight group (full multi-trip offer) + hotels slotted into gaps between
+    consecutive itineraries.  For an option with N itineraries there are N-1 gaps;
+    each gap is independently matched against hotel groups, and the Cartesian
+    product of per-gap matches yields the composed trips.
+    """
     out: list[dict[str, Any]] = []
     for fg in multi_fgs:
         opts = fg.get("options", [])
         if not isinstance(opts, list):
             continue
-        for hg in hotel_groups:
-            if not isinstance(hg, dict):
-                continue
+        endpoint_ok = [
+            o for o in opts
+            if isinstance(o, dict)
+            and _option_trip_count(o) >= 2
+            and _offer_matches_trip_endpoints(acc, o, start_origin, end_destination)
+        ]
+        if not endpoint_ok:
+            continue
+
+        ref_opt = endpoint_ok[0]
+        n_gaps = _option_trip_count(ref_opt) - 1
+        if n_gaps < 1:
+            continue
+
+        hotels_per_gap: list[list[dict[str, Any]]] = []
+        for gi in range(n_gaps):
+            gap_hotels = [
+                hg for hg in hotel_groups
+                if isinstance(hg, dict)
+                and _hotel_fits_itinerary_gap(acc, hg, ref_opt, gi)
+            ]
+            hotels_per_gap.append(gap_hotels)
+
+        if not all(hotels_per_gap):
+            continue
+
+        for combo in itertools.product(*hotels_per_gap):
+            if len(out) >= _MAX_TRIPS:
+                return out
             fitted = [
-                o for o in opts
-                if isinstance(o, dict)
-                and _option_trip_count(o) >= 2
-                and _offer_matches_trip_endpoints(o, start_origin, end_destination)
-                and _hotel_fits_between_first_two_trips(hg, o)
+                o for o in endpoint_ok
+                if all(
+                    _hotel_fits_itinerary_gap(acc, combo[gi], o, gi)
+                    for gi in range(n_gaps)
+                )
             ]
             if not fitted:
                 continue
@@ -538,7 +645,7 @@ def _enumerate_multi_trip_with_hotels(
             out.append({
                 "trip_id": str(uuid.uuid4()),
                 "flights": [copy.deepcopy(row)],
-                "hotels": [copy.deepcopy(hg)],
+                "hotels": [copy.deepcopy(h) for h in combo],
             })
     return out
 
@@ -546,12 +653,16 @@ def _enumerate_multi_trip_with_hotels(
 _MAX_TRIPS = 500
 
 
-def _flight_edge_ok(last_fg: dict[str, Any], next_fg: dict[str, Any]) -> bool:
+def _flight_edge_ok(
+    acc: dict[str, str],
+    last_fg: dict[str, Any],
+    next_fg: dict[str, Any],
+) -> bool:
     """
-    Valid direct flight connection: A.to == B.from and
-    A.arrive_date <= B.depart_date (date-only).
+    Valid direct flight connection: A.to and B.from resolve to the same city
+    (via ``airport_city_codes``) and A.arrive_date <= B.depart_date (date-only).
     """
-    if str(last_fg.get("to", "")) != str(next_fg.get("from", "")):
+    if not _codes_same_city(acc, str(last_fg.get("to", "")), str(next_fg.get("from", ""))):
         return False
     arr_s = _date_part(last_fg.get("arrive_date", ""))
     dep_s = _date_part(next_fg.get("depart_date", ""))
@@ -566,13 +677,14 @@ def _flight_edge_ok(last_fg: dict[str, Any], next_fg: dict[str, Any]) -> bool:
 
 
 def _enumerate_flight_only_chains(
+    acc: dict[str, str],
     flight_groups: list[dict[str, Any]],
     start_origin: str,
     end_destination: str,
 ) -> list[dict[str, Any]]:
     """
-    When there is no hotel inventory: connect flights where A.to == B.from and
-    A.arrive_date <= B.depart_date (dates only). Hotels list is always empty.
+    When there is no hotel inventory: connect flights where A.to and B.from resolve
+    to the same city and A.arrive_date <= B.depart_date (dates only).
     """
     trips: list[dict[str, Any]] = []
 
@@ -582,7 +694,7 @@ def _enumerate_flight_only_chains(
 
         last_fg = chain_flights[-1]
         to_code = str(last_fg.get("to", ""))
-        if to_code == end_destination:
+        if _codes_same_city(acc, to_code, end_destination):
             trips.append({
                 "trip_id": str(uuid.uuid4()),
                 "flights": copy.deepcopy(chain_flights),
@@ -594,7 +706,7 @@ def _enumerate_flight_only_chains(
             nfg_id = id(nfg)
             if nfg_id in used_fg:
                 continue
-            if not _flight_edge_ok(last_fg, nfg):
+            if not _flight_edge_ok(acc, last_fg, nfg):
                 continue
             chain_flights.append(nfg)
             used_fg.add(nfg_id)
@@ -603,13 +715,14 @@ def _enumerate_flight_only_chains(
             used_fg.discard(nfg_id)
 
     for fg in flight_groups:
-        if str(fg.get("from", "")) == start_origin:
+        if _codes_same_city(acc, str(fg.get("from", "")), start_origin):
             _dfs([fg], {id(fg)})
 
     return trips
 
 
 def _enumerate_hybrid_chains(
+    acc: dict[str, str],
     flight_groups: list[dict[str, Any]],
     hotels_by_city_checkin: dict[tuple[str, str], list[dict[str, Any]]],
     flights_by_origin_date: dict[tuple[str, str], list[dict[str, Any]]],
@@ -618,12 +731,43 @@ def _enumerate_hybrid_chains(
 ) -> list[dict[str, Any]]:
     """
     When some stops have hotel inventory and some do not:
-    - If (arrival city, arrival date) has hotel groups: extend with flight → hotel → flight
+    - If (arrival city, arrival date) has hotel groups: extend with flight -> hotel -> flight
       (next flight departs on hotel check-out).
     - If there are no hotels for that stop: extend with the next flight only when
       _flight_edge_ok (same rules as flight-only mode).
+    City comparisons use ``airport_city_codes``.
     """
     trips: list[dict[str, Any]] = []
+
+    def _hotels_for_city_date(city: str, dt: str) -> list[dict[str, Any]]:
+        """Lookup hotels matching any code that resolves to the same city."""
+        resolved = _resolve_city(acc, city)
+        direct = hotels_by_city_checkin.get((city, dt), [])
+        if resolved and resolved != city:
+            direct = direct + hotels_by_city_checkin.get((resolved, dt), [])
+        seen: set[int] = set()
+        out: list[dict[str, Any]] = []
+        for h in direct:
+            hid = id(h)
+            if hid not in seen:
+                seen.add(hid)
+                out.append(h)
+        return out
+
+    def _flights_for_city_date(city: str, dt: str) -> list[dict[str, Any]]:
+        """Lookup flights departing from any code that resolves to the same city."""
+        resolved = _resolve_city(acc, city)
+        direct = flights_by_origin_date.get((city, dt), [])
+        if resolved and resolved != city:
+            direct = direct + flights_by_origin_date.get((resolved, dt), [])
+        seen: set[int] = set()
+        out: list[dict[str, Any]] = []
+        for f in direct:
+            fid = id(f)
+            if fid not in seen:
+                seen.add(fid)
+                out.append(f)
+        return out
 
     def _dfs(
         chain_flights: list[dict[str, Any]],
@@ -638,7 +782,7 @@ def _enumerate_hybrid_chains(
         to_code = str(last_fg.get("to", ""))
         arrive_date = _date_part(last_fg.get("arrive_date", ""))
 
-        if to_code == end_destination:
+        if _codes_same_city(acc, to_code, end_destination):
             trips.append({
                 "trip_id": str(uuid.uuid4()),
                 "flights": copy.deepcopy(chain_flights),
@@ -646,7 +790,7 @@ def _enumerate_hybrid_chains(
             })
             return
 
-        matching_hotels = hotels_by_city_checkin.get((to_code, arrive_date), [])
+        matching_hotels = _hotels_for_city_date(to_code, arrive_date)
 
         if matching_hotels:
             for hg in matching_hotels:
@@ -658,7 +802,7 @@ def _enumerate_hybrid_chains(
 
                 city_code = hg.get("city_code", "")
                 check_out = hg.get("check_out", "")
-                next_flights = flights_by_origin_date.get((city_code, check_out), [])
+                next_flights = _flights_for_city_date(city_code, check_out)
 
                 for nfg in next_flights:
                     nfg_id = id(nfg)
@@ -680,7 +824,7 @@ def _enumerate_hybrid_chains(
                 nfg_id = id(nfg)
                 if nfg_id in used_fg:
                     continue
-                if not _flight_edge_ok(last_fg, nfg):
+                if not _flight_edge_ok(acc, last_fg, nfg):
                     continue
                 chain_flights.append(nfg)
                 used_fg.add(nfg_id)
@@ -689,7 +833,7 @@ def _enumerate_hybrid_chains(
                 used_fg.discard(nfg_id)
 
     for fg in flight_groups:
-        if str(fg.get("from", "")) == start_origin:
+        if _codes_same_city(acc, str(fg.get("from", "")), start_origin):
             _dfs([fg], [], {id(fg)}, set())
 
     return trips
@@ -810,16 +954,21 @@ async def compose_trip(
         return {"trips": []}
 
     simple_fgs, multi_fgs = _partition_flight_groups(flight_groups)
+    acc = _merge_all_airport_city_codes(flight_groups)
+
+    multi_flight_only = _enumerate_multi_trip_flight_only(
+        acc, multi_fgs, start_origin, end_destination,
+    )
 
     if not hotel_groups:
         trips = (
-            _enumerate_flight_only_chains(simple_fgs, start_origin, end_destination)
-            + _enumerate_multi_trip_flight_only(multi_fgs, start_origin, end_destination)
+            _enumerate_flight_only_chains(acc, simple_fgs, start_origin, end_destination)
+            + multi_flight_only
         )
         mode = "flight_only"
     else:
         hotels_by_city_checkin, flights_by_origin_date = _build_indexes(
-            simple_fgs, hotel_groups,
+            acc, simple_fgs, hotel_groups,
         )
         logger.info(
             "Hotels by city check-in: %s",
@@ -829,12 +978,13 @@ async def compose_trip(
         logger.info("Flight groups: %s", [f"{fg['depart_date']} {fg['arrive_date']} {fg['from']} {fg['to']}" for fg in fg_out])
         trips = (
             _enumerate_hybrid_chains(
-                simple_fgs, hotels_by_city_checkin, flights_by_origin_date,
+                acc, simple_fgs, hotels_by_city_checkin, flights_by_origin_date,
                 start_origin, end_destination,
             )
             + _enumerate_multi_trip_with_hotels(
-                multi_fgs, hotel_groups, start_origin, end_destination,
+                acc, multi_fgs, hotel_groups, start_origin, end_destination,
             )
+            + multi_flight_only
         )
         mode = "hybrid"
 

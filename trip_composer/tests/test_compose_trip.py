@@ -406,7 +406,13 @@ class ComposeTripTest(unittest.IsolatedAsyncioTestCase):
         its = out["trips"]
         self.assertEqual(len(its), 1)
         self.assertEqual(len(its[0]["flights"]), 1)
-        self.assertEqual(len(its[0]["flights"][0]["options"][0]["itineraries"]), 2)
+        fg0 = its[0]["flights"][0]
+        self.assertEqual(len(fg0["options"][0]["itineraries"]), 2)
+        self.assertEqual(len(fg0["itinerary_legs"]), 2)
+        self.assertEqual(
+            set(fg0["itinerary_legs"][0].keys()),
+            {"depart", "arrive", "from", "to"},
+        )
         self.assertEqual(its[0]["hotels"], [])
 
     async def test_multi_trip_rt_hotel_between_trips(self) -> None:
@@ -469,11 +475,13 @@ class ComposeTripTest(unittest.IsolatedAsyncioTestCase):
         it = matched[0]
         self.assertEqual(it["hotels"][0]["city_code"], "LAX")
         self.assertEqual(len(it["flights"][0]["options"][0]["itineraries"]), 2)
+        self.assertEqual(len(it["flights"][0]["itinerary_legs"]), 2)
 
     async def test_multi_trip_london_metro_different_airports_hotel_lon(self) -> None:
         """
         Outbound arrives LCY, return departs LHR — hotel coded LON must still match the gap
         when check-in/out dates align with segment boundaries.
+        airport_city_codes maps LCY→LON, LHR→LON so all three resolve to the same city.
         """
         legs = [
             {"from": "ZRH", "to": "LON", "depart_dates": ["2026-05-15"]},
@@ -511,6 +519,11 @@ class ComposeTripTest(unittest.IsolatedAsyncioTestCase):
                     "from": "ZRH",
                     "to": "LON",
                     "options": [rt_offer],
+                    "airport_city_codes": {
+                        "ZRH": "ZRH",
+                        "LCY": "LON",
+                        "LHR": "LON",
+                    },
                 },
             ],
             hotels=[
@@ -527,6 +540,173 @@ class ComposeTripTest(unittest.IsolatedAsyncioTestCase):
         with_hotel = [it for it in its if len(it.get("hotels", [])) == 1]
         self.assertEqual(len(with_hotel), 1)
         self.assertEqual(with_hotel[0]["hotels"][0]["city_code"], "LON")
+
+
+    async def test_multi_trip_three_itineraries_hotels_in_both_gaps(self) -> None:
+        """
+        Multi-city offer with 3 itineraries (ZRH→LAX, LAX→NYC, NYC→ZRH) produces
+        2 gaps. Hotels in both gaps: LAX (gap 0) and NYC (gap 1).
+        """
+        legs = [
+            {"from": "ZRH", "to": "LAX", "depart_dates": ["2026-07-01"]},
+            {"from": "LAX", "to": "NYC", "depart_dates": ["2026-07-05"]},
+            {"from": "NYC", "to": "ZRH", "depart_dates": ["2026-07-10"]},
+        ]
+        mc_offer: dict[str, Any] = {
+            "type": "flight-offer",
+            "id": "mc-1",
+            "price": {"currency": "USD", "grandTotal": "1200", "total": "1200"},
+            "itineraries": [
+                {
+                    "segments": [
+                        {
+                            "departure": {"iataCode": "ZRH", "at": "2026-07-01T08:00:00"},
+                            "arrival": {"iataCode": "LAX", "at": "2026-07-01T18:00:00"},
+                        },
+                    ],
+                },
+                {
+                    "segments": [
+                        {
+                            "departure": {"iataCode": "LAX", "at": "2026-07-05T09:00:00"},
+                            "arrival": {"iataCode": "JFK", "at": "2026-07-05T17:00:00"},
+                        },
+                    ],
+                },
+                {
+                    "segments": [
+                        {
+                            "departure": {"iataCode": "JFK", "at": "2026-07-10T20:00:00"},
+                            "arrival": {"iataCode": "ZRH", "at": "2026-07-11T08:00:00"},
+                        },
+                    ],
+                },
+            ],
+        }
+        payload = _structured_payload(
+            legs=legs,
+            flights=[
+                {
+                    "depart_date": "2026-07-01",
+                    "arrive_date": "2026-07-11",
+                    "from": "ZRH",
+                    "to": "ZRH",
+                    "options": [mc_offer],
+                    "airport_city_codes": {
+                        "ZRH": "ZRH",
+                        "LAX": "LAX",
+                        "JFK": "NYC",
+                    },
+                },
+            ],
+            hotels=[
+                _hotel_group(
+                    city_code="LAX",
+                    check_in="2026-07-01",
+                    check_out="2026-07-05",
+                    total="400",
+                ),
+                _hotel_group(
+                    city_code="NYC",
+                    check_in="2026-07-05",
+                    check_out="2026-07-10",
+                    total="500",
+                ),
+            ],
+        )
+        out = await compose_trip(payload, exchange_rate_latest_url="")
+        its = out["trips"]
+        with_hotels = [it for it in its if len(it.get("hotels", [])) == 2]
+        self.assertEqual(len(with_hotels), 1)
+        it = with_hotels[0]
+        hotel_cities = [h["city_code"] for h in it["hotels"]]
+        self.assertEqual(hotel_cities, ["LAX", "NYC"])
+        self.assertEqual(len(it["flights"]), 1)
+        fg = it["flights"][0]
+        self.assertEqual(len(fg["itinerary_legs"]), 3)
+        self.assertEqual(fg["itinerary_legs"][0]["from"], "ZRH")
+        self.assertEqual(fg["itinerary_legs"][0]["to"], "LAX")
+        self.assertEqual(fg["itinerary_legs"][1]["from"], "LAX")
+        self.assertEqual(fg["itinerary_legs"][1]["to"], "JFK")
+        self.assertEqual(fg["itinerary_legs"][2]["from"], "JFK")
+        self.assertEqual(fg["itinerary_legs"][2]["to"], "ZRH")
+        summary = it["summary"]
+        self.assertEqual(summary["trip_start_date"], "2026-07-01")
+        self.assertEqual(summary["trip_end_date"], "2026-07-11")
+        self.assertEqual(summary["total_duration_days"], 10)
+
+    async def test_multi_trip_three_itineraries_partial_hotel_no_trip(self) -> None:
+        """
+        3-itinerary offer but hotel only in gap 0 (not gap 1) — no trip with hotels
+        should be produced (all gaps must be covered).
+        """
+        legs = [
+            {"from": "ZRH", "to": "LAX", "depart_dates": ["2026-07-01"]},
+            {"from": "LAX", "to": "NYC", "depart_dates": ["2026-07-05"]},
+            {"from": "NYC", "to": "ZRH", "depart_dates": ["2026-07-10"]},
+        ]
+        mc_offer: dict[str, Any] = {
+            "type": "flight-offer",
+            "id": "mc-2",
+            "price": {"currency": "USD", "grandTotal": "1200", "total": "1200"},
+            "itineraries": [
+                {
+                    "segments": [
+                        {
+                            "departure": {"iataCode": "ZRH", "at": "2026-07-01T08:00:00"},
+                            "arrival": {"iataCode": "LAX", "at": "2026-07-01T18:00:00"},
+                        },
+                    ],
+                },
+                {
+                    "segments": [
+                        {
+                            "departure": {"iataCode": "LAX", "at": "2026-07-05T09:00:00"},
+                            "arrival": {"iataCode": "JFK", "at": "2026-07-05T17:00:00"},
+                        },
+                    ],
+                },
+                {
+                    "segments": [
+                        {
+                            "departure": {"iataCode": "JFK", "at": "2026-07-10T20:00:00"},
+                            "arrival": {"iataCode": "ZRH", "at": "2026-07-11T08:00:00"},
+                        },
+                    ],
+                },
+            ],
+        }
+        payload = _structured_payload(
+            legs=legs,
+            flights=[
+                {
+                    "depart_date": "2026-07-01",
+                    "arrive_date": "2026-07-11",
+                    "from": "ZRH",
+                    "to": "ZRH",
+                    "options": [mc_offer],
+                    "airport_city_codes": {
+                        "ZRH": "ZRH",
+                        "LAX": "LAX",
+                        "JFK": "NYC",
+                    },
+                },
+            ],
+            hotels=[
+                _hotel_group(
+                    city_code="LAX",
+                    check_in="2026-07-01",
+                    check_out="2026-07-05",
+                    total="400",
+                ),
+            ],
+        )
+        out = await compose_trip(payload, exchange_rate_latest_url="")
+        its = out["trips"]
+        with_hotels = [it for it in its if len(it.get("hotels", [])) >= 1]
+        self.assertEqual(len(with_hotels), 0, "No trip should have hotels when not all gaps are covered")
+        flight_only = [it for it in its if len(it.get("hotels", [])) == 0]
+        self.assertEqual(len(flight_only), 1, "Flight-only trip should still be produced")
 
 
 if __name__ == "__main__":

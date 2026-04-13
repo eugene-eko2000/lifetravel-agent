@@ -235,6 +235,55 @@ def _append_option_to_groups(
         group_arrive_dt[key] = _date_part(arr_dt)
 
 
+def _collect_airport_codes_from_options(options: list[dict[str, Any]]) -> set[str]:
+    """All IATA airport codes appearing in departure/arrival across all itineraries."""
+    codes: set[str] = set()
+    for opt in options:
+        if not isinstance(opt, dict):
+            continue
+        itins = opt.get("itineraries")
+        if not isinstance(itins, list):
+            continue
+        for itin in itins:
+            if not isinstance(itin, dict):
+                continue
+            segs = itin.get("segments")
+            if not isinstance(segs, list):
+                continue
+            for seg in segs:
+                if not isinstance(seg, dict):
+                    continue
+                dep = seg.get("departure")
+                if isinstance(dep, dict):
+                    c = dep.get("iataCode")
+                    if isinstance(c, str) and c.strip():
+                        codes.add(c.strip().upper())
+                arr = seg.get("arrival")
+                if isinstance(arr, dict):
+                    c = arr.get("iataCode")
+                    if isinstance(c, str) and c.strip():
+                        codes.add(c.strip().upper())
+    return codes
+
+
+def _build_airport_city_codes(
+    airport_codes: set[str],
+    dictionaries: dict[str, Any],
+) -> dict[str, str]:
+    """Map airport IATA → city code using Amadeus ``dictionaries.locations``."""
+    locations = dictionaries.get("locations")
+    if not isinstance(locations, dict):
+        return {}
+    out: dict[str, str] = {}
+    for code in airport_codes:
+        loc = locations.get(code)
+        if isinstance(loc, dict):
+            cc = loc.get("cityCode")
+            if isinstance(cc, str) and cc.strip():
+                out[code] = cc.strip().upper()
+    return out
+
+
 def _extract_amadeus_dictionaries(raw: Any) -> dict[str, Any]:
     """
     Amadeus flight offers search returns dictionaries next to `data`, or under `data` in some shapes.
@@ -435,6 +484,10 @@ async def process_incoming_message(
             "to": destination,
             "options": opts,
         }
+        airport_codes = _collect_airport_codes_from_options(opts)
+        acc = _build_airport_city_codes(airport_codes, merged_flight_dictionaries)
+        if acc:
+            entry["airport_city_codes"] = acc
         meta = group_rt_meta.get(key)
         if meta:
             entry.update(meta)

@@ -231,6 +231,11 @@ In RabbitMQ transport, this object is wrapped as:
             "type": "array",
             "description": "Amadeus flight offers for this leg.",
             "items": { "type": "object" }
+          },
+          "airport_city_codes": {
+            "type": "object",
+            "description": "Airport IATA code → city code mapping for all airports appearing in this group's options (from Amadeus dictionaries.locations). Omitted when empty.",
+            "additionalProperties": { "type": "string" }
           }
         }
       }
@@ -278,7 +283,12 @@ In RabbitMQ transport, this object is wrapped as:
           "arrive_date": { "type": "string", "format": "date", "description": "Arrival date (YYYY-MM-DD) of the last segment." },
           "from": { "type": "string", "description": "IATA airport code of origin." },
           "to": { "type": "string", "description": "IATA airport code of destination." },
-          "options": { "type": "array", "items": { "type": "object" } }
+          "options": { "type": "array", "items": { "type": "object" } },
+          "airport_city_codes": {
+            "type": "object",
+            "description": "Airport IATA code → city code mapping (pass-through from flight inventory). Omitted when empty.",
+            "additionalProperties": { "type": "string" }
+          }
         }
       }
     },
@@ -366,7 +376,26 @@ output fields without duplicating them on `trip`.)
               "arrive_date": { "type": "string", "format": "date" },
               "from": { "type": "string" },
               "to": { "type": "string" },
-              "options": { "type": "array", "items": { "type": "object" } }
+              "options": { "type": "array", "items": { "type": "object" } },
+              "airport_city_codes": {
+                "type": "object",
+                "description": "Airport IATA code → city code mapping (pass-through from flight inventory). Omitted when empty.",
+                "additionalProperties": { "type": "string" }
+              },
+              "itinerary_legs": {
+                "type": "array",
+                "description": "One entry per itinerary in multi-itinerary offers (e.g. round trips). Omitted for single-itinerary groups.",
+                "items": {
+                  "type": "object",
+                  "required": ["depart", "arrive", "from", "to"],
+                  "properties": {
+                    "depart": { "type": "string", "description": "Departure datetime (ISO) of the first segment of this itinerary." },
+                    "arrive": { "type": "string", "description": "Arrival datetime (ISO) of the last segment of this itinerary." },
+                    "from": { "type": "string", "description": "IATA departure airport of this itinerary." },
+                    "to": { "type": "string", "description": "IATA arrival airport of this itinerary." }
+                  }
+                }
+              }
             }
           }
         },
@@ -476,7 +505,11 @@ In RabbitMQ transport:
           "description": "IATA code → display string from structured request; keys normalized to uppercase.",
           "additionalProperties": { "type": "string" }
         },
-        "flights": { "type": "array", "items": { "type": "object" } },
+        "flights": {
+          "type": "array",
+          "description": "Same shape as ComposedTripMessage flights; each flight group may include `airport_city_codes` and `itinerary_legs` (see ComposedTripMessage schema).",
+          "items": { "type": "object" }
+        },
         "hotels": { "type": "array", "items": { "type": "object" } },
         "summary": {
           "type": "object",

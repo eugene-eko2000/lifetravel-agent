@@ -21,6 +21,11 @@ def _round_trip_zrh_lon_fixture() -> dict:
         "to": "LON",
         "depart_date": "2026-05-12",
         "arrive_date": "2026-05-18",
+        "airport_city_codes": {
+            "ZRH": "ZRH",
+            "LCY": "LON",
+            "LHR": "LON",
+        },
         "options": [
             {
                 "itineraries": [
@@ -58,19 +63,12 @@ def _round_trip_zrh_lon_fixture() -> dict:
     }
 
 
-_LON_ROUND_TRIP_LEGS = [
-    {"from": "ZRH", "to": "LON"},
-    {"from": "LON", "to": "ZRH"},
-]
-
-
 class TestBuildStaysFromFlights(unittest.TestCase):
     def test_multi_trip_round_trip_london_metro(self) -> None:
         fg = _round_trip_zrh_lon_fixture()
         stays = [{"city_code": "LON", "duration": 0, "min_rooms": 1}]
-        trip = {"legs": _LON_ROUND_TRIP_LEGS}
         built = _build_stays_from_flight_groups(
-            [fg], stays, currency="CHF", travelers=2, trip=trip
+            [fg], stays, currency="CHF", travelers=2,
         )
         self.assertTrue(built, "expected at least one built stay for LON from LCY/LHR gap")
         self.assertTrue(any(s["city_code"] == "LON" for s in built))
@@ -85,12 +83,12 @@ class TestBuildStaysFromFlights(unittest.TestCase):
             "to": "LON",
             "depart_date": "2026-05-12",
             "arrive_date": "2026-05-18",
+            "airport_city_codes": {"ZRH": "ZRH"},
             "options": [],
         }
         stays = [{"city_code": "LON", "duration": 0, "min_rooms": 1}]
-        trip = {"legs": _LON_ROUND_TRIP_LEGS}
         built = _build_stays_from_flight_groups(
-            [fg], stays, currency="CHF", travelers=1, trip=trip
+            [fg], stays, currency="CHF", travelers=1,
         )
         self.assertEqual(built, [])
 
