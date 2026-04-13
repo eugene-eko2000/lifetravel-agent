@@ -902,6 +902,21 @@ def _build_locations_dictionary(payload: dict[str, Any]) -> dict[str, str]:
     return out
 
 
+def _has_structured_stays(payload: dict[str, Any]) -> bool:
+    """True when the structured request contains at least one stay entry."""
+    sr = payload.get("structured_request")
+    if not isinstance(sr, dict):
+        return False
+    output = sr.get("output", sr)
+    if not isinstance(output, dict):
+        return False
+    trip = output.get("trip")
+    if not isinstance(trip, dict):
+        return False
+    stays = trip.get("stays")
+    return isinstance(stays, list) and len(stays) > 0
+
+
 def _extract_flight_preferences_for_ranking(payload: dict[str, Any]) -> dict[str, Any]:
     """Copy trip-level flight preference fields from structured_request for downstream ranking."""
     sr = payload.get("structured_request")
@@ -987,6 +1002,17 @@ async def compose_trip(
             + multi_flight_only
         )
         mode = "hybrid"
+
+    if _has_structured_stays(payload):
+        before = len(trips)
+        trips = [t for t in trips if t.get("hotels")]
+        dropped = before - len(trips)
+        if dropped:
+            logger.info(
+                "Dropped %d trip(s) without hotels (structured request has stays, id=%s)",
+                dropped,
+                payload.get("id"),
+            )
 
     trip_currency = _extract_trip_currency(payload)
     prompt_id = _extract_prompt_id(payload)

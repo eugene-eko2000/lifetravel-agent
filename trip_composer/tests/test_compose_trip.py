@@ -162,7 +162,7 @@ class ComposeTripTest(unittest.IsolatedAsyncioTestCase):
                 {
                     "from": "BBB",
                     "to": "CCC",
-                    "depart_dates": ["2026-06-02"],
+                    "depart_dates": ["2026-06-03"],
                     "from_location": "Bravo City",
                     "to_location": "Charlie City",
                 },
@@ -180,11 +180,17 @@ class ComposeTripTest(unittest.IsolatedAsyncioTestCase):
                 _flight_group(
                     from_="BBB",
                     to="CCC",
-                    depart_date="2026-06-02",
-                    arrive_date="2026-06-02",
+                    depart_date="2026-06-03",
+                    arrive_date="2026-06-03",
                 ),
             ],
-            hotels=[],
+            hotels=[
+                _hotel_group(
+                    city_code="BBB",
+                    check_in="2026-06-01",
+                    check_out="2026-06-03",
+                ),
+            ],
         )
         out = await compose_trip(payload, exchange_rate_latest_url="")
         its = out.get("trips", [])
@@ -707,6 +713,68 @@ class ComposeTripTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(with_hotels), 0, "No trip should have hotels when not all gaps are covered")
         flight_only = [it for it in its if len(it.get("hotels", [])) == 0]
         self.assertEqual(len(flight_only), 1, "Flight-only trip should still be produced")
+
+
+    async def test_trips_without_hotels_dropped_when_stays_present(self) -> None:
+        """
+        When the structured request has stays, flight-only trips must be
+        dropped — only trips that include hotels survive.
+        """
+        payload = _structured_payload(
+            legs=[
+                {"from": "AAA", "to": "BBB", "depart_dates": ["2026-06-01"]},
+                {"from": "BBB", "to": "CCC", "depart_dates": ["2026-06-02"]},
+            ],
+            stays=[
+                {"city_code": "BBB", "city": "Bravo Town", "duration": 1},
+            ],
+            flights=[
+                _flight_group(
+                    from_="AAA",
+                    to="BBB",
+                    depart_date="2026-06-01",
+                    arrive_date="2026-06-01",
+                ),
+                _flight_group(
+                    from_="BBB",
+                    to="CCC",
+                    depart_date="2026-06-02",
+                    arrive_date="2026-06-02",
+                ),
+            ],
+            hotels=[],
+        )
+        out = await compose_trip(payload, exchange_rate_latest_url="")
+        self.assertEqual(out["trips"], [], "Flight-only trips should be dropped when stays are present")
+
+    async def test_trips_without_stays_keep_flight_only(self) -> None:
+        """
+        When the structured request has NO stays, flight-only trips are kept.
+        """
+        payload = _structured_payload(
+            legs=[
+                {"from": "AAA", "to": "BBB", "depart_dates": ["2026-06-01"]},
+                {"from": "BBB", "to": "CCC", "depart_dates": ["2026-06-02"]},
+            ],
+            flights=[
+                _flight_group(
+                    from_="AAA",
+                    to="BBB",
+                    depart_date="2026-06-01",
+                    arrive_date="2026-06-01",
+                ),
+                _flight_group(
+                    from_="BBB",
+                    to="CCC",
+                    depart_date="2026-06-02",
+                    arrive_date="2026-06-02",
+                ),
+            ],
+            hotels=[],
+        )
+        out = await compose_trip(payload, exchange_rate_latest_url="")
+        self.assertEqual(len(out["trips"]), 1)
+        self.assertEqual(out["trips"][0]["hotels"], [])
 
 
 if __name__ == "__main__":
