@@ -647,6 +647,364 @@ user-facing processing progress.
 }
 ```
 
+### 11) Amadeus flight payload (fields used by agent + web + mobile)
+
+The inventory and ranking services consume **Amadeus Flight Offers Search** response shapes (`data[]` offers). `trip_composer` reads segment-level endpoints and itineraries; `ranking_service` uses price, duration, stops, layovers, preferences, and fare details; `inventory_flight_service` groups offers and builds `airport_city_codes` from `dictionaries.locations`. The web/mobile trip UI (`tripFlightFormatting`, `TripFlights`, `tripDualPrice`, `tripShared`) formats segments, carriers, bags, and prices.
+
+The schema below is a **subset**: only fields that appear in code paths are listed. Optional **LifeTravel extensions** on the same objects are noted in descriptions (`_ranking`, `flight_kind`, `*_trip_currency`, etc.).
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lifetravel.ai/schemas/amadeus-flight-offer-subset.json",
+  "title": "AmadeusFlightOfferSubset",
+  "description": "Subset of Amadeus Flight Offers Search offer objects and related dictionaries as used across lifetravel-agent, lifetravel-frontend-web, and lifetravel-mobile.",
+  "type": "object",
+  "properties": {
+    "dictionaries": { "$ref": "#/$defs/FlightDictionaries" },
+    "data": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/FlightOffer" }
+    }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "FlightDictionaries": {
+      "type": "object",
+      "description": "Merged into provider `flight_dictionaries`; `locations` and `carriers` drive airport→city and airline names in UI.",
+      "properties": {
+        "locations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "cityCode": { "type": "string", "description": "City IATA used for airport_city_codes and locations_dictionary." },
+              "countryCode": { "type": "string" }
+            },
+            "additionalProperties": true
+          }
+        },
+        "carriers": {
+          "type": "object",
+          "additionalProperties": { "type": "string", "description": "IATA code → airline name (UI carrier lookup)." }
+        }
+      },
+      "additionalProperties": true
+    },
+    "FlightEndpoint": {
+      "type": "object",
+      "properties": {
+        "iataCode": { "type": "string" },
+        "at": { "type": "string", "description": "ISO-8601 local/datetime (segment dep/arr)." },
+        "terminal": { "type": "string" },
+        "cityName": { "type": "string" },
+        "city": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "FlightSegment": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Segment id; matched to fareDetailsBySegment.segmentId." },
+        "segmentId": { "type": "string" },
+        "duration": { "type": "string", "description": "ISO-8601 duration e.g. PT3H25M." },
+        "departure": { "$ref": "#/$defs/FlightEndpoint" },
+        "arrival": { "$ref": "#/$defs/FlightEndpoint" },
+        "carrierCode": { "type": "string" },
+        "number": { "type": ["string", "integer"] },
+        "operating": {
+          "type": "object",
+          "properties": { "carrierCode": { "type": "string" }, "carrier": { "type": "string" } },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    },
+    "FlightItinerary": {
+      "type": "object",
+      "properties": {
+        "duration": { "type": "string", "description": "ISO-8601 duration for whole itinerary (ranking/UI)." },
+        "segments": { "type": "array", "items": { "$ref": "#/$defs/FlightSegment" } }
+      },
+      "additionalProperties": true
+    },
+    "FlightPrice": {
+      "type": "object",
+      "description": "Amadeus price object; trip_composer adds parallel `*_trip_currency` string/number fields for converted amounts.",
+      "properties": {
+        "currency": { "type": "string" },
+        "grandTotal": { "type": ["string", "number"] },
+        "total": { "type": ["string", "number"] },
+        "base": { "type": ["string", "number"] },
+        "grandTotal_trip_currency": { "type": ["string", "number"], "description": "LifeTravel: converted grandTotal." },
+        "total_trip_currency": { "type": ["string", "number"], "description": "LifeTravel: converted total." },
+        "base_trip_currency": { "type": ["string", "number"], "description": "LifeTravel: converted base." }
+      },
+      "additionalProperties": true
+    },
+    "IncludedBags": {
+      "type": "object",
+      "properties": {
+        "quantity": { "type": ["integer", "number"] },
+        "weight": { "type": ["number", "string"] },
+        "maximumWeight": { "type": ["number", "string"] },
+        "maxWeight": { "type": ["number", "string"] },
+        "weightUnit": { "type": "string" },
+        "unit": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "FareDetailsBySegment": {
+      "type": "object",
+      "properties": {
+        "segmentId": { "type": "string" },
+        "cabin": { "type": "string" },
+        "includedCheckedBags": { "$ref": "#/$defs/IncludedBags" },
+        "checkedBags": { "$ref": "#/$defs/IncludedBags" },
+        "includedCabinBags": { "$ref": "#/$defs/IncludedBags" },
+        "cabinBags": { "$ref": "#/$defs/IncludedBags" }
+      },
+      "additionalProperties": true
+    },
+    "TravelerPricing": {
+      "type": "object",
+      "properties": {
+        "fareDetailsBySegment": { "type": "array", "items": { "$ref": "#/$defs/FareDetailsBySegment" } }
+      },
+      "additionalProperties": true
+    },
+    "PricingOptions": {
+      "type": "object",
+      "properties": {
+        "refundableFare": { "type": "boolean" },
+        "includedCheckedBagsOnly": { "type": "boolean" }
+      },
+      "additionalProperties": true
+    },
+    "FlightOffer": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "itineraries": { "type": "array", "items": { "$ref": "#/$defs/FlightItinerary" } },
+        "price": { "$ref": "#/$defs/FlightPrice" },
+        "travelerPricings": { "type": "array", "items": { "$ref": "#/$defs/TravelerPricing" } },
+        "pricingOptions": { "$ref": "#/$defs/PricingOptions" },
+        "flight_kind": { "type": "string", "description": "LifeTravel inventory: e.g. round_trip." },
+        "round_trip_pair_id": { "type": "string", "description": "LifeTravel inventory: correlation id for RT grouping." },
+        "_ranking": {
+          "type": "object",
+          "description": "LifeTravel ranking_service: score, stops, price, duration_minutes, eligible, ineligibility_reason, currency.",
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}
+```
+
+**Related grouped inventory fields** (not Amadeus-native; built in `inventory_flight_service` / `trip_composer`): flight group objects may include `depart_date`, `arrive_date`, `from`, `to`, `options` (array of `FlightOffer`), `airport_city_codes`, `itinerary_legs` (`depart`, `arrive`, `from`, `to` per itinerary), and round-trip metadata (`return_from`, `return_to`, `return_depart_date`).
+
+### 12) Amadeus hotel payload (fields used by agent + web + mobile)
+
+**Hotel List** (by city or geocode) supplies `data[].hotelId` and `data[].distance.value` for ordering. **Hotel Search / Booking** offers responses supply `data[]` hotel-offer objects with nested `hotel`, `offers[]`, room and policy details. `inventory_hotel_service` filters on `available` and enriches with `_stay`; `ranking_service` uses price, nights, `hotel` geo, `rating`, `amenities`, cancellation policy; web/mobile (`TripHotels`, `tripDualPrice`, `trip_hotels.dart`) mirror the same paths.
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lifetravel.ai/schemas/amadeus-hotel-offer-subset.json",
+  "title": "AmadeusHotelPayloadSubset",
+  "description": "Hotel List responses use $defs/HotelListResponse; Hotel Offers Search `data[]` items use $defs/HotelOffersDataItem.",
+  "type": "object",
+  "additionalProperties": true,
+  "$defs": {
+    "HotelListResponse": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "hotelId": { "type": "string" },
+              "distance": {
+                "type": "object",
+                "properties": { "value": { "type": "number" } },
+                "additionalProperties": true
+              }
+            },
+            "additionalProperties": true
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "HotelGeo": {
+      "type": "object",
+      "properties": {
+        "hotelId": { "type": "string" },
+        "name": { "type": "string" },
+        "chain": { "type": "string" },
+        "brand": { "type": "string" },
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" },
+        "rating": { "type": "number" },
+        "amenities": { "type": "array", "items": { "type": "string" } },
+        "city_code": { "type": "string" },
+        "cityCode": { "type": "string" },
+        "city": { "type": "string" },
+        "distance": {
+          "type": "object",
+          "properties": { "value": { "type": "number" } },
+          "additionalProperties": true
+        },
+        "check_in": { "type": "string" },
+        "check_out": { "type": "string" },
+        "checkIn": { "type": "string" },
+        "checkOut": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "HotelPrice": {
+      "type": "object",
+      "properties": {
+        "currency": { "type": "string" },
+        "grandTotal": { "type": ["string", "number"] },
+        "total": { "type": ["string", "number"] },
+        "base": { "type": ["string", "number"] },
+        "variations": {
+          "type": "object",
+          "properties": {
+            "average": {
+              "type": "object",
+              "properties": {
+                "total": { "type": ["string", "number"] },
+                "base": { "type": ["string", "number"] },
+                "total_trip_currency": { "description": "LifeTravel: converted." },
+                "base_trip_currency": { "description": "LifeTravel: converted." },
+                "total_itinerary_currency": { "description": "LifeTravel: synonym used in UI." },
+                "base_itinerary_currency": { "description": "LifeTravel: synonym used in UI." }
+              },
+              "additionalProperties": true
+            }
+          },
+          "additionalProperties": true
+        },
+        "total_trip_currency": { "type": ["string", "number"], "description": "LifeTravel: converted total." },
+        "grandTotal_trip_currency": { "type": ["string", "number"], "description": "LifeTravel: converted grandTotal." }
+      },
+      "additionalProperties": true
+    },
+    "RoomTypeEstimated": {
+      "type": "object",
+      "properties": {
+        "category": { "type": "string" },
+        "bedType": { "type": "string" },
+        "beds": { "type": "number" }
+      },
+      "additionalProperties": true
+    },
+    "HotelRoom": {
+      "type": "object",
+      "properties": {
+        "type": { "type": "string" },
+        "description": {
+          "type": "object",
+          "properties": { "text": { "type": "string" } },
+          "additionalProperties": true
+        },
+        "typeEstimated": { "$ref": "#/$defs/RoomTypeEstimated" }
+      },
+      "additionalProperties": true
+    },
+    "CancellationPolicy": {
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "description": "e.g. FULL_STAY, PARTIAL_STAY (ranking)." },
+        "deadline": { "type": "string" },
+        "numberOfNights": { "type": "number" },
+        "policyType": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "HotelPolicies": {
+      "type": "object",
+      "properties": {
+        "paymentType": { "type": "string" },
+        "refundable": {
+          "type": "object",
+          "properties": { "cancellationRefund": { "type": "string" } },
+          "additionalProperties": true
+        },
+        "cancellation": { "$ref": "#/$defs/CancellationPolicy" },
+        "cancellations": { "type": "array", "items": { "$ref": "#/$defs/CancellationPolicy" } },
+        "prepay": {
+          "type": "object",
+          "properties": {
+            "deadline": { "type": "string" },
+            "acceptedPayments": {
+              "type": "object",
+              "properties": {
+                "creditCards": { "type": "array", "items": { "type": "string" } },
+                "methods": { "type": "array", "items": { "type": "string" } }
+              },
+              "additionalProperties": true
+            }
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    },
+    "HotelRateOffer": {
+      "type": "object",
+      "properties": {
+        "checkInDate": { "type": "string" },
+        "checkOutDate": { "type": "string" },
+        "check_in": { "type": "string" },
+        "check_out": { "type": "string" },
+        "price": { "$ref": "#/$defs/HotelPrice" },
+        "guests": { "type": "object", "properties": { "adults": { "type": "number" } }, "additionalProperties": true },
+        "room": { "$ref": "#/$defs/HotelRoom" },
+        "roomInformation": {
+          "type": "object",
+          "properties": {
+            "description": { "type": "string" },
+            "type": { "type": "string" },
+            "typeEstimated": { "$ref": "#/$defs/RoomTypeEstimated" }
+          },
+          "additionalProperties": true
+        },
+        "policies": { "$ref": "#/$defs/HotelPolicies" },
+        "rateCode": { "type": "string" },
+        "rateFamilyEstimated": { "type": "object", "properties": { "code": { "type": "string" } }, "additionalProperties": true },
+        "commission": { "type": "object", "properties": { "percentage": { "type": ["number", "string"] } }, "additionalProperties": true }
+      },
+      "additionalProperties": true
+    },
+    "HotelOffersDataItem": {
+      "type": "object",
+      "properties": {
+        "available": { "type": "boolean" },
+        "error": {},
+        "errors": {},
+        "hotel": { "$ref": "#/$defs/HotelGeo" },
+        "offers": { "type": "array", "items": { "$ref": "#/$defs/HotelRateOffer" } },
+        "_stay": {
+          "type": "object",
+          "description": "LifeTravel inventory_hotel_service: city, city_code, check_in, check_out for the stay context."
+        },
+        "_ranking": {
+          "type": "object",
+          "description": "LifeTravel ranking_service: score, price_per_night, eligible, ineligibility_reason, currency; may include price_per_night_trip_currency, total_trip_currency, etc."
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}
+```
+
 ## Message Routing Table
 
 `exchange name` is configurable via `RABBITMQ_EXCHANGE` (default: `lifetravel_agent`) in all services.
