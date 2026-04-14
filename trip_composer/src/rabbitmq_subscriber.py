@@ -1,3 +1,4 @@
+import asyncio
 import copy
 import json
 import logging
@@ -19,6 +20,35 @@ _EMPTY_TRIP_MESSAGE = (
 )
 
 logger = logging.getLogger("trip_composer.rabbitmq_subscriber")
+
+_RECONNECT_DELAY_SEC = 0.1
+
+
+def _log_background_task(task: asyncio.Task[None]) -> None:
+    try:
+        exc = task.exception()
+    except asyncio.CancelledError:
+        return
+    if exc is not None:
+        logger.error(
+            "Background trip composer message task failed",
+            exc_info=(type(exc), exc, exc.__traceback__),
+        )
+
+
+async def _process_incoming_trip_message(
+    incoming: aio_pika.abc.AbstractIncomingMessage,
+    cfg: Cfg,
+    exchange: aio_pika.abc.AbstractExchange,
+) -> None:
+    async with incoming.process():
+        try:
+            incoming_payload = json.loads(incoming.body.decode("utf-8"))
+            await _handle_message(cfg, exchange, incoming_payload)
+        except Exception:
+            logger.exception(
+                "Failed to process incoming trip composer message"
+            )
 
 
 def _build_no_trips_payload(
@@ -133,24 +163,32 @@ async def run_subscriber() -> None:
         cfg.rabbitmq_queue_name,
     )
 
-    connection = await aio_pika.connect_robust(cfg.amqp_url)
-    async with connection:
-        channel = await connection.channel()
-        exchange = await channel.declare_exchange(
-            cfg.rabbitmq_exchange,
-            ExchangeType.DIRECT,
-            durable=True,
-        )
-        queue = await channel.declare_queue(cfg.rabbitmq_queue_name, durable=True)
-        await queue.bind(exchange, routing_key=cfg.rabbitmq_subscribe_routing_key)
+    while True:
+        try:
+            connection = await aio_pika.connect_robust(cfg.amqp_url)
+            async with connection:
+                channel = await connection.channel()
+                exchange = await channel.declare_exchange(
+                    cfg.rabbitmq_exchange,
+                    ExchangeType.DIRECT,
+                    durable=True,
+                )
+                queue = await channel.declare_queue(cfg.rabbitmq_queue_name, durable=True)
+                await queue.bind(exchange, routing_key=cfg.rabbitmq_subscribe_routing_key)
 
-        async with queue.iterator() as queue_iter:
-            async for incoming in queue_iter:
-                async with incoming.process():
-                    try:
-                        incoming_payload = json.loads(incoming.body.decode("utf-8"))
-                        await _handle_message(cfg, exchange, incoming_payload)
-                    except Exception:
-                        logger.exception(
-                            "Failed to process incoming trip composer message"
+                async with queue.iterator() as queue_iter:
+                    async for incoming in queue_iter:
+                        task = asyncio.create_task(
+                            _process_incoming_trip_message(
+                                incoming, cfg, exchange
+                            )
                         )
+                        task.add_done_callback(_log_background_task)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception(
+                "Trip composer subscriber connection or consumer loop failed; reconnecting in %s s",
+                _RECONNECT_DELAY_SEC,
+            )
+            await asyncio.sleep(_RECONNECT_DELAY_SEC)

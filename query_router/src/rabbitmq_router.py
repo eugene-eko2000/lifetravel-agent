@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import uuid
@@ -11,6 +12,34 @@ from llm_client import request_structured_trip
 
 logger = logging.getLogger("query_router.rabbitmq")
 
+_RECONNECT_DELAY_SEC = 0.1
+
+
+def _log_background_task(task: asyncio.Task[None]) -> None:
+    try:
+        exc = task.exception()
+    except asyncio.CancelledError:
+        return
+    if exc is not None:
+        logger.error(
+            "Background router message task failed",
+            exc_info=(type(exc), exc, exc.__traceback__),
+        )
+
+
+async def _process_single_incoming_message(
+    incoming: aio_pika.abc.AbstractIncomingMessage,
+    exchange: aio_pika.abc.AbstractExchange,
+    cfg: Cfg,
+) -> None:
+    async with incoming.process():
+        try:
+            await _handle_message(exchange, cfg, incoming.body)
+        except Exception:
+            logger.exception(
+                "Unhandled error while processing a RabbitMQ message; continuing"
+            )
+
 
 async def run_router() -> None:
     cfg = Cfg.from_env()
@@ -21,22 +50,34 @@ async def run_router() -> None:
         cfg.rabbitmq_publish_routing_key,
     )
 
-    connection = await aio_pika.connect_robust(cfg.amqp_url)
-    async with connection:
-        channel = await connection.channel()
-        exchange = await channel.declare_exchange(
-            cfg.rabbitmq_exchange,
-            ExchangeType.DIRECT,
-            durable=True,
-        )
+    while True:
+        try:
+            connection = await aio_pika.connect_robust(cfg.amqp_url)
+            async with connection:
+                channel = await connection.channel()
+                exchange = await channel.declare_exchange(
+                    cfg.rabbitmq_exchange,
+                    ExchangeType.DIRECT,
+                    durable=True,
+                )
 
-        queue = await channel.declare_queue(cfg.rabbitmq_queue_name, durable=True)
-        await queue.bind(exchange, routing_key=cfg.rabbitmq_subscribe_routing_key)
+                queue = await channel.declare_queue(cfg.rabbitmq_queue_name, durable=True)
+                await queue.bind(exchange, routing_key=cfg.rabbitmq_subscribe_routing_key)
 
-        async with queue.iterator() as queue_iter:
-            async for incoming in queue_iter:
-                async with incoming.process():
-                    await _handle_message(exchange, cfg, incoming.body)
+                async with queue.iterator() as queue_iter:
+                    async for incoming in queue_iter:
+                        task = asyncio.create_task(
+                            _process_single_incoming_message(incoming, exchange, cfg)
+                        )
+                        task.add_done_callback(_log_background_task)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception(
+                "RabbitMQ router connection or consumer loop failed; reconnecting in %s s",
+                _RECONNECT_DELAY_SEC,
+            )
+            await asyncio.sleep(_RECONNECT_DELAY_SEC)
 
 
 async def _handle_message(
