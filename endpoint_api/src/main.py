@@ -363,7 +363,13 @@ if __name__ == "__main__":
     try:
         cfg = Cfg.from_env()
         logger.info("Starting Endpoint API service on port %s", cfg.endpoint_port)
-        uvicorn.run(app, host="0.0.0.0", port=cfg.endpoint_port)
+        # RFC 7692: WebSocket permessage-deflate (negotiated on handshake; clients may opt in).
+        uvicorn.run(
+            app,
+            host="0.0.0.0",
+            port=cfg.endpoint_port,
+            ws_per_message_deflate=True,
+        )
     except Exception:
         logger.exception("Service failed to start")
         raise
