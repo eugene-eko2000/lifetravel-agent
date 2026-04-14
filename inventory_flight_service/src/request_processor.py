@@ -6,6 +6,7 @@ import uuid
 from collections import defaultdict
 from typing import Any, Awaitable, Callable
 
+from amadeus_scrub import scrub_flight_dictionaries, scrub_flight_offer
 from amadeus_sender import AmadeusSender
 from cfg import Cfg
 from request_translator import translate_trip_request_to_amadeus_requests
@@ -422,7 +423,7 @@ async def process_incoming_message(
 
         result, dict_chunk = proc_item
         merged_flight_dictionaries = _merge_amadeus_dictionaries(
-            merged_flight_dictionaries, dict_chunk
+            merged_flight_dictionaries, scrub_flight_dictionaries(dict_chunk) if dict_chunk else {}
         )
 
         if translated.get("type") not in ("flight", "flight_roundtrip"):
@@ -457,7 +458,7 @@ async def process_incoming_message(
                     dest_o,
                     origin_r,
                     dest_r,
-                    opt_full,
+                    scrub_flight_offer(opt_full),
                 )
             continue
 
@@ -469,7 +470,7 @@ async def process_incoming_message(
             dep_dt = _option_depart_dt(opt)
             arr_dt = _option_arrive_dt(opt)
             key: GroupKey = (origin, destination, _date_part(dep_dt), _date_part(arr_dt))
-            groups[key].append(opt)
+            groups[key].append(scrub_flight_offer(opt))
             if key not in group_depart_dt and dep_dt:
                 group_depart_dt[key] = _date_part(dep_dt)
                 group_arrive_dt[key] = _date_part(arr_dt)

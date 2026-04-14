@@ -7,6 +7,7 @@ from collections import defaultdict
 from datetime import datetime
 from typing import Any, Awaitable, Callable
 
+from amadeus_scrub import scrub_flight_dictionaries, scrub_hotel_offer
 from amadeus_sender import AmadeusSender
 from cfg import Cfg
 from debug_messages import DebugPublisher, emit_debug_message
@@ -526,7 +527,7 @@ async def _fetch_hotels_for_request(
             "check_in": check_in,
             "check_out": check_out,
         }
-        enriched.append(offer_copy)
+        enriched.append(scrub_hotel_offer(offer_copy))
     return enriched
 
 
@@ -606,5 +607,5 @@ async def process_incoming_message(
     if isinstance(pfr, dict):
         d = pfr.get("flight_dictionaries")
         if isinstance(d, dict) and d:
-            out["flight_dictionaries"] = copy.deepcopy(d)
+            out["flight_dictionaries"] = scrub_flight_dictionaries(copy.deepcopy(d))
     return out
