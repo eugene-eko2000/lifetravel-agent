@@ -17,10 +17,9 @@ StatusPublisher = Callable[[str], Awaitable[None]]
 
 
 class _ProgressTracker:
-    """Asyncio-safe counter that publishes a status message after each increment."""
+    """Asyncio-safe counter that publishes a short status (``Flights: <n>``) after each increment."""
 
-    def __init__(self, total: int, status_publisher: StatusPublisher | None) -> None:
-        self._total = total
+    def __init__(self, status_publisher: StatusPublisher | None) -> None:
         self._done = 0
         self._lock = asyncio.Lock()
         self._status_publisher = status_publisher
@@ -32,9 +31,7 @@ class _ProgressTracker:
         if self._status_publisher is None:
             return
         try:
-            await self._status_publisher(
-                f"Fetching flight options: {done}/{self._total} requests processed."
-            )
+            await self._status_publisher(f"Flights: {done}")
         except Exception:
             logger.warning("Failed to publish flight progress status", exc_info=True)
 
@@ -380,7 +377,7 @@ async def process_incoming_message(
     flight_requests = [
         x for x in translated_requests if x.get("type") in ("flight", "flight_roundtrip")
     ]
-    tracker = _ProgressTracker(len(flight_requests), status_publisher)
+    tracker = _ProgressTracker(status_publisher)
 
     async def _tracked(translated: dict[str, Any]) -> Any:
         try:

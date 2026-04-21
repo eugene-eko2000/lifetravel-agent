@@ -17,14 +17,9 @@ StatusPublisher = Callable[[str], Awaitable[None]]
 
 
 class _ProgressTracker:
-    """Asyncio-safe counter that publishes a status message after each increment."""
+    """Asyncio-safe counter that publishes a short status (``Hotels: <n>``) after each increment."""
 
-    def __init__(
-        self,
-        total: int | None,
-        status_publisher: StatusPublisher | None,
-    ) -> None:
-        self._total = total
+    def __init__(self, status_publisher: StatusPublisher | None) -> None:
         self._done = 0
         self._lock = asyncio.Lock()
         self._status_publisher = status_publisher
@@ -36,14 +31,7 @@ class _ProgressTracker:
         if self._status_publisher is None:
             return
         try:
-            if self._total is not None:
-                await self._status_publisher(
-                    f"Fetching hotel options: {done}/{self._total} requests processed."
-                )
-            else:
-                await self._status_publisher(
-                    f"Fetching hotel options: {done} requests processed."
-                )
+            await self._status_publisher(f"Hotels: {done}")
         except Exception:
             logger.warning("Failed to publish hotel progress status", exc_info=True)
 
@@ -555,7 +543,7 @@ async def process_incoming_message(
     cache: dict[str, list[dict[str, Any]]] = {}
     HotelGroupKey = tuple[str, str, str]
     hotel_groups: dict[HotelGroupKey, list[dict[str, Any]]] = {}
-    progress_tracker = _ProgressTracker(None, status_publisher)
+    progress_tracker = _ProgressTracker(status_publisher)
     for stay in stays_for_hotels:
         try:
             req = _build_hotel_request(stay, cfg)
