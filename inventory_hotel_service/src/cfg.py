@@ -2,14 +2,14 @@ import os
 from dataclasses import dataclass
 
 
-def _parse_amadeus_interval_between_queries() -> float | None:
-    """Minimum seconds between Amadeus HTTP calls in this service; unset => no limit."""
-    raw = os.getenv("AMADEUS_INTERVAL_BETWEEN_QUERIES", "").strip()
+def _parse_maximum_requests_per_second() -> int | None:
+    """Max Amadeus HTTP calls per second in this process; unset or non-positive => no cap."""
+    raw = os.getenv("AMADEUS_MAXIMUM_REQUESTS_PER_SECOND", "").strip()
     if not raw:
         return None
     try:
-        v = float(raw)
-        return v if v > 0 else None
+        n = int(raw)
+        return n if n > 0 else None
     except ValueError:
         return None
 
@@ -41,8 +41,7 @@ class Cfg:
     amadeus_hotels_list_url: str
     amadeus_hotels_list_by_geocode_url: str
     amadeus_hotels_offers_url: str
-    amadeus_interval_between_queries: float | None
-    amadeus_429_max_attempts: int
+    maximum_requests_per_second: int | None
     amadeus_token_url: str
     amadeus_hotel_offers_max_chunk_size: int
     amadeus_max_hotel_offers: int | None
@@ -92,8 +91,7 @@ class Cfg:
                 "AMADEUS_HOTELS_OFFERS_URL",
                 "https://test.api.amadeus.com/v3/shopping/hotel-offers",
             ),
-            amadeus_interval_between_queries=_parse_amadeus_interval_between_queries(),
-            amadeus_429_max_attempts=int(os.getenv("AMADEUS_429_MAX_ATTEMPTS", "6")),
+            maximum_requests_per_second=_parse_maximum_requests_per_second(),
             amadeus_token_url=os.getenv(
                 "AMADEUS_TOKEN_URL",
                 "https://test.api.amadeus.com/v1/security/oauth2/token",

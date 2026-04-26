@@ -5,7 +5,7 @@ import logging
 import aio_pika
 from aio_pika import ExchangeType
 
-from amadeus_interval import AmadeusQueryInterval
+from amadeus_interval import AmadeusRequestRateLimit
 from amadeus_sender import AmadeusSender
 from cfg import Cfg
 from rabbitmq_publisher import (
@@ -89,13 +89,10 @@ async def _process_hotel_incoming(
 
 async def run_inventory_hotel_subscriber() -> None:
     cfg = Cfg.from_env()
-    query_interval: AmadeusQueryInterval | None = None
-    if (
-        cfg.amadeus_interval_between_queries is not None
-        and cfg.amadeus_interval_between_queries > 0
-    ):
-        query_interval = AmadeusQueryInterval(cfg.amadeus_interval_between_queries)
-    sender = AmadeusSender(cfg, query_interval=query_interval)
+    request_rate_limit: AmadeusRequestRateLimit | None = None
+    if cfg.maximum_requests_per_second is not None and cfg.maximum_requests_per_second > 0:
+        request_rate_limit = AmadeusRequestRateLimit(cfg.maximum_requests_per_second)
+    sender = AmadeusSender(cfg, request_rate_limit=request_rate_limit)
 
     logger.info(
         "Starting inventory hotel RabbitMQ subscriber "

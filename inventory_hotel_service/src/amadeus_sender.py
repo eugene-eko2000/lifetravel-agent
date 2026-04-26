@@ -1,9 +1,8 @@
-import asyncio
 from typing import Any, Awaitable, Callable
 
 import httpx
 
-from amadeus_interval import AmadeusQueryInterval
+from amadeus_interval import AmadeusRequestRateLimit
 from cfg import Cfg
 from debug_messages import DebugPublisher, emit_debug_message
 
@@ -15,11 +14,11 @@ class AmadeusSender:
         self,
         cfg: Cfg | None = None,
         *,
-        query_interval: AmadeusQueryInterval | None = None,
+        request_rate_limit: AmadeusRequestRateLimit | None = None,
     ) -> None:
         self._cfg = cfg or Cfg.from_env()
         self._bearer_token: str | None = None
-        self._query_interval = query_interval
+        self._request_rate_limit = request_rate_limit
 
     async def _get_amadeus_bearer_token(self) -> str:
         if self._bearer_token:
@@ -37,8 +36,8 @@ class AmadeusSender:
         }
         headers = {"Content-Type": "application/x-www-form-urlencoded"}
 
-        if self._query_interval is not None:
-            await self._query_interval.wait_before_query()
+        if self._request_rate_limit is not None:
+            await self._request_rate_limit.acquire()
 
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
@@ -70,12 +69,21 @@ class AmadeusSender:
         merged_headers["Authorization"] = f"Bearer {token}"
 
         async with httpx.AsyncClient(timeout=30.0) as client:
-            max_attempts = max(1, int(self._cfg.amadeus_429_max_attempts))
-            backoff_seconds = 1.0
-            last_response: httpx.Response | None = None
-            for attempt in range(1, max_attempts + 1):
-                if self._query_interval is not None:
-                    await self._query_interval.wait_before_query()
+            if self._request_rate_limit is not None:
+                await self._request_rate_limit.acquire()
+            response = await client.request(
+                method=method,
+                url=url,
+                params=params,
+                json=json_payload,
+                headers=merged_headers,
+            )
+            if response.status_code == 401:
+                self._bearer_token = None
+                refreshed_token = await self._get_amadeus_bearer_token()
+                merged_headers["Authorization"] = f"Bearer {refreshed_token}"
+                if self._request_rate_limit is not None:
+                    await self._request_rate_limit.acquire()
                 response = await client.request(
                     method=method,
                     url=url,
@@ -83,34 +91,8 @@ class AmadeusSender:
                     json=json_payload,
                     headers=merged_headers,
                 )
-                last_response = response
-
-                if response.status_code == 401:
-                    self._bearer_token = None
-                    refreshed_token = await self._get_amadeus_bearer_token()
-                    merged_headers["Authorization"] = f"Bearer {refreshed_token}"
-                    if self._query_interval is not None:
-                        await self._query_interval.wait_before_query()
-                    response = await client.request(
-                        method=method,
-                        url=url,
-                        params=params,
-                        json=json_payload,
-                        headers=merged_headers,
-                    )
-                    last_response = response
-
-                if response.status_code == 429 and attempt < max_attempts:
-                    await asyncio.sleep(backoff_seconds)
-                    backoff_seconds *= 2.0
-                    continue
-
-                response.raise_for_status()
-                return response.json()
-
-            if last_response is not None:
-                last_response.raise_for_status()
-            raise ValueError("Amadeus request failed without response")
+            response.raise_for_status()
+            return response.json()
 
     async def send_hotels_list(
         self,
@@ -167,7 +149,7 @@ class AmadeusSender:
                     headers=headers,
                 )
             except Exception as error:
-                # Published after internal 429 retries (and other failures) in _authorized_request.
+                # Published on failure from _authorized_request (e.g. HTTP 429).
                 payload: dict[str, Any] = {}
                 if debug_extra:
                     payload.update(debug_extra)

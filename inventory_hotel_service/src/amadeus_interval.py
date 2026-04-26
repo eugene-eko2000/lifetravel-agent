@@ -1,26 +1,34 @@
-"""Global minimum interval between Amadeus API HTTP calls (per service process)."""
+"""Global cap on Amadeus API HTTP call rate (per service process)."""
 
 from __future__ import annotations
 
 import asyncio
+from collections import deque
 
 
-class AmadeusQueryInterval:
-    """Serializes Amadeus traffic: at least ``interval_seconds`` between consecutive queries."""
+class AmadeusRequestRateLimit:
+    """
+    At most ``max_per_second`` HTTP calls per rolling 1.0s window.
+    When the limit is reached, callers wait until a slot opens (asyncio.Lock + deque of timestamps).
+    """
 
-    __slots__ = ("_interval_sec", "_lock", "_next_allowed_ts")
+    __slots__ = ("_lock", "_max", "_timestamps")
 
-    def __init__(self, interval_seconds: float) -> None:
-        if interval_seconds <= 0:
-            raise ValueError("interval_seconds must be positive")
-        self._interval_sec = float(interval_seconds)
+    def __init__(self, max_per_second: int) -> None:
+        if max_per_second <= 0:
+            raise ValueError("max_per_second must be positive")
+        self._max = int(max_per_second)
         self._lock = asyncio.Lock()
-        self._next_allowed_ts = 0.0
+        self._timestamps: deque[float] = deque()
 
-    async def wait_before_query(self) -> None:
-        async with self._lock:
-            now = asyncio.get_running_loop().time()
-            if now < self._next_allowed_ts:
-                await asyncio.sleep(self._next_allowed_ts - now)
-            now = asyncio.get_running_loop().time()
-            self._next_allowed_ts = now + self._interval_sec
+    async def acquire(self) -> None:
+        while True:
+            async with self._lock:
+                now = asyncio.get_running_loop().time()
+                while self._timestamps and self._timestamps[0] <= now - 1.0:
+                    self._timestamps.popleft()
+                if len(self._timestamps) < self._max:
+                    self._timestamps.append(now)
+                    return
+                wait = self._timestamps[0] + 1.0 - now
+            await asyncio.sleep(max(wait, 0.0))
