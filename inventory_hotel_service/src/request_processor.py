@@ -540,10 +540,11 @@ async def process_incoming_message(
     stays_for_hotels = _build_stays_from_flight_groups(
         source_flights, stays, currency, travelers,
     )
-    cache: dict[str, list[dict[str, Any]]] = {}
     HotelGroupKey = tuple[str, str, str]
     hotel_groups: dict[HotelGroupKey, list[dict[str, Any]]] = {}
     progress_tracker = _ProgressTracker(status_publisher)
+    stay_with_cache_keys: list[tuple[dict[str, Any], str]] = []
+    unique_key_to_req: dict[str, dict[str, Any]] = {}
     for stay in stays_for_hotels:
         try:
             req = _build_hotel_request(stay, cfg)
@@ -557,15 +558,29 @@ async def process_incoming_message(
             )
             continue
         cache_key = _stay_cache_key(req)
-        if cache_key not in cache:
-            cache[cache_key] = await _fetch_hotels_for_request(
-                sender,
-                cfg,
-                req,
-                request_id,
-                debug_publisher,
-                progress_tracker=progress_tracker,
+        stay_with_cache_keys.append((stay, cache_key))
+        if cache_key not in unique_key_to_req:
+            unique_key_to_req[cache_key] = req
+
+    cache: dict[str, list[dict[str, Any]]] = {}
+    if unique_key_to_req:
+        unique_keys = list(unique_key_to_req.keys())
+        fetch_results = await asyncio.gather(
+            *(
+                _fetch_hotels_for_request(
+                    sender,
+                    cfg,
+                    unique_key_to_req[k],
+                    request_id,
+                    debug_publisher,
+                    progress_tracker=progress_tracker,
+                )
+                for k in unique_keys
             )
+        )
+        cache = dict(zip(unique_keys, fetch_results))
+
+    for stay, cache_key in stay_with_cache_keys:
         city_code = str(stay.get("city_code", "")).strip().upper()
         group_key: HotelGroupKey = (city_code, stay["check_in"], stay["check_out"])
         if group_key not in hotel_groups:
