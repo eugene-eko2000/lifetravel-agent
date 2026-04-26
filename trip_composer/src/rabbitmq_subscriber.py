@@ -16,7 +16,7 @@ from rabbitmq_publisher import (
 )
 
 _EMPTY_TRIP_MESSAGE = (
-    "No trip found for your request, please refine your request."
+    "No trip found for your request, please change your criteria."
 )
 
 logger = logging.getLogger("trip_composer.rabbitmq_subscriber")
